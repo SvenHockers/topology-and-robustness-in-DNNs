@@ -1,0 +1,5 @@
+# NOTE: If you add any dependensies (packages) to the project please define them here in the same manner. 
+#       Add them by providing the package name and version in the same syntax, this way we can keep dependensies managable between memebers
+
+numpy == 2.2.0
+matplotlib == 3.10.0

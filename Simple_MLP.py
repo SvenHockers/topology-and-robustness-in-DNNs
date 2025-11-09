@@ -6,7 +6,7 @@ import tensorflow as tf
 NUM_CLASSES = 10 # Number of classes in MNIST
 
 # MLP
-inputs = tf.keras.Input(shape=(28, 28), name="input") # <--- Specifys input shape, needs to be chnaged for our point cloud (shape=(Points, Dimensions))
+inputs = tf.keras.Input(shape=(28, 28), name="input") # <--- Specifies input shape, needs to be chnaged for our point cloud (shape=(Points, Dimensions))
 x = tf.keras.layers.Flatten(name="flatten")(inputs) # <--- Flattens the input (order-sensitive), for point cloud we should use somethign else (mean/std pooling)
 x = tf.keras.layers.Dense(128, activation="relu", name="dense_1")(x)
 x = tf.keras.layers.Dense(64, activation="relu", name="dense_2")(x)
@@ -28,4 +28,5 @@ history = model.fit(
 
 test_loss, test_acc = model.evaluate(x_test, y_test, verbose=0)
 print(f"Test loss: {test_loss:.4f} | Test accuracy: {test_acc:.4f}")
+
 

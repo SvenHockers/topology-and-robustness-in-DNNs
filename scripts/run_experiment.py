@@ -1,20 +1,20 @@
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from topology_dnn import (
-    GiottoPointCloudDataset,
-    SimplePointCNN,
-    SimplePointMLP,
-    analyze_layer_topology,
+from src.data import GiottoPointCloudDataset, make_point_clouds
+from src.models import SimplePointCNN, SimplePointMLP
+from src.topology import analyze_layer_topology, visualize_layer_topology
+from src.attacks import (
     find_min_adversarial_perturbation_iterative,
     find_one_correct_sample_of_class,
-    make_point_clouds,
-    show_some_predictions,
-    train_one_epoch,
-    evaluate,
-    visualize_layer_topology,
+)
+from src.training import show_some_predictions, train_one_epoch, evaluate
+from src.visualization import (
     visualize_sample_diagrams,
     plot_original_vs_adversarial,
     plot_torus_wireframe_compare,

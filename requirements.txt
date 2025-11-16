@@ -1,8 +1,10 @@
 # NOTE: If you add any dependensies (packages) to the project please define them here in the same manner. 
 #       Add them by providing the package name and version in the same syntax, this way we can keep dependensies managable between memebers
 
-numpy == 2.2.0
+# numpy == 2.2.0 let other packages handle numpy versioning
 matplotlib == 3.10.0
 ipykernel == 7.1.0
 scikit-tda == 1.1.1
 giotto-tda == 0.6.2
+PyYAML == 6.0.2
+torch == 2.9.1

@@ -29,6 +29,7 @@ from .report import (
     save_hist_png,
     save_layer_distance_bar,
 )
+from ..topology import compute_layer_topology, extract_persistence_stats
 
 
 class RobustnessPipeline:

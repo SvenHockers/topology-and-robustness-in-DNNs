@@ -19,9 +19,12 @@ from src.visualization import (
     plot_original_vs_adversarial,
     plot_torus_wireframe_compare,
 )
+from src.plot_style import use_exploratory_style
 
 
 def main():
+    # Exploratory style for local experimentation/visualization
+    use_exploratory_style()
     print("Generating point clouds...")
     point_clouds, labels = make_point_clouds(n_samples_per_shape=50, n_points=20, noise=0.1)
     print(f"Generated {len(point_clouds)} point clouds")

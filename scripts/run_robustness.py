@@ -9,6 +9,7 @@ import logging
 import warnings
 
 from src.config import RobustnessConfig
+from src.plot_style import use_paper_style
 
 
 def parse_args():
@@ -66,6 +67,8 @@ def main():
     )
 
     args = parse_args()
+    # Apply paper style once for all figures generated in this run
+    use_paper_style()
     cfg = RobustnessConfig.from_yaml(args.config)
     # CLI overrides
     if args.checkpoint:

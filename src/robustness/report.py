@@ -6,6 +6,18 @@ import csv
 import json
 import os
 import numpy as np
+from typing import cast
+from matplotlib.axes import Axes
+from ..plot_style import (
+    new_figure,
+    setup_axes,
+    setup_bar_axes,
+    setup_heatmap_axes,
+    setup_line_axes,
+    setup_scatter_axes,
+    setup_violin_axes,
+	get_heatmap_cmap,
+)
 
 
 @dataclass
@@ -86,45 +98,53 @@ def write_csv(records: List[Dict[str, Any]], path: str) -> None:
 
 
 def save_curve_png(xs: List[float], ys: List[float], title: str, path: str) -> None:
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(xs, ys, marker="o")
-    plt.title(title)
-    plt.xlabel("epsilon")
-    plt.ylabel("robust accuracy")
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    ax.plot(xs, ys, marker="o")
+    # Use LaTeX for epsilon
+    setup_line_axes(ax, xlabel=r"$\epsilon$", ylabel="Robust accuracy", title=title.replace("epsilon", r"$\epsilon$"))
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_hist_png(values: List[float], title: str, path: str, bins: int = 30) -> None:
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.hist([v for v in values if v is not None and not np.isnan(v)], bins=bins, alpha=0.8)
-    plt.title(title)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    clean_vals = [v for v in values if v is not None and not np.isnan(v)]
+    ax.hist(clean_vals, bins=bins, alpha=0.8)
+    # Build a LaTeX-safe title. If both eps* and a norm are present, compose a single math block to avoid nested $...$.
+    t_low = title.lower()
+    has_eps = "eps" in t_low or "epsilon" in t_low
+    norm_label = None
+    if "linf" in t_low or "l_inf" in t_low:
+        norm_label = r"\ell_\infty"
+    elif "l2" in t_low or "l_2" in t_low:
+        norm_label = r"\ell_2"
+    if has_eps and norm_label is not None:
+        latex_title = rf"$\epsilon^\star\ ({norm_label})$"
+    elif has_eps:
+        latex_title = r"$\epsilon^\star$"
+    else:
+        latex_title = title
+    # Axis labels
+    xlabel = r"$\epsilon^\star$" if has_eps else None
+    setup_axes(ax, xlabel=xlabel, ylabel="Count", title=latex_title)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_layer_distance_bar(avg_by_layer: Dict[str, float], title: str, path: str) -> None:
-    import matplotlib.pyplot as plt
     layers = list(avg_by_layer.keys())
     vals = [avg_by_layer[k] for k in layers]
-    plt.figure(figsize=(max(6, len(layers)), 4))
-    plt.bar(layers, vals)
-    plt.title(title)
-    plt.xticks(rotation=45, ha="right")
-    plt.grid(True, axis="y", alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="custom", figsize=(max(6, len(layers)), 4))
+    ax = cast(Axes, ax)
+    ax.bar(layers, vals)
+    setup_bar_axes(ax, title=title, rotate_xticks=True, rotation=45.0)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_betti_counts_bar(layerwise_records: List[LayerwiseRecord], H: int, path: str, title: str | None = None) -> None:
-    import matplotlib.pyplot as plt
     from collections import defaultdict
     agg = defaultdict(list)
     for r in layerwise_records:
@@ -134,14 +154,12 @@ def save_betti_counts_bar(layerwise_records: List[LayerwiseRecord], H: int, path
         return
     layers = sorted(agg.keys())
     vals = [float(sum(agg[l]) / max(len(agg[l]), 1)) for l in layers]
-    plt.figure(figsize=(max(6, len(layers)), 4))
-    plt.bar(layers, vals, color="tab:blue" if H == 0 else "tab:orange")
-    plt.title(title or f"Average Betti H{H} counts per layer")
-    plt.xticks(rotation=45, ha="right")
-    plt.grid(True, axis="y", alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="custom", figsize=(max(6, len(layers)), 4))
+    ax = cast(Axes, ax)
+    ax.bar(layers, vals)
+    setup_bar_axes(ax, title=(title or f"Average Betti $H_{{{H}}}$ counts per layer"), rotate_xticks=True, rotation=45.0)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_distance_heatmap(
@@ -151,7 +169,6 @@ def save_distance_heatmap(
     path: str,
     title: Optional[str] = None,
 ) -> None:
-    import matplotlib.pyplot as plt
     from collections import defaultdict, OrderedDict
     # aggregate mean distance per (condition, layer)
     agg: Dict[Tuple[str, str], List[float]] = defaultdict(list)
@@ -170,20 +187,22 @@ def save_distance_heatmap(
         return
     layers = sorted(layers_set)
     conds = sorted(conds_set)
-    M = np.zeros((len(conds), len(layers)))
+    M: np.ndarray = np.zeros((len(conds), len(layers)))
     for i, c in enumerate(conds):
         for j, l in enumerate(layers):
             vals = agg.get((c, l), [])
             M[i, j] = np.mean(vals) if vals else np.nan
-    plt.figure(figsize=(max(6, 1.2 * len(layers)), max(4, 0.6 * len(conds))))
-    im = plt.imshow(M, aspect="auto", interpolation="nearest", cmap="viridis")
-    plt.colorbar(im, fraction=0.046, pad=0.04)
-    plt.xticks(range(len(layers)), layers, rotation=45, ha="right")
-    plt.yticks(range(len(conds)), conds)
-    plt.title(title or f"{metric} H{H} distances (mean)")
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="custom", figsize=(max(6, 1.2 * len(layers)), max(4, 0.6 * len(conds))))
+    ax = cast(Axes, ax)
+    im = ax.imshow(M, aspect="auto", interpolation="nearest", cmap=get_heatmap_cmap("sequential"))
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    ax.set_xticks(range(len(layers)))
+    ax.set_xticklabels(layers)
+    ax.set_yticks(range(len(conds)))
+    ax.set_yticklabels(conds)
+    setup_heatmap_axes(ax, title=(title or f"{metric} $H_{H}$ distances (mean)"), rotate_xticks=True, rotation=45.0)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_distance_heatmap_normalized(
@@ -193,7 +212,6 @@ def save_distance_heatmap_normalized(
     path: str,
     title: Optional[str] = None,
 ) -> None:
-    import matplotlib.pyplot as plt
     from collections import defaultdict
     # mean noise floor per layer
     noise: Dict[str, List[float]] = defaultdict(list)
@@ -207,7 +225,7 @@ def save_distance_heatmap_normalized(
     conds = sorted({r.condition for r in diagdist_records if r.condition != "noise_floor"})
     if not layers or not conds:
         return
-    M = np.full((len(conds), len(layers)), np.nan, dtype=float)
+    M: np.ndarray = np.full((len(conds), len(layers)), np.nan, dtype=float)
     for i, c in enumerate(conds):
         for j, l in enumerate(layers):
             vals = [r.distance for r in diagdist_records if r.metric == metric and r.H == H and r.layer == l and r.condition == c]
@@ -216,21 +234,22 @@ def save_distance_heatmap_normalized(
                 v = float(np.mean(vals))
                 v = max(0.0, v - noise_mean.get(l, 0.0))  # subtract noise floor
                 M[i, j] = v
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(max(6, 1.2 * len(layers)), max(4, 0.6 * len(conds))))
-    im = plt.imshow(M, aspect="auto", interpolation="nearest", cmap="magma")
-    plt.colorbar(im, fraction=0.046, pad=0.04)
-    plt.xticks(range(len(layers)), layers, rotation=45, ha="right")
-    plt.yticks(range(len(conds)), conds)
+    fig, ax = new_figure(kind="custom", figsize=(max(6, 1.2 * len(layers)), max(4, 0.6 * len(conds))))
+    ax = cast(Axes, ax)
+    im = ax.imshow(M, aspect="auto", interpolation="nearest", cmap=get_heatmap_cmap("sequential"))
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    ax.set_xticks(range(len(layers)))
+    ax.set_xticklabels(layers)
+    ax.set_yticks(range(len(conds)))
+    ax.set_yticklabels(conds)
     # annotate
     for i in range(M.shape[0]):
         for j in range(M.shape[1]):
             if not np.isnan(M[i, j]):
-                plt.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
-    plt.title(title or f"{metric} H{H} (mean minus noise floor)")
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+                ax.text(j, i, f"{M[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
+    setup_heatmap_axes(ax, title=(title or f"{metric} $H_{H}$ (mean minus noise floor)"), rotate_xticks=True, rotation=45.0)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_scatter_eps_vs_distance(
@@ -243,7 +262,6 @@ def save_scatter_eps_vs_distance(
     condition_prefix: Optional[str] = None,
     path: str = "scatter_eps_vs_distance.png",
 ) -> None:
-    import matplotlib.pyplot as plt
     # pick conditions that match e.g., adv_linf_eps=...
     cond_prefix = condition_prefix or f"adv_{norm}_eps="
     # Map distances per sample_id for this layer and conditions
@@ -273,16 +291,21 @@ def save_scatter_eps_vs_distance(
     if len(X) < 3 or np.std(X) == 0 or np.std(Y) == 0:
         rho = float("nan")
     else:
-        rho = float(np.corrcoef(X, Y)[0, 1])
-    plt.figure()
-    plt.scatter(Xj, Yj, s=14, alpha=0.7)
-    plt.xlabel(f"eps* ({norm})"); plt.ylabel(f"{metric} H{H} distance @ {layer}")
+        C = cast(np.ndarray, np.corrcoef(X, Y))
+        rho = float(C[0, 1])
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    ax.scatter(Xj, Yj, s=14, alpha=0.7)
     title_txt = f"eps* vs distance (r={rho:.2f})" if not np.isnan(rho) else "eps* vs distance (no variation)"
-    plt.title(title_txt)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(path, dpi=150, bbox_inches="tight")
-    plt.close()
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    setup_scatter_axes(
+        ax,
+        xlabel=rf"$\epsilon^\star$ ({norm_label})",
+        ylabel=rf"{metric} $H_{H}$ distance @ {layer}",
+        title=title_txt.replace("eps*", r"$\epsilon^\star$"),
+    )
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def best_signal_layerH(
@@ -325,7 +348,6 @@ def save_distance_curves_with_ci(
     Plot mean ± 95% CI distance vs epsilon for top-k layers with largest mean distance.
     Uses conditions adv_{norm}_eps=x.
     """
-    import matplotlib.pyplot as plt
     from collections import defaultdict
     # collect eps grid
     eps_vals = sorted({
@@ -360,7 +382,8 @@ def save_distance_curves_with_ci(
     if not selected:
         return
     # plot
-    plt.figure(figsize=(7, 4))
+    fig, ax = new_figure(kind="custom", figsize=(7, 4))
+    ax = cast(Axes, ax)
     for layer in selected:
         means, cis = [], []
         for eps in eps_vals:
@@ -374,17 +397,20 @@ def save_distance_curves_with_ci(
             means.append(m)
             cis.append(ci95)
         means = np.array(means); cis = np.array(cis)
-        plt.plot(eps_vals, means, marker="o", label=layer)
+        ax.plot(eps_vals, means, marker="o", label=layer)
         # CI as shaded area
         if not np.all(np.isnan(cis)):
-            plt.fill_between(eps_vals, means - cis, means + cis, alpha=0.15)
-    plt.xlabel(f"epsilon ({norm})"); plt.ylabel(f"{metric} H{H}")
-    plt.title(f"Distance vs epsilon (top-{top_k_layers} layers)")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
+            ax.fill_between(eps_vals, means - cis, means + cis, alpha=0.15)
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    setup_line_axes(
+        ax,
+        xlabel=rf"$\epsilon$ ({norm_label})",
+        ylabel=rf"{metric} $H_{H}$",
+        title=rf"Distance vs $\epsilon$ (top-{top_k_layers} layers)",
+    )
+    ax.legend()
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 def save_violin_distance_by_layer(
@@ -395,7 +421,6 @@ def save_violin_distance_by_layer(
     pick: str = "max",  # "max" picks largest eps; or provide specific eps float as str
     output_path: str = "violin_distance_by_layer.png",
 ) -> None:
-    import matplotlib.pyplot as plt
     from collections import defaultdict
     # choose condition
     eps_all = sorted({
@@ -417,14 +442,34 @@ def save_violin_distance_by_layer(
         return
     layers = sorted(by_layer.keys())
     data = [by_layer[l] for l in layers]
-    plt.figure(figsize=(max(6, 1.2 * len(layers)), 4))
-    plt.violinplot(data, showmeans=True, showextrema=False)
-    plt.xticks(range(1, len(layers) + 1), layers, rotation=45, ha="right")
-    plt.ylabel(f"{metric} H{H} @ eps={eps_pick}")
-    plt.title("Distance distribution by layer")
-    plt.grid(True, axis="y", alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
+    fig, ax = new_figure(kind="custom", figsize=(max(6, 1.2 * len(layers)), 4))
+    ax = cast(Axes, ax)
+    ax.violinplot(data, showmeans=True, showextrema=False)
+    ax.set_xticks(range(1, len(layers) + 1))
+    ax.set_xticklabels(layers)
+    setup_violin_axes(
+        ax,
+        ylabel=rf"{metric} $H_{H}$ @ $\epsilon$={eps_pick}",
+        title="Distance distribution by layer",
+        rotate_xticks=True,
+        rotation=45.0,
+    )
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+# ---------------------------
+# Internal utility
+# ---------------------------
+def plt_close(fig=None):
+    """Utility: close a figure without relying on global plt state."""
+    try:
+        import matplotlib.pyplot as _plt
+        if fig is not None:
+            _plt.close(fig)
+        else:
+            _plt.close()
+    except Exception:
+        pass
 
 

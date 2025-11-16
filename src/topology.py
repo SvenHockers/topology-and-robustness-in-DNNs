@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,7 +8,38 @@ from persim import plot_diagrams
 from ripser import ripser
 
 
-def compute_layer_topology(activations: torch.Tensor | np.ndarray, sample_size: int = 100, maxdim: int = 1):
+def _preprocess_points(points: np.ndarray, normalize: str, pca_dim: Optional[int]) -> np.ndarray:
+    """
+    points: (num_points, num_features)
+    normalize: 'none' | 'zscore' | 'l2'
+    pca_dim: reduce features via SVD to pca_dim if provided
+    """
+    X = points
+    if normalize == "zscore":
+        mu = X.mean(axis=0, keepdims=True)
+        sigma = X.std(axis=0, keepdims=True) + 1e-12
+        X = (X - mu) / sigma
+    elif normalize == "l2":
+        norms = np.linalg.norm(X, ord=2, axis=1, keepdims=True) + 1e-12
+        X = X / norms
+    if pca_dim is not None and pca_dim > 0 and X.shape[1] > pca_dim:
+        # SVD-based PCA
+        Xc = X - X.mean(axis=0, keepdims=True)
+        # economy SVD
+        U, S, Vt = np.linalg.svd(Xc, full_matrices=False)
+        Vt_k = Vt[:pca_dim, :]
+        X = Xc @ Vt_k.T
+    return X
+
+
+def compute_layer_topology(
+    activations: torch.Tensor | np.ndarray,
+    sample_size: int = 100,
+    maxdim: int = 1,
+    normalize: str = "none",
+    pca_dim: Optional[int] = None,
+    bootstrap_repeats: int = 1,
+) -> Optional[List[np.ndarray]]:
     """
     Compute persistence diagrams for layer activations.
 
@@ -18,7 +49,8 @@ def compute_layer_topology(activations: torch.Tensor | np.ndarray, sample_size: 
         maxdim: maximum homology dimension
 
     Returns:
-        Persistence diagram list as returned by ripser
+        Persistence diagram list as returned by ripser (for the last bootstrap); if bootstrap>1,
+        caller should aggregate externally or call this multiple times.
     """
     # Convert to numpy
     if isinstance(activations, torch.Tensor):
@@ -34,18 +66,24 @@ def compute_layer_topology(activations: torch.Tensor | np.ndarray, sample_size: 
     else:
         raise ValueError(f"Unexpected activation shape: {activations.shape}")
 
-    # Subsample if too many points
-    if len(activations) > sample_size:
-        indices = np.random.choice(len(activations), sample_size, replace=False)
-        activations = activations[indices]
-
-    # Compute persistence
-    try:
-        result = ripser(activations, maxdim=maxdim)
-        return result['dgms']
-    except Exception as e:
-        print(f"Error computing persistence: {e}")
-        return None
+    # Bootstrap repeats: return last; typical use is multiple calls for noise-floor or averaging
+    dgm_last = None
+    for _ in range(max(1, bootstrap_repeats)):
+        X = activations
+        # Subsample if too many points
+        if len(X) > sample_size:
+            indices = np.random.choice(len(X), sample_size, replace=False)
+            X = X[indices]
+        # Normalize / PCA
+        X = _preprocess_points(X, normalize=normalize, pca_dim=pca_dim)
+        # Compute persistence
+        try:
+            result = ripser(X, maxdim=maxdim)
+            dgm_last = result['dgms']
+        except Exception as e:
+            print(f"Error computing persistence: {e}")
+            dgm_last = None
+    return dgm_last
 
 
 def extract_persistence_stats(dgm) -> Dict[str, float]:
@@ -61,12 +99,22 @@ def extract_persistence_stats(dgm) -> Dict[str, float]:
             stats[f'H{dim}_mean_persistence'] = 0.0
             stats[f'H{dim}_max_persistence'] = 0.0
             stats[f'H{dim}_total_persistence'] = 0.0
+            stats[f'H{dim}_entropy'] = 0.0
         else:
             persistence = finite_dgm[:, 1] - finite_dgm[:, 0]
             stats[f'H{dim}_count'] = float(len(finite_dgm))
             stats[f'H{dim}_mean_persistence'] = float(np.mean(persistence))
             stats[f'H{dim}_max_persistence'] = float(np.max(persistence))
             stats[f'H{dim}_total_persistence'] = float(np.sum(persistence))
+            # Persistent entropy
+            L = persistence
+            total = float(np.sum(L))
+            if total > 0:
+                p = (L / total).clip(min=1e-12)
+                entropy = float(-np.sum(p * np.log(p)))
+            else:
+                entropy = 0.0
+            stats[f'H{dim}_entropy'] = entropy
 
     return stats
 

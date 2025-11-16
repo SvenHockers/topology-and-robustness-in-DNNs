@@ -1,0 +1,229 @@
+# =====================================================================
+# Robustness pipeline - Annotated configuration template
+# ---------------------------------------------------------------------
+# This YAML controls the end-to-end run in scripts/run_robustness.py.
+# It generates a dataset, trains/loads a model, runs probes, computes
+# layerwise topology on activations, and writes metrics/plots.
+#
+# Tips:
+# - Start with default.yaml or viz_test.yaml and tweak a few keys here.
+# - Keys are validated and some stringified numbers are auto-coerced.
+# - Paths are relative to repo root; run the script from the repo root.
+# =====================================================================
+
+# -----------------------
+# Global run parameters
+# -----------------------
+general:
+  # Random seed for numpy/torch and sampling procedures
+  seed: 42
+
+  # A logical name for this experiment; used in output folder path
+  exp_name: "mlp_baseline"
+
+  # Device selection: "auto" picks CUDA if available, else CPU
+  # Options: "auto" | "cpu" | "cuda"
+  device: "auto"
+
+  # Root directory for outputs (CSVs, plots, model checkpoint)
+  output_dir: "outputs/robustness/mlp_baseline"
+
+  # Optional: cap the number of validation samples processed by probes
+  # Use this to iterate faster (e.g., 50) and disable when finalizing
+  sample_limit: null
+
+# -----------------------
+# Synthetic dataset
+# -----------------------
+data:
+  # Number of samples per shape class (circle, sphere, torus)
+  n_samples_per_shape: 200
+
+  # Spatial resolution for shapes (points per axis); total points ~ n_points^2
+  n_points: 20
+
+  # Additive uniform noise magnitude in [0, 1]; try 0.05..0.2
+  noise: 0.1
+
+  # Train/validation split fraction for validation
+  val_split: 0.2
+
+  # Mini-batch size for training and validation dataloaders
+  batch_size: 32
+
+# -----------------------
+# Model and training
+# -----------------------
+model:
+  # Backbone choices:
+  # - "MLP": per-point MLP + global pooling
+  # - "CNN": PointNet-like 1D convs + global pooling
+  arch: "MLP"
+
+  # Whether to train a fresh model; set false to only load a checkpoint
+  train: true
+
+  # Number of epochs when train=true; for quick iteration, 5..20
+  epochs: 20
+
+  # Learning rate for Adam optimizer
+  lr: 1e-3
+
+  # Optional path to a checkpoint (.pth). If provided and exists, training is skipped.
+  checkpoint: null
+
+# -----------------------
+# Probes (robustness experiments)
+# -----------------------
+probes:
+  # ---- Adversarial (white-box) PGD probes ----
+  adversarial:
+    # Enable/disable all adversarial probes
+    enabled: true
+
+    # Attack norms to evaluate: list of "linf" and/or "l2"
+    norms: ["linf", "l2"]
+
+    # Maximum radius considered when searching for minimal epsilon (eps*)
+    eps_max: 1.0
+
+    # Inner PGD steps per epsilon; more steps → stronger attack
+    steps: 40
+
+    # Tolerance for outer bisection on epsilon; smaller → more precise, slower
+    tol: 1e-3
+
+    # Whether to do outer bisection search for eps* (recommended)
+    outer_bisect: true
+
+    # Grid of epsilons for robust accuracy curves (RA@epsilon)
+    eps_grid: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]
+
+  # ---- Geometric robustness probes ----
+  geometric:
+    # Enable/disable all geometric threshold searches (per-sample)
+    enabled: true
+
+    # Tolerance for bisection threshold (smaller → more precise)
+    tol: 1e-3
+
+    # Rotation parameters (degrees)
+    rotation:
+      # Axes to sweep over: any subset of ["x","y","z"]
+      axes: ["z"]
+      # Range of rotation angles to search (start, end) in degrees
+      deg_range: [-45, 45]
+
+    # Translation parameters
+    translation:
+      # Axes to sweep over: any subset of ["x","y","z"]
+      axes: ["x", "y", "z"]
+      # Range to search (start, end)
+      range: [-0.2, 0.2]
+
+    # Jitter (Gaussian) parameters
+    jitter:
+      # Standard deviation range to search (start, end)
+      std_range: [0.0, 0.2]
+      # Optional clipping for injected noise (useful to limit outliers)
+      clip: 0.5
+
+    # Point dropout parameters
+    dropout:
+      # Ratio range to search (start, end); 0.3 means 30% points dropped
+      ratio_range: [0.0, 0.5]
+
+  # ---- Interpolation probes ----
+  interpolation:
+    # Enable/disable searching for alpha* along interpolations between clouds
+    enabled: true
+
+    # Number of pairs per class to evaluate (higher → more robust statistics)
+    pairs_per_class: 20
+
+    # Point correspondence strategy:
+    # - "index": requires same N and uses index-wise interpolation
+    # - "nn": nearest-neighbor (slower; not implemented by default in this repo)
+    match: "index"
+
+    # Steps for coarse scan before bisection refinements
+    steps: 50
+
+    # Whether to include cross-class pairs (disabled by default)
+    cross_class: false
+
+  # ---- Topology (TDA) settings ----
+  topology:
+    # Enable/disable computing persistence diagrams and stats
+    enabled: true
+
+    # Compute diagrams at all (turn off if only using cached stats)
+    compute_dgm: true
+
+    # Maximum homology dimension to compute (0=H0, 1=H1, 2=H2, ...)
+    maxdim: 1
+
+    # Number of activation points to use (subsample if more)
+    sample_size: 200
+
+    # Preprocessing for stability and comparability across layers:
+    # - "none": raw activations
+    # - "zscore": per-feature standardization
+    # - "l2": per-point L2 normalization
+    normalize: "zscore"
+
+    # Optional PCA dimensionality (SVD) before TDA; set null to disable
+    pca_dim: 16
+
+    # Reserved for future: aggregate multiple batches before TDA
+    batches_for_topology: 1
+
+    # Bootstrap repeats: compute diagrams multiple times with re-sampling
+    bootstrap_repeats: 1
+
+  # ---- Layerwise topology comparison ----
+  layerwise_topology:
+    # Enable/disable per-layer distances/stats between clean and perturbed activations
+    enabled: true
+
+    # Which layers to analyze; names must match model.layer_outputs keys
+    # For MLP: ["input","fc1","fc2","fc3","pooled"]
+    # For CNN: ["input","conv1","conv2","conv3","pooled"]
+    layers: ["input", "fc1", "fc2", "fc3", "pooled"]
+
+    # Diagram distance metrics to compute between clean and perturbed diagrams
+    # Options: "wasserstein", "bottleneck"
+    distances: ["wasserstein"]
+
+    # TDA parameters for the comparison (can differ from probes.topology)
+    maxdim: 1
+    sample_size: 200
+
+    # Which conditions (and parameter values) to compare against clean
+    # adv_*_eps entries trigger adversarial comparisons; others may be added similarly.
+    conditions:
+      # Compute distances at these L∞ radii
+      adv_linf_eps: [0.2, 0.4]
+      # Compute distances at these L2 radii (optional)
+      adv_l2_eps: []
+      # Example of geometric sensitivity captures:
+      # rotation_deg: [10, 20]
+      # jitter_std: [0.05]
+
+# -----------------------
+# Reporting options
+# -----------------------
+reporting:
+  # Write CSVs: metrics.csv, layerwise_topology.csv, diagram_distances.csv
+  save_csv: true
+
+  # Produce plots (curves, heatmaps, bars, violins, scatters, sample diagrams)
+  save_plots: true
+
+  # Store additional artifacts (e.g., per-sample adversarial examples) if implemented
+  save_artifacts: false
+
+  # Number of sample point clouds per class to visualize with persistence diagrams
+  sample_visualizations_per_class: 3
+
+

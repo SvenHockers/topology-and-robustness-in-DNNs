@@ -5,3 +5,4 @@ numpy == 2.2.0
 matplotlib == 3.10.0
 ipykernel == 7.1.0
 scikit-tda == 1.1.1
+giotto-tda == 0.6.2

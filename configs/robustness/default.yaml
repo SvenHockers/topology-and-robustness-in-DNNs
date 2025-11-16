@@ -1,7 +1,9 @@
-seed: 42
-exp_name: mlp_baseline
-device: auto
-output_dir: outputs/robustness/mlp_baseline
+general:
+  seed: 42
+  exp_name: mlp_baseline
+  device: auto
+  output_dir: outputs/robustness/mlp_baseline
+  style: "default"
 
 data:
   n_samples_per_shape: 200

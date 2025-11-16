@@ -6,6 +6,7 @@ import json
 import shutil
 from datetime import datetime
 import logging
+import warnings
 
 from src.config import RobustnessConfig
 
@@ -58,6 +59,12 @@ def log_versions(out_dir: str):
 
 
 def main():
+    warnings.filterwarnings(
+        "ignore",
+        message="The input point cloud has more columns than rows; did you mean to transpose?",
+        module="ripser.ripser",
+    )
+
     args = parse_args()
     cfg = RobustnessConfig.from_yaml(args.config)
     # CLI overrides
@@ -74,7 +81,6 @@ def main():
     setup_logger(out_dir)
     log_versions(out_dir)
 
-    # lazy import to keep CLI fast
     from src.robustness.pipeline import RobustnessPipeline
 
     pipeline = RobustnessPipeline(cfg, out_dir)

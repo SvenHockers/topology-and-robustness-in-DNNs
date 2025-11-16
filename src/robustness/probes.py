@@ -293,7 +293,7 @@ def compare_layer_topology(
                     dist_val = float("nan")
                 else:
                     if metric == "wasserstein":
-                        dist_val = float(wasserstein(A, B, matching=False, order=1))
+                        dist_val = float(wasserstein(A, B, matching=False))
                     elif metric == "bottleneck":
                         dist_val = float(bottleneck(A, B)[0])
                     else:

@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from persim import plot_diagrams
 from ripser import ripser
+from .plot_style import new_figure
 
 
 def _preprocess_points(points: np.ndarray, normalize: str, pca_dim: Optional[int]) -> np.ndarray:
@@ -181,7 +182,7 @@ def visualize_layer_topology(model, data_loader, device, model_name: str):
         layer_names = [k for k in model.layer_outputs.keys() if k != 'output']
         n_layers = len(layer_names)
 
-        fig, axes = plt.subplots(2, n_layers, figsize=(4 * n_layers, 8))
+        fig, axes = new_figure(kind="custom", figsize=(4 * n_layers, 8), nrows=2, ncols=n_layers)
         if n_layers == 1:
             axes = axes.reshape(2, 1)
 
@@ -201,13 +202,13 @@ def visualize_layer_topology(model, data_loader, device, model_name: str):
                 ax = axes[1, idx]
                 stats = extract_persistence_stats(dgm)
                 betti_numbers = [stats.get(f'H{i}_count', 0) for i in range(2)]
-                ax.bar(['H0', 'H1'], betti_numbers)
+                ax.bar(['$H_0$', '$H_1$'], betti_numbers)
                 ax.set_ylabel('Count')
                 ax.set_title(f'{layer_name} - Betti Numbers')
 
-        plt.tight_layout()
-        plt.savefig(f'{model_name}_layer_topology.png', dpi=150, bbox_inches='tight')
+        fig.tight_layout()
+        fig.savefig(f'{model_name}_layer_topology.png', dpi=150, bbox_inches='tight')
         print(f"Saved layer topology visualization to '{model_name}_layer_topology.png'")
-        plt.close()
+        plt.close(fig)
 
 

@@ -456,17 +456,17 @@ class RobustnessPipeline:
                         agg[r.layer].append(r.distance)
                 avg = {layer: float(np.mean(vals)) for layer, vals in agg.items() if vals}
                 if avg:
-                    save_layer_distance_bar(avg, f"Wasserstein H{H} per layer", os.path.join(self.out_dir, f"layer_wasserstein_H{H}.png"))
+                    save_layer_distance_bar(avg, f"Wasserstein $H_{{{H}}}$ per layer", os.path.join(self.out_dir, f"layer_wasserstein_H{H}.png"))
             # Betti count bars (clean stats averaged, stored in layerwise_records)
             from .report import save_betti_counts_bar as _save_betti
             _save_betti(results["layerwise_records"], 0, os.path.join(self.out_dir, "betti_H0_counts.png"))
             _save_betti(results["layerwise_records"], 1, os.path.join(self.out_dir, "betti_H1_counts.png"))
             logging.info("Wrote Betti count bars")
             # Heatmaps (raw and normalized by noise floor)
-            save_distance_heatmap(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1.png"), "Wasserstein H1 (mean)")
-            save_distance_heatmap(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0.png"), "Wasserstein H0 (mean)")
-            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1_norm.png"), "Wasserstein H1 (minus noise floor)")
-            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0_norm.png"), "Wasserstein H0 (minus noise floor)")
+            save_distance_heatmap(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1.png"), "Wasserstein $H_{1}$ (mean)")
+            save_distance_heatmap(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0.png"), "Wasserstein $H_{0}$ (mean)")
+            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1_norm.png"), "Wasserstein $H_{1}$ (minus noise floor)")
+            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0_norm.png"), "Wasserstein $H_{0}$ (minus noise floor)")
             logging.info("Wrote heatmaps (raw & normalized)")
             # Distance vs epsilon curves (top-k layers)
             save_distance_curves_with_ci(diagdist_records, "wasserstein", 1, "linf", os.path.join(self.out_dir, "curves_wasserstein_H1_linf.png"))

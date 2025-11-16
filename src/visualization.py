@@ -4,6 +4,7 @@ import torch
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 - import required for 3D projection
 from ripser import ripser
 from typing import Dict, Optional
+from .plot_style import new_figure
 
 
 def visualize_sample_diagrams(
@@ -32,7 +33,7 @@ def visualize_sample_diagrams(
     # layout: rows = num_classes * n_samples_per_class, cols = 1 (cloud) + maxdim+1 (diagrams)
     rows = num_classes * max(1, n_samples_per_class)
     cols = 1 + (maxdim + 1)
-    fig = plt.figure(figsize=(4 * cols, 3 * rows))
+    fig, _ = new_figure(kind="custom", figsize=(4 * cols, 3 * rows))
 
     def _name_for(c):
         key = None
@@ -124,7 +125,7 @@ def plot_original_vs_adversarial(x_orig, x_adv, title_suffix: str = ""):
     y_min, y_max = all_pts[:, 1].min(), all_pts[:, 1].max()
     z_min, z_max = all_pts[:, 2].min(), all_pts[:, 2].max()
 
-    fig = plt.figure(figsize=(12, 4))
+    fig, _ = new_figure(kind="custom", figsize=(12, 4))
 
     # ---- Left: overlay original + adversarial ----
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')
@@ -192,7 +193,7 @@ def plot_torus_wireframe_compare(x_orig, x_adv, title_suffix: str = "(Torus)"):
     y_min, y_max = all_pts[:, 1].min(), all_pts[:, 1].max()
     z_min, z_max = all_pts[:, 2].min(), all_pts[:, 2].max()
 
-    fig = plt.figure(figsize=(12, 5))
+    fig, _ = new_figure(kind="custom", figsize=(12, 5))
 
     # --- Original wireframe ---
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')

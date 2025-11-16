@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import logging
 
 from ..config import RobustnessConfig
 from ..data import GiottoPointCloudDataset, make_point_clouds
@@ -44,9 +45,11 @@ class RobustnessPipeline:
         # seeds
         torch.manual_seed(self.cfg.general.seed)
         np.random.seed(self.cfg.general.seed)
+        logging.info(f"Pipeline initialized (device={self.device}, exp='{self.cfg.general.exp_name}')")
 
     def prepare_data(self):
         d = self.cfg.data
+        logging.info(f"Preparing data (n_samples_per_shape={d.n_samples_per_shape}, n_points={d.n_points}, noise={d.noise})")
         pcs, labels = make_point_clouds(d.n_samples_per_shape, d.n_points, d.noise)
         # keep raw for optional sample visualizations
         self._raw_point_clouds = pcs
@@ -59,6 +62,7 @@ class RobustnessPipeline:
         val_ds = GiottoPointCloudDataset(pcs[val_idx], labels[val_idx])
         self._train_loader = DataLoader(train_ds, batch_size=d.batch_size, shuffle=True)
         self._val_loader = DataLoader(val_ds, batch_size=d.batch_size, shuffle=False)
+        logging.info(f"Data prepared: train={len(train_ds)}, val={len(val_ds)}, batch_size={d.batch_size}")
         # optional: visualize sample diagrams per class
         if self.cfg.reporting.save_plots and self.cfg.reporting.sample_visualizations_per_class:
             try:
@@ -77,11 +81,14 @@ class RobustnessPipeline:
                 src_path = save_path
                 if os.path.exists(src_path): # not sure what we shoyuld do here...
                     pass
+                logging.info(f"Wrote {save_path}")
             except Exception as _e:
+                logging.warning(f"Failed to write persistence_diagrams_by_class: {_e}")
                 pass
 
     def prepare_model(self):
         m = self.cfg.model
+        logging.info(f"Preparing model (arch={m.arch}, train={m.train}, epochs={m.epochs}, lr={m.lr})")
         if m.arch == "MLP":
             model = SimplePointMLP(num_classes=3)
         else:
@@ -92,6 +99,7 @@ class RobustnessPipeline:
             state = torch.load(m.checkpoint, map_location=self.device)
             self._model.load_state_dict(state)
             self._model.eval()
+            logging.info(f"Loaded checkpoint: {m.checkpoint}")
             return
 
         if m.train:
@@ -100,9 +108,11 @@ class RobustnessPipeline:
             for epoch in range(1, m.epochs + 1):
                 train_one_epoch(self._model, self._train_loader, optimizer, criterion, self.device)
             # quick val to warm-up
-            evaluate(self._model, self._val_loader, criterion, self.device)
+            v_loss, v_acc = evaluate(self._model, self._val_loader, criterion, self.device)
+            logging.info(f"Post-train eval: val_loss={v_loss:.4f}, val_acc={v_acc:.3f}")
             # save checkpoint
             torch.save(self._model.state_dict(), os.path.join(self.out_dir, "model.pth"))
+            logging.info(f"Saved checkpoint to {os.path.join(self.out_dir, 'model.pth')}")
         else:
             self._model.eval()
 
@@ -119,17 +129,21 @@ class RobustnessPipeline:
         # robust accuracy curves
         ra_curves: Dict[str, List[float]] = {}
         if cfg.probes.adversarial.enabled and cfg.probes.adversarial.eps_grid:
+            logging.info(f"Computing RA curves over eps_grid={cfg.probes.adversarial.eps_grid}")
             for norm in cfg.probes.adversarial.norms:
                 ra = robust_accuracy_curve(model, self._val_loader, norm, cfg.probes.adversarial.eps_grid, cfg.probes.adversarial.steps)
                 ra_curves[norm] = ra
+                logging.info(f"RA({norm})={ra}")
 
         # per-sample probes
         model.eval()
         sample_id = 0
+        logging.info("Running per-sample probes...")
         for batch_idx, (x, y) in enumerate(self._val_loader):
             x, y = x.to(device), y.to(device)
             for i in range(x.size(0)):
                 if cfg.general.sample_limit is not None and sample_id >= cfg.general.sample_limit:
+                    logging.info(f"Reached sample_limit={cfg.general.sample_limit}")
                     break
                 xi = x[i].detach().cpu()
                 yi = y[i].detach().cpu()
@@ -381,6 +395,8 @@ class RobustnessPipeline:
 
                 sample_records.append(rec)
                 sample_id += 1
+                if sample_id % 20 == 0:
+                    logging.info(f"Processed {sample_id} samples")
             if cfg.general.sample_limit is not None and sample_id >= cfg.general.sample_limit:
                 break
 
@@ -388,11 +404,13 @@ class RobustnessPipeline:
         write_csv([r.as_dict() for r in sample_records], os.path.join(self.out_dir, "metrics.csv"))
         write_csv([r.as_dict() for r in layerwise_records], os.path.join(self.out_dir, "layerwise_topology.csv"))
         write_csv([r.as_dict() for r in diagdist_records], os.path.join(self.out_dir, "diagram_distances.csv"))
+        logging.info(f"Wrote CSVs (metrics={len(sample_records)}, layerwise_topology={len(layerwise_records)}, diagram_distances={len(diagdist_records)})")
 
         # curves
         for norm, ys in ra_curves.items():
             xs = self.cfg.probes.adversarial.eps_grid
             save_curve_png(xs, ys, f"RA vs epsilon ({norm})", os.path.join(self.out_dir, f"ra_curve_{norm}.png"))
+            logging.info(f"Wrote RA curve plot for norm={norm}")
 
         return {
             "sample_records": sample_records,
@@ -414,11 +432,13 @@ class RobustnessPipeline:
         summary.ra_curves = ra_curves
         summary.mean_eps_star_linf = mean_safe([r.eps_star_linf for r in recs])
         summary.mean_eps_star_l2 = mean_safe([r.eps_star_l2 for r in recs])
+        logging.info(f"Aggregates: mean_eps_star_linf={summary.mean_eps_star_linf}, mean_eps_star_l2={summary.mean_eps_star_l2}")
 
         # plots
         if self.cfg.reporting.save_plots:
             save_hist_png([r.eps_star_linf for r in recs], "eps* L_inf", os.path.join(self.out_dir, "hist_eps_linf.png"))
             save_hist_png([r.eps_star_l2 for r in recs], "eps* L2", os.path.join(self.out_dir, "hist_eps_l2.png"))
+            logging.info("Wrote eps* histograms")
             # simple per-layer average Wasserstein H0/H1 bars
             from collections import defaultdict
             from .report import (
@@ -441,25 +461,31 @@ class RobustnessPipeline:
             from .report import save_betti_counts_bar as _save_betti
             _save_betti(results["layerwise_records"], 0, os.path.join(self.out_dir, "betti_H0_counts.png"))
             _save_betti(results["layerwise_records"], 1, os.path.join(self.out_dir, "betti_H1_counts.png"))
+            logging.info("Wrote Betti count bars")
             # Heatmaps (raw and normalized by noise floor)
             save_distance_heatmap(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1.png"), "Wasserstein H1 (mean)")
             save_distance_heatmap(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0.png"), "Wasserstein H0 (mean)")
             save_distance_heatmap_normalized(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1_norm.png"), "Wasserstein H1 (minus noise floor)")
             save_distance_heatmap_normalized(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0_norm.png"), "Wasserstein H0 (minus noise floor)")
+            logging.info("Wrote heatmaps (raw & normalized)")
             # Distance vs epsilon curves (top-k layers)
             save_distance_curves_with_ci(diagdist_records, "wasserstein", 1, "linf", os.path.join(self.out_dir, "curves_wasserstein_H1_linf.png"))
             save_distance_curves_with_ci(diagdist_records, "wasserstein", 1, "l2", os.path.join(self.out_dir, "curves_wasserstein_H1_l2.png"))
+            logging.info("Wrote distance-vs-epsilon curves")
             # Pick best signal layer/H for scatter
             best = best_signal_layerH(diagdist_records, metric="wasserstein")
             if best is not None:
                 best_layer, best_H = best
                 save_scatter_eps_vs_distance(recs, diagdist_records, "linf", best_layer, "wasserstein", best_H, None, os.path.join(self.out_dir, f"scatter_eps_linf_vs_dist_H{best_H}_{best_layer}.png"))
                 save_scatter_eps_vs_distance(recs, diagdist_records, "l2", best_layer, "wasserstein", best_H, None, os.path.join(self.out_dir, f"scatter_eps_l2_vs_dist_H{best_H}_{best_layer}.png"))
+                logging.info(f"Wrote scatter plots (best layer={best_layer}, H={best_H})")
             # Violin distributions at max eps
             save_violin_distance_by_layer(diagdist_records, "wasserstein", 1, "linf", "max", os.path.join(self.out_dir, "violin_wasserstein_H1_linf.png"))
             save_violin_distance_by_layer(diagdist_records, "wasserstein", 1, "l2", "max", os.path.join(self.out_dir, "violin_wasserstein_H1_l2.png"))
+            logging.info("Wrote violin plots")
 
         # write summary.json
         summary.to_json(os.path.join(self.out_dir, "summary.json"))
+        logging.info("Wrote summary.json")
 
 

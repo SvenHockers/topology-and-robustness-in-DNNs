@@ -48,6 +48,9 @@ class RobustnessPipeline:
     def prepare_data(self):
         d = self.cfg.data
         pcs, labels = make_point_clouds(d.n_samples_per_shape, d.n_points, d.noise)
+        # keep raw for optional sample visualizations
+        self._raw_point_clouds = pcs
+        self._raw_labels = labels
         n_total = len(labels)
         n_train = int((1.0 - d.val_split) * n_total)
         idx = np.random.permutation(n_total)
@@ -56,6 +59,17 @@ class RobustnessPipeline:
         val_ds = GiottoPointCloudDataset(pcs[val_idx], labels[val_idx])
         self._train_loader = DataLoader(train_ds, batch_size=d.batch_size, shuffle=True)
         self._val_loader = DataLoader(val_ds, batch_size=d.batch_size, shuffle=False)
+        # optional: visualize sample diagrams per class
+        if self.cfg.reporting.save_plots and self.cfg.reporting.sample_visualizations_per_class:
+            try:
+                from ..visualization import visualize_sample_diagrams
+                import shutil as _shutil
+                visualize_sample_diagrams(self._raw_point_clouds, self._raw_labels)
+                src_path = "persistence_diagrams_by_class.png"
+                if os.path.exists(src_path):
+                    _shutil.move(src_path, os.path.join(self.out_dir, src_path))
+            except Exception as _e:
+                pass
 
     def prepare_model(self):
         m = self.cfg.model
@@ -350,6 +364,10 @@ class RobustnessPipeline:
                 avg = {layer: float(np.mean(vals)) for layer, vals in agg.items() if vals}
                 if avg:
                     save_layer_distance_bar(avg, f"Wasserstein H{H} per layer", os.path.join(self.out_dir, f"layer_wasserstein_H{H}.png"))
+            # Betti count bars (clean stats averaged, stored in layerwise_records)
+            from .report import save_betti_counts_bar as _save_betti
+            _save_betti(results["layerwise_records"], 0, os.path.join(self.out_dir, "betti_H0_counts.png"))
+            _save_betti(results["layerwise_records"], 1, os.path.join(self.out_dir, "betti_H1_counts.png"))
 
         # write summary.json
         summary.to_json(os.path.join(self.out_dir, "summary.json"))

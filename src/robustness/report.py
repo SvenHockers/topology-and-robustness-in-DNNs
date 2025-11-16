@@ -123,3 +123,24 @@ def save_layer_distance_bar(avg_by_layer: Dict[str, float], title: str, path: st
     plt.close()
 
 
+def save_betti_counts_bar(layerwise_records: List[LayerwiseRecord], H: int, path: str, title: str | None = None) -> None:
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+    agg = defaultdict(list)
+    for r in layerwise_records:
+        if r.betti == f"H{H}":
+            agg[r.layer].append(r.count)
+    if not agg:
+        return
+    layers = sorted(agg.keys())
+    vals = [float(sum(agg[l]) / max(len(agg[l]), 1)) for l in layers]
+    plt.figure(figsize=(max(6, len(layers)), 4))
+    plt.bar(layers, vals, color="tab:blue" if H == 0 else "tab:orange")
+    plt.title(title or f"Average Betti H{H} counts per layer")
+    plt.xticks(rotation=45, ha="right")
+    plt.grid(True, axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close()
+
+

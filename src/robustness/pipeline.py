@@ -208,6 +208,9 @@ class RobustnessPipeline:
                                             act_alt,
                                             sample_size=cfg.probes.layerwise_topology.sample_size,
                                             maxdim=cfg.probes.layerwise_topology.maxdim,
+                                            normalize=cfg.probes.topology.normalize,
+                                            pca_dim=cfg.probes.topology.pca_dim,
+                                            bootstrap_repeats=cfg.probes.topology.bootstrap_repeats,
                                         )
                                         if dgm_alt is None:
                                             continue
@@ -237,6 +240,9 @@ class RobustnessPipeline:
                                             maxdim=cfg.probes.layerwise_topology.maxdim,
                                             sample_size=cfg.probes.layerwise_topology.sample_size,
                                             distances=cfg.probes.layerwise_topology.distances,
+                                            normalize=cfg.probes.topology.normalize,
+                                            pca_dim=cfg.probes.topology.pca_dim,
+                                            bootstrap_repeats=cfg.probes.topology.bootstrap_repeats,
                                         )
                                         metrics = topo.get(layer, {})
                                         for dist_name in cfg.probes.layerwise_topology.distances:
@@ -253,6 +259,56 @@ class RobustnessPipeline:
                                                             distance=float(metrics[key]),
                                                         )
                                                     )
+                            # noise floor per layer (clean vs clean subsamples)
+                            if cfg.probes.layerwise_topology.enabled:
+                                layers = cfg.probes.layerwise_topology.layers
+                                with torch.no_grad():
+                                    _ = model(x[i : i + 1], save_layers=True)
+                                    for layer in layers:
+                                        act = model.layer_outputs[layer]
+                                        dgm_a = compute_layer_topology(
+                                            act,
+                                            sample_size=cfg.probes.layerwise_topology.sample_size,
+                                            maxdim=cfg.probes.layerwise_topology.maxdim,
+                                            normalize=cfg.probes.topology.normalize,
+                                            pca_dim=cfg.probes.topology.pca_dim,
+                                            bootstrap_repeats=1,
+                                        )
+                                        dgm_b = compute_layer_topology(
+                                            act,
+                                            sample_size=cfg.probes.layerwise_topology.sample_size,
+                                            maxdim=cfg.probes.layerwise_topology.maxdim,
+                                            normalize=cfg.probes.topology.normalize,
+                                            pca_dim=cfg.probes.topology.pca_dim,
+                                            bootstrap_repeats=1,
+                                        )
+                                        if dgm_a is None or dgm_b is None:
+                                            continue
+                                        # compute wasserstein H0/H1 as noise floor
+                                        from persim import wasserstein
+                                        for H in [0, 1]:
+                                            A = dgm_a[H] if len(dgm_a) > H else None
+                                            B = dgm_b[H] if len(dgm_b) > H else None
+                                            if A is None or B is None:
+                                                continue
+                                            A = A[np.isfinite(A[:, 1])]
+                                            B = B[np.isfinite(B[:, 1])]
+                                            if len(A) == 0 and len(B) == 0:
+                                                dist_val = 0.0
+                                            elif len(A) == 0 or len(B) == 0:
+                                                continue
+                                            else:
+                                                dist_val = float(wasserstein(A, B, matching=False))
+                                            diagdist_records.append(
+                                                DiagramDistanceRecord(
+                                                    sample_id=sample_id,
+                                                    condition="noise_floor",
+                                                    layer=layer,
+                                                    metric="wasserstein",
+                                                    H=H,
+                                                    distance=dist_val,
+                                                )
+                                            )
 
                 # geometric thresholds (per axis where applicable)
                 if cfg.probes.geometric.enabled:
@@ -365,6 +421,14 @@ class RobustnessPipeline:
             save_hist_png([r.eps_star_l2 for r in recs], "eps* L2", os.path.join(self.out_dir, "hist_eps_l2.png"))
             # simple per-layer average Wasserstein H0/H1 bars
             from collections import defaultdict
+            from .report import (
+                save_distance_heatmap,
+                save_distance_heatmap_normalized,
+                save_scatter_eps_vs_distance,
+                save_distance_curves_with_ci,
+                save_violin_distance_by_layer,
+                best_signal_layerH,
+            )
             for H in [0, 1]:
                 agg = defaultdict(list)
                 for r in diagdist_records:
@@ -377,6 +441,23 @@ class RobustnessPipeline:
             from .report import save_betti_counts_bar as _save_betti
             _save_betti(results["layerwise_records"], 0, os.path.join(self.out_dir, "betti_H0_counts.png"))
             _save_betti(results["layerwise_records"], 1, os.path.join(self.out_dir, "betti_H1_counts.png"))
+            # Heatmaps (raw and normalized by noise floor)
+            save_distance_heatmap(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1.png"), "Wasserstein H1 (mean)")
+            save_distance_heatmap(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0.png"), "Wasserstein H0 (mean)")
+            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 1, os.path.join(self.out_dir, "heatmap_wasserstein_H1_norm.png"), "Wasserstein H1 (minus noise floor)")
+            save_distance_heatmap_normalized(diagdist_records, "wasserstein", 0, os.path.join(self.out_dir, "heatmap_wasserstein_H0_norm.png"), "Wasserstein H0 (minus noise floor)")
+            # Distance vs epsilon curves (top-k layers)
+            save_distance_curves_with_ci(diagdist_records, "wasserstein", 1, "linf", os.path.join(self.out_dir, "curves_wasserstein_H1_linf.png"))
+            save_distance_curves_with_ci(diagdist_records, "wasserstein", 1, "l2", os.path.join(self.out_dir, "curves_wasserstein_H1_l2.png"))
+            # Pick best signal layer/H for scatter
+            best = best_signal_layerH(diagdist_records, metric="wasserstein")
+            if best is not None:
+                best_layer, best_H = best
+                save_scatter_eps_vs_distance(recs, diagdist_records, "linf", best_layer, "wasserstein", best_H, None, os.path.join(self.out_dir, f"scatter_eps_linf_vs_dist_H{best_H}_{best_layer}.png"))
+                save_scatter_eps_vs_distance(recs, diagdist_records, "l2", best_layer, "wasserstein", best_H, None, os.path.join(self.out_dir, f"scatter_eps_l2_vs_dist_H{best_H}_{best_layer}.png"))
+            # Violin distributions at max eps
+            save_violin_distance_by_layer(diagdist_records, "wasserstein", 1, "linf", "max", os.path.join(self.out_dir, "violin_wasserstein_H1_linf.png"))
+            save_violin_distance_by_layer(diagdist_records, "wasserstein", 1, "l2", "max", os.path.join(self.out_dir, "violin_wasserstein_H1_l2.png"))
 
         # write summary.json
         summary.to_json(os.path.join(self.out_dir, "summary.json"))

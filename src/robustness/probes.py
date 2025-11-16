@@ -250,6 +250,9 @@ def compare_layer_topology(
     maxdim: int,
     sample_size: int,
     distances: List[str],
+    normalize: str = "none",
+    pca_dim: Optional[int] = None,
+    bootstrap_repeats: int = 1,
 ) -> Dict[str, Dict[str, float]]:
     """
     Compute per-layer topology stats for clean vs alt, and distances between diagrams.
@@ -268,8 +271,12 @@ def compare_layer_topology(
     for layer in layers:
         clean_act = clean_layers[layer]
         alt_act = alt_layers[layer]
-        dgm_clean = compute_layer_topology(clean_act, sample_size=sample_size, maxdim=maxdim)
-        dgm_alt = compute_layer_topology(alt_act, sample_size=sample_size, maxdim=maxdim)
+        dgm_clean = compute_layer_topology(
+            clean_act, sample_size=sample_size, maxdim=maxdim, normalize=normalize, pca_dim=pca_dim, bootstrap_repeats=bootstrap_repeats
+        )
+        dgm_alt = compute_layer_topology(
+            alt_act, sample_size=sample_size, maxdim=maxdim, normalize=normalize, pca_dim=pca_dim, bootstrap_repeats=bootstrap_repeats
+        )
         if dgm_clean is None or dgm_alt is None:
             continue
         stats_clean = extract_persistence_stats(dgm_clean)

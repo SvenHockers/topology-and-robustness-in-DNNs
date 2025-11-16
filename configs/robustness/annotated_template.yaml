@@ -6,7 +6,7 @@
 # layerwise topology on activations, and writes metrics/plots.
 #
 # Tips:
-# - Start with default.yaml or viz_test.yaml and tweak a few keys here.
+# - Start with this template and tweak a few keys here.
 # - Keys are validated and some stringified numbers are auto-coerced.
 # - Paths are relative to repo root; run the script from the repo root.
 # =====================================================================

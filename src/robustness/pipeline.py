@@ -64,10 +64,19 @@ class RobustnessPipeline:
             try:
                 from ..visualization import visualize_sample_diagrams
                 import shutil as _shutil
-                visualize_sample_diagrams(self._raw_point_clouds, self._raw_labels)
-                src_path = "persistence_diagrams_by_class.png"
-                if os.path.exists(src_path):
-                    _shutil.move(src_path, os.path.join(self.out_dir, src_path))
+                save_path = os.path.join(self.out_dir, "persistence_diagrams_by_class.png")
+                visualize_sample_diagrams(
+                    self._raw_point_clouds,
+                    self._raw_labels,
+                    n_samples_per_class=int(self.cfg.reporting.sample_visualizations_per_class),
+                    maxdim=int(self.cfg.probes.topology.maxdim) if hasattr(self.cfg.probes, "topology") else 2,
+                    save_path=save_path,
+                    show=False,
+                    seed=int(self.cfg.general.seed),
+                )
+                src_path = save_path
+                if os.path.exists(src_path): # not sure what we shoyuld do here...
+                    pass
             except Exception as _e:
                 pass
 

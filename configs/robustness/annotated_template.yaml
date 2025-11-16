@@ -32,6 +32,12 @@ general:
   # Use this to iterate faster (e.g., 50) and disable when finalizing
   sample_limit: null
 
+  # Plotting style applied once per run (see src/plot_style.py):
+  # - "paper": publication-ready (enables LaTeX, serif fonts, colorblind-safe palettes)
+  # - "exploratory": notebook-friendly (faster; LaTeX off)
+  # - "default": plain Matplotlib defaults with project palette/cmaps
+  style: "paper"
+
 # -----------------------
 # Synthetic dataset
 # -----------------------

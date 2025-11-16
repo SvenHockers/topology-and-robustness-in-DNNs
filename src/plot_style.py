@@ -74,6 +74,9 @@ def use_default_style() -> None:
 	"""Apply the global default style for all subsequent plots."""
 	plt.style.use(DEFAULT_STYLES)
 	_apply_project_cmaps()
+	plt.rcParams["savefig.transparent"] = False
+	plt.rcParams["figure.facecolor"] = "white"
+	plt.rcParams["axes.facecolor"] = "white"
 
 
 def use_paper_style() -> None:

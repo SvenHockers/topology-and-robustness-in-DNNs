@@ -15,6 +15,7 @@ class GeneralConfig:
     device: str = "auto"  # "cpu" | "cuda" | "auto"
     output_dir: str = "outputs/robustness/mlp_baseline"
     sample_limit: Optional[int] = None  # limit val samples processed
+    style: str = "paper"  # "paper" | "exploratory" | "default"
 
 
 @dataclass
@@ -324,6 +325,7 @@ class RobustnessConfig:
     def validate(self) -> None:
         # General
         assert self.general.device in {"auto", "cpu", "cuda"}
+        assert self.general.style in {"paper", "exploratory", "default"}
         assert self.data.val_split > 0 and self.data.val_split < 1
         assert self.data.n_points > 0 and self.data.n_samples_per_shape > 0
         assert self.model.arch in {"MLP", "CNN"}

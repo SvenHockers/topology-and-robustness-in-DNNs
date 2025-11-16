@@ -9,7 +9,7 @@ import logging
 import warnings
 
 from src.config import RobustnessConfig
-from src.plot_style import use_paper_style
+from src.plot_style import use_paper_style, use_default_style, use_exploratory_style
 
 
 def parse_args():
@@ -67,8 +67,6 @@ def main():
     )
 
     args = parse_args()
-    # Apply paper style once for all figures generated in this run
-    use_paper_style()
     cfg = RobustnessConfig.from_yaml(args.config)
     # CLI overrides
     if args.checkpoint:
@@ -79,6 +77,16 @@ def main():
         cfg.general.exp_name = args.exp_name
     if args.output_dir:
         cfg.general.output_dir = args.output_dir
+
+    # Apply plotting style based on config.general.style
+    style = getattr(cfg.general, "style")
+    print(f"Using style: {style}")
+    if style == "paper":
+        use_paper_style()
+    elif style == "exploratory":
+        use_exploratory_style()
+    else:
+        use_default_style()
 
     out_dir = bootstrap_output_dir(cfg, args)
     setup_logger(out_dir)

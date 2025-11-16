@@ -26,11 +26,22 @@ fi
 os=$(uname)
 if [[ "$os" == "Darwin" || "$os" == "Linux" ]]; then
     activate_script="$venv_dir/bin/activate"
-    python_cmd="python3"
+    python_cmd="python3.12"
 else
     # otherwise we assume Windows (Git Bash)
     activate_script="$venv_dir/Scripts/activate"
     python_cmd="python"
+fi
+
+# Check that the chosen Python exists (mainly for macOS/Linux)
+if ! command -v "$python_cmd" >/dev/null 2>&1; then
+    echo "Error: '$python_cmd' not found."
+    if [[ "$os" == "Darwin" || "$os" == "Linux" ]]; then
+        echo "On macOS with Homebrew, you can install it with:"
+        echo "  brew install python@3.12"
+        echo "Then re-run this script."
+    fi
+    exit 1
 fi
 
 if [ "$action" == "install" ]; then
@@ -40,8 +51,8 @@ if [ "$action" == "install" ]; then
         rm -rf "$venv_dir"
     fi
 
-    echo "Creating a new virtual environment..."
-    $python_cmd -m venv "$venv_dir"
+    echo "Creating a new virtual environment using $python_cmd..."
+    "$python_cmd" -m venv "$venv_dir"
 
     echo "Activating virtual environment..."
     # shellcheck disable=SC1091

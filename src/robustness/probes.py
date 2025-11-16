@@ -302,7 +302,10 @@ def compare_layer_topology(
                     if metric == "wasserstein":
                         dist_val = float(wasserstein(A, B, matching=False))
                     elif metric == "bottleneck":
-                        dist_val = float(bottleneck(A, B)[0])
+                        # persim.bottleneck returns a scalar when matching=False (default),
+                        # or a (distance, matching) tuple when matching=True.
+                        bn = bottleneck(A, B)  # default matching=False
+                        dist_val = float(bn if not isinstance(bn, (tuple, list)) else bn[0])
                     else:
                         raise ValueError(f"Unknown diagram distance metric: {metric}")
                 entry[f"{metric}_H{h}"] = dist_val

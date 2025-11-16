@@ -94,6 +94,10 @@ class TopologyProbeConfig:
     compute_dgm: bool = True
     maxdim: int = 1
     sample_size: int = 200
+    normalize: str = "none"  # "none" | "zscore" | "l2"
+    pca_dim: Optional[int] = None
+    batches_for_topology: int = 1
+    bootstrap_repeats: int = 1
 
 
 @dataclass
@@ -273,6 +277,12 @@ class RobustnessConfig:
         _ensure_bool(topo_src, "compute_dgm")
         _ensure_int(topo_src, "maxdim")
         _ensure_int(topo_src, "sample_size")
+        # new fields
+        if "normalize" in topo_src and isinstance(topo_src["normalize"], str):
+            topo_src["normalize"] = topo_src["normalize"].lower()
+        _ensure_int(topo_src, "pca_dim")
+        _ensure_int(topo_src, "batches_for_topology")
+        _ensure_int(topo_src, "bootstrap_repeats")
         topology_cfg = TopologyProbeConfig(**topo_src)
 
         # Layerwise topology

@@ -64,12 +64,12 @@ class RobustnessPipeline:
         self._val_loader = DataLoader(val_ds, batch_size=d.batch_size, shuffle=False)
         logging.info(f"Data prepared: train={len(train_ds)}, val={len(val_ds)}, batch_size={d.batch_size}")
         # optional: visualize sample diagrams per class
+        # This is wrapped in try-except to ensure pipeline continues even if visualization fails
         if self.cfg.reporting.save_plots and self.cfg.reporting.sample_visualizations_per_class:
             try:
                 from ..visualization import visualize_sample_diagrams
-                import shutil as _shutil
                 save_path = os.path.join(self.out_dir, "persistence_diagrams_by_class.png")
-                visualize_sample_diagrams(
+                result = visualize_sample_diagrams(
                     self._raw_point_clouds,
                     self._raw_labels,
                     n_samples_per_class=int(self.cfg.reporting.sample_visualizations_per_class),
@@ -78,13 +78,14 @@ class RobustnessPipeline:
                     show=False,
                     seed=int(self.cfg.general.seed),
                 )
-                src_path = save_path
-                if os.path.exists(src_path): # not sure what we shoyuld do here...
-                    pass
-                logging.info(f"Wrote {save_path}")
+                if result is not None and os.path.exists(save_path):
+                    logging.info(f"Wrote {save_path}")
+                else:
+                    logging.info(f"Skipped persistence_diagrams_by_class (non-critical)")
             except Exception as _e:
-                logging.warning(f"Failed to write persistence_diagrams_by_class: {_e}")
-                pass
+                # Ensure pipeline continues even if visualization completely fails
+                logging.warning(f"Visualization failed (non-critical, continuing): {type(_e).__name__}")
+                # Don't re-raise - let pipeline continue
 
     def prepare_model(self):
         m = self.cfg.model

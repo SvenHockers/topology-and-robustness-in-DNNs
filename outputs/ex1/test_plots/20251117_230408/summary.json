@@ -1,0 +1,8 @@
+{
+  "mean_eps_star_linf": 0.001953125,
+  "mean_eps_star_l2": null,
+  "ra_curves": {},
+  "per_class": {},
+  "layerwise_avg": {},
+  "correlations": {}
+}

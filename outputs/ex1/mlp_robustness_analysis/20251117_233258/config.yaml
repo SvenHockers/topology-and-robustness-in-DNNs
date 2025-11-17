@@ -1,0 +1,286 @@
+# =====================================================================
+# MLP Robustness Analysis Configuration
+# ---------------------------------------------------------------------
+# Comprehensive TDA-based robustness analysis for MLP architecture
+# Optimized for Intel vPro i7 laptop (CPU execution)
+# 
+# This configuration enables:
+# - Multiple adversarial attacks (PGD, FGSM, CW) for comparison
+# - Geometric robustness probes (rotation, translation, jitter, dropout)
+# - Interpolation robustness analysis
+# - Permutation robustness testing (critical for point cloud models)
+# - Topology-based analysis (persistence diagrams, layerwise distances)
+# - Comprehensive visualizations and reporting
+# =====================================================================
+
+# -----------------------
+# Global run parameters
+# -----------------------
+general:
+  # Random seed for reproducibility
+  seed: 10
+
+  # Experiment name
+  exp_name: "mlp_robustness_analysis"
+
+  # Device: CPU for laptop execution
+  device: "cpu"
+
+  # Output directory
+  output_dir: "outputs/ex1/mlp_robustness_analysis"
+
+  # Cap validation samples for faster iteration (set null for full dataset)
+  # With 200 samples/shape and 0.2 val_split: ~120 validation samples
+  # Setting to 80 provides good coverage while keeping runtime reasonable
+  sample_limit: 80
+
+  # Plotting style: paper-ready
+  style: "paper"
+
+# -----------------------
+# Synthetic dataset
+# -----------------------
+data:
+  # Number of samples per shape class
+  n_samples_per_shape: 200
+
+  # Spatial resolution (points per axis)
+  n_points: 20
+
+  # Additive uniform noise magnitude
+  noise: 0.1
+
+  # Train/validation split
+  val_split: 0.2
+
+  # Batch size (smaller for CPU)
+  batch_size: 16
+
+# -----------------------
+# Model and training
+# -----------------------
+model:
+  # MLP architecture
+  arch: "MLP"
+
+  # Train fresh model
+  train: true
+
+  # Epochs (sufficient for convergence)
+  epochs: 30
+
+  # Learning rate
+  lr: 1e-3
+
+  # Checkpoint path (null = train from scratch)
+  checkpoint: null
+
+# -----------------------
+# Probes (robustness experiments)
+# -----------------------
+probes:
+  # ---- Adversarial (white-box) attack probes ----
+  adversarial:
+    enabled: true
+
+    # Both L∞ and L2 norms
+    norms: ["linf", "l2"]
+
+    # Multiple attack types for comprehensive comparison
+    # PGD: iterative baseline, FGSM: fast single-step, CW: optimization-based
+    attack_types: ["pgd", "fgsm", "cw"]
+
+    # Maximum radius for epsilon search
+    eps_max: 1.0
+
+    # PGD steps (reduced for CPU, but still effective)
+    steps: 30
+
+    # Tolerance for bisection
+    tol: 1e-3
+
+    # Outer bisection for precise eps*
+    outer_bisect: true
+
+    # Epsilon grid for robust accuracy curves
+    eps_grid: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]
+
+    # Enable attack comparison visualizations
+    compare_attacks: true
+
+    # ---- FGSM Configuration ----
+    fgsm:
+      enabled: true
+      eps: null  # Uses eps_max
+
+    # ---- Carlini-Wagner Attack ----
+    cw:
+      enabled: true
+      c_init: 0.001
+      c_max: 10.0
+      binary_search_steps: 7  # Reduced from 9 for CPU
+      max_iterations: 500  # Reduced from 1000 for CPU
+      learning_rate: 0.01
+      confidence: 0.0
+
+    # ---- L0 Sparse Attack ----
+    l0:
+      enabled: false  # Disabled for CPU efficiency (can enable if needed)
+      max_perturbed_elements: 10
+      strategy: "gradient_based"
+      max_iterations: 50
+      eps_per_element: 0.1
+
+    # ---- Universal Adversarial Perturbations (UAP) ----
+    uap:
+      enabled: false  # Disabled for CPU efficiency (computationally expensive)
+      max_iterations: 500
+      delta_init: 0.01
+      xi: 10.0
+
+    # ---- Boundary Attack ----
+    boundary:
+      enabled: false  # Disabled for CPU efficiency (very slow)
+      max_iterations: 500
+      spherical_step_size: 0.01
+      source_step_size: 0.01
+
+  # ---- Geometric robustness probes ----
+  geometric:
+    enabled: true
+
+    # Tolerance for bisection
+    tol: 1e-3
+
+    # Rotation parameters
+    rotation:
+      axes: ["z"]  # Single axis for efficiency
+      deg_range: [-45, 45]
+
+    # Translation parameters
+    translation:
+      axes: ["x", "y", "z"]
+      range: [-0.2, 0.2]
+
+    # Jitter (Gaussian noise) parameters
+    jitter:
+      std_range: [0.0, 0.2]
+      clip: 0.5
+
+    # Point dropout parameters
+    dropout:
+      ratio_range: [0.0, 0.5]
+
+  # ---- Interpolation probes ----
+  interpolation:
+    enabled: true
+
+    # Reduced pairs for CPU efficiency (still provides good statistics)
+    pairs_per_class: 15
+
+    # Index-based matching (fastest)
+    match: "index"
+
+    # Steps for coarse scan
+    steps: 40  # Reduced from 50
+
+    # No cross-class pairs
+    cross_class: false
+
+  # ---- Permutation Robustness Probe ----
+  permutation:
+    enabled: true
+
+    # Reduced permutations for CPU (30 provides good statistics)
+    n_permutations: 30
+
+    # Compute topology distances
+    compute_topology: true
+
+    # MLP layers
+    layers: ["fc1", "fc2", "fc3", "pooled"]
+
+    # Wasserstein distance
+    distances: ["wasserstein"]
+
+  # ---- Topology (TDA) settings ----
+  topology:
+    enabled: true
+
+    # Compute persistence diagrams
+    compute_dgm: true
+
+    # H0 and H1 homology
+    maxdim: 1
+
+    # Sample size for TDA (balanced for CPU)
+    sample_size: 150
+
+    # Z-score normalization
+    normalize: "zscore"
+
+    # PCA dimensionality reduction
+    pca_dim: 16
+
+    # Single batch
+    batches_for_topology: 1
+
+    # No bootstrap (CPU efficiency)
+    bootstrap_repeats: 1
+
+  # ---- Layerwise topology comparison ----
+  layerwise_topology:
+    enabled: true
+
+    # MLP layer names
+    layers: ["input", "fc1", "fc2", "fc3", "pooled"]
+
+    # Wasserstein distance
+    distances: ["wasserstein"]
+
+    # TDA parameters
+    maxdim: 1
+    sample_size: 150
+
+    # Conditions to compare against clean
+    conditions:
+      # L∞ epsilon values (for all attacks)
+      adv_linf_eps: [0.1, 0.2, 0.3]
+      # L2 epsilon values
+      adv_l2_eps: [0.2, 0.4]
+      
+      # Geometric transformations
+      rotation_deg: [15, 30]
+      jitter_std: [0.05, 0.1]
+
+# -----------------------
+# Reporting options
+# -----------------------
+reporting:
+  # Save CSV metrics
+  save_csv: true
+
+  # Generate all plots
+  save_plots: true
+
+  # No artifacts (saves disk space)
+  save_artifacts: false
+
+  # Sample visualizations
+  sample_visualizations_per_class: 3
+
+  # Adversarial example visualizations
+  save_adversarial_visualizations: true
+  n_adversarial_visualizations: 8
+  visualization_selection: "diverse"
+
+  # Per-class analysis
+  save_per_class_plots: true
+
+  # Statistical plots
+  save_statistical_plots: true
+
+  # Layer transformation visualizations
+  save_layer_transformations: true
+  n_layer_transformation_samples: 3
+

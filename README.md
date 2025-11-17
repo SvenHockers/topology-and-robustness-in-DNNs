@@ -122,20 +122,6 @@ Tips for meaningful results:
 - `diagram_distances.csv` includes `noise_floor` to contextualize the effect size; the normalized heatmaps subtract this baseline.
 -->
 
-### 2) Quick demo script: `scripts/run_experiment.py`
-
-This is a lighter, self-contained demonstration:
-- Trains MLP and CNN quickly on the synthetic dataset.
-- Shows a few predictions.
-- Searches for an adversarial example on a torus sample (iterative PGD).
-- Visualizes original vs adversarial clouds and a wireframe comparison for torus.
-- Produces layer topology visualizations for the trained models.
-
-Run:
-```bash
-python scripts/run_experiment.py
-```
-
 ## How the pipeline works
 
 - Flow: Data -> Model -> Probes (adversarial/geometric/interpolation) -> Layerwise TDA -> Reporting.

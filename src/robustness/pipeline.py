@@ -20,6 +20,16 @@ from .probes import (
     compare_layer_topology,
     pgd_attack,
 )
+from .attacks import (
+    fgsm_attack,
+    l0_attack,
+    cw_attack,
+    uap_attack,
+    boundary_attack,
+    estimate_min_eps_fgsm,
+    get_attack,
+    AttackResult,
+)
 from .report import (
     SampleRecord,
     LayerwiseRecord,
@@ -31,6 +41,187 @@ from .report import (
     save_layer_distance_bar,
 )
 from ..topology import compute_layer_topology, extract_persistence_stats
+
+
+def _run_attack_with_min_eps(
+    model,
+    x: torch.Tensor,
+    y: torch.Tensor,
+    attack_type: str,
+    norm: str,
+    cfg: RobustnessConfig,
+    device: torch.device,
+) -> tuple[Optional[float], Optional[torch.Tensor], Optional[int]]:
+    """
+    Run an attack and estimate minimal epsilon.
+    Returns (eps_star, x_adv, adv_pred).
+    """
+    # Ensure x has batch dimension: (N, 3) -> (1, N, 3) or keep (1, N, 3) as is
+    if x.dim() == 2:
+        x = x.unsqueeze(0)  # Add batch dimension
+    x = x.to(device)
+    y = y.to(device)
+    
+    # Check if already misclassified
+    with torch.no_grad():
+        clean_pred = model(x, save_layers=False).argmax(1).item()
+        if clean_pred != int(y.item()):
+            return 0.0, x.detach().cpu(), clean_pred
+    
+    eps_star = None
+    x_adv = None
+    adv_pred = None
+    
+    if attack_type == "pgd":
+        eps_star, x_adv = estimate_min_eps(
+            model, x.cpu(), y.cpu(), norm=norm,
+            eps_max=cfg.probes.adversarial.eps_max,
+            steps=cfg.probes.adversarial.steps,
+            tol=cfg.probes.adversarial.tol,
+        )
+        if x_adv is not None:
+            with torch.no_grad():
+                adv_pred = int(model(x_adv.to(device), save_layers=False).argmax(1).item())
+    
+    elif attack_type == "fgsm":
+        if not cfg.probes.adversarial.fgsm.enabled:
+            return None, None, None
+        eps_star, x_adv = estimate_min_eps_fgsm(
+            model, x.cpu(), y.cpu(), norm=norm,
+            eps_max=cfg.probes.adversarial.eps_max,
+            tol=cfg.probes.adversarial.tol,
+        )
+        if x_adv is not None:
+            with torch.no_grad():
+                adv_pred = int(model(x_adv.to(device), save_layers=False).argmax(1).item())
+    
+    elif attack_type == "cw":
+        if not cfg.probes.adversarial.cw.enabled:
+            return None, None, None
+        # CW finds minimal perturbation directly, no need for bisection
+        result = cw_attack(
+            model, x.cpu(), y.cpu(), norm=norm,
+            c_init=cfg.probes.adversarial.cw.c_init,
+            c_max=cfg.probes.adversarial.cw.c_max,
+            binary_search_steps=cfg.probes.adversarial.cw.binary_search_steps,
+            max_iterations=cfg.probes.adversarial.cw.max_iterations,
+            learning_rate=cfg.probes.adversarial.cw.learning_rate,
+            confidence=cfg.probes.adversarial.cw.confidence,
+        )
+        if result.success:
+            x_adv = result.x_adv
+            pert_mag = result.metadata.get("perturbation_magnitude", float('inf'))
+            eps_star = pert_mag
+            adv_pred = result.metadata.get("adversarial_prediction")
+    
+    elif attack_type == "l0":
+        if not cfg.probes.adversarial.l0.enabled:
+            return None, None, None
+        # L0 doesn't use epsilon, but we can measure perturbation magnitude
+        result = l0_attack(
+            model, x.cpu(), y.cpu(),
+            max_perturbed_elements=cfg.probes.adversarial.l0.max_perturbed_elements,
+            strategy=cfg.probes.adversarial.l0.strategy,
+            max_iterations=cfg.probes.adversarial.l0.max_iterations,
+            eps_per_element=cfg.probes.adversarial.l0.eps_per_element,
+        )
+        if result.success:
+            x_adv = result.x_adv
+            # Use L2 magnitude as "epsilon" equivalent
+            pert_mag = result.metadata.get("l2_magnitude", 0.0)
+            eps_star = pert_mag
+            adv_pred = result.metadata.get("adversarial_prediction")
+    
+    elif attack_type == "boundary":
+        if not cfg.probes.adversarial.boundary.enabled:
+            return None, None, None
+        result = boundary_attack(
+            model, x.cpu(), y.cpu(),
+            max_iterations=cfg.probes.adversarial.boundary.max_iterations,
+            spherical_step_size=cfg.probes.adversarial.boundary.spherical_step_size,
+            source_step_size=cfg.probes.adversarial.boundary.source_step_size,
+        )
+        if result.success:
+            x_adv = result.x_adv
+            pert_mag = result.metadata.get("perturbation_magnitude", float('inf'))
+            eps_star = pert_mag
+            adv_pred = result.metadata.get("adversarial_prediction")
+    
+    elif attack_type == "uap":
+        # UAP is handled separately as it needs multiple samples
+        return None, None, None
+    
+    else:
+        logging.warning(f"Unknown attack type: {attack_type}")
+        return None, None, None
+    
+    return eps_star, x_adv, adv_pred
+
+
+def _run_attack_at_eps(
+    model,
+    x: torch.Tensor,
+    y: torch.Tensor,
+    attack_type: str,
+    norm: str,
+    eps: float,
+    cfg: RobustnessConfig,
+    device: torch.device,
+) -> torch.Tensor:
+    """
+    Run an attack at a specific epsilon value.
+    Returns adversarial example tensor.
+    """
+    # Ensure x has batch dimension: (N, 3) -> (1, N, 3) or keep (1, N, 3) as is
+    if x.dim() == 2:
+        x = x.unsqueeze(0)  # Add batch dimension
+    x = x.to(device)
+    y = y.to(device)
+    
+    if attack_type == "pgd":
+        result = pgd_attack(
+            model, x.cpu(), y.cpu(), norm=norm, eps=eps,
+            steps=cfg.probes.adversarial.steps, step_frac=1.0, random_start=True
+        )
+        return result.to(device) if isinstance(result, torch.Tensor) else result.x_adv.to(device)
+    
+    elif attack_type == "fgsm":
+        if not cfg.probes.adversarial.fgsm.enabled:
+            return x.cpu()
+        eps_use = cfg.probes.adversarial.fgsm.eps if cfg.probes.adversarial.fgsm.eps is not None else eps
+        result = fgsm_attack(model, x.cpu(), y.cpu(), norm=norm, eps=eps_use)
+        return result.x_adv.to(device)
+    
+    elif attack_type == "cw":
+        # CW doesn't use fixed eps, but we can try
+        result = cw_attack(
+            model, x.cpu(), y.cpu(), norm=norm,
+            c_init=cfg.probes.adversarial.cw.c_init,
+            c_max=cfg.probes.adversarial.cw.c_max,
+            binary_search_steps=cfg.probes.adversarial.cw.binary_search_steps,
+            max_iterations=cfg.probes.adversarial.cw.max_iterations,
+            learning_rate=cfg.probes.adversarial.cw.learning_rate,
+            confidence=cfg.probes.adversarial.cw.confidence,
+        )
+        return result.x_adv.to(device)
+    
+    elif attack_type == "l0":
+        result = l0_attack(
+            model, x.cpu(), y.cpu(),
+            max_perturbed_elements=cfg.probes.adversarial.l0.max_perturbed_elements,
+            strategy=cfg.probes.adversarial.l0.strategy,
+            max_iterations=cfg.probes.adversarial.l0.max_iterations,
+            eps_per_element=eps,  # Use eps as eps_per_element
+        )
+        return result.x_adv.to(device)
+    
+    else:
+        # Fallback to PGD
+        result = pgd_attack(
+            model, x.cpu(), y.cpu(), norm=norm, eps=eps,
+            steps=cfg.probes.adversarial.steps, step_frac=1.0, random_start=True
+        )
+        return result.to(device) if isinstance(result, torch.Tensor) else result.x_adv.to(device)
 
 
 class RobustnessPipeline:
@@ -207,48 +398,53 @@ class RobustnessPipeline:
                     if current_class_count < n_per_class and len(layer_viz_samples) < n_target:
                         layer_viz_samples[sample_id] = xi
 
-                # adversarial min eps (linf, l2)
+                # adversarial min eps (multiple attack types and norms)
                 if cfg.probes.adversarial.enabled:
-                    for norm in cfg.probes.adversarial.norms:
-                        eps_star, x_adv = estimate_min_eps(
-                            model,
-                            xi,
-                            yi,
-                            norm=norm,
-                            eps_max=cfg.probes.adversarial.eps_max,
-                            steps=cfg.probes.adversarial.steps,
-                            tol=cfg.probes.adversarial.tol,
-                        )
-                        if norm == "linf":
-                            rec.eps_star_linf = eps_star
-                            if x_adv is not None:
-                                with torch.no_grad():
-                                    pred_adv = int(model(x_adv.to(device), save_layers=False).argmax(1).item())
-                                rec.adv_pred_linf = pred_adv
-                                # Store for visualization
-                                if cfg.reporting.save_adversarial_visualizations:
-                                    if sample_id not in adversarial_examples:
-                                        adversarial_examples[sample_id] = {}
-                                    adversarial_examples[sample_id][norm] = x_adv
-                        else:
-                            rec.eps_star_l2 = eps_star
-                            if x_adv is not None:
-                                with torch.no_grad():
-                                    pred_adv = int(model(x_adv.to(device), save_layers=False).argmax(1).item())
-                                rec.adv_pred_l2 = pred_adv
-                                # Store for visualization
-                                if cfg.reporting.save_adversarial_visualizations:
-                                    if sample_id not in adversarial_examples:
-                                        adversarial_examples[sample_id] = {}
-                                    adversarial_examples[sample_id][norm] = x_adv
+                    for attack_type in cfg.probes.adversarial.attack_types:
+                        for norm in cfg.probes.adversarial.norms:
+                            # Skip UAP here (handled separately)
+                            if attack_type == "uap":
+                                continue
+                            
+                            eps_star, x_adv, adv_pred = _run_attack_with_min_eps(
+                                model, xi, yi, attack_type, norm, cfg, device
+                            )
+                            
+                            # Store results
+                            if attack_type == "pgd":
+                                # Backward compatibility: use old fields for PGD
+                                if norm == "linf":
+                                    rec.eps_star_linf = eps_star
+                                    rec.adv_pred_linf = adv_pred
+                                else:  # l2
+                                    rec.eps_star_l2 = eps_star
+                                    rec.adv_pred_l2 = adv_pred
+                            else:
+                                # New attacks: use attack_results dict
+                                rec.set_attack_result(attack_type, norm, eps_star, adv_pred)
+                            
+                            # Store for visualization
+                            if x_adv is not None and cfg.reporting.save_adversarial_visualizations:
+                                if sample_id not in adversarial_examples:
+                                    adversarial_examples[sample_id] = {}
+                                key = f"{attack_type}_{norm}"
+                                adversarial_examples[sample_id][key] = x_adv
 
                         # layerwise topology at configured eps (optional, with clean cache)
                         if cfg.probes.layerwise_topology.enabled:
                             layers = cfg.probes.layerwise_topology.layers
-                            for eps_target in cfg.probes.layerwise_topology.conditions.get(f"adv_{norm}_eps", []):
-                                x_adv_t = pgd_attack(
-                                    model, xi.unsqueeze(0).to(device), yi.to(device),
-                                    norm=norm, eps=eps_target, steps=cfg.probes.adversarial.steps, step_frac=1.0, random_start=True
+                            # Support both old format (adv_{norm}_eps) and new format (adv_{attack_type}_{norm}_eps)
+                            condition_key_old = f"adv_{norm}_eps"
+                            condition_key_new = f"adv_{attack_type}_{norm}_eps"
+                            eps_targets = []
+                            if condition_key_old in cfg.probes.layerwise_topology.conditions:
+                                eps_targets.extend(cfg.probes.layerwise_topology.conditions[condition_key_old])
+                            if condition_key_new in cfg.probes.layerwise_topology.conditions:
+                                eps_targets.extend(cfg.probes.layerwise_topology.conditions[condition_key_new])
+                            
+                            for eps_target in eps_targets:
+                                x_adv_t = _run_attack_at_eps(
+                                    model, xi, yi, attack_type, norm, eps_target, cfg, device
                                 ).detach().cpu()
                                 with torch.no_grad():
                                     _ = model(x_adv_t.to(device), save_layers=True)
@@ -267,10 +463,11 @@ class RobustnessPipeline:
                                         # write clean stats from cache
                                         for H in [0, 1]:
                                             stats_clean = clean_layer_stats.get(layer, {})
+                                            condition_name = f"adv_{attack_type}_{norm}_eps={eps_target}"
                                             layerwise_records.append(
                                                 LayerwiseRecord(
                                                     sample_id=sample_id,
-                                                    condition=f"adv_{norm}_eps={eps_target}",
+                                                    condition=condition_name,
                                                     layer=layer,
                                                     betti=f"H{H}",
                                                     count=float(stats_clean.get(f"clean_H{H}_count", 0.0)),
@@ -299,66 +496,68 @@ class RobustnessPipeline:
                                             for H in [0, 1]:
                                                 key = f"{dist_name}_H{H}"
                                                 if key in metrics:
+                                                    condition_name = f"adv_{attack_type}_{norm}_eps={eps_target}"
                                                     diagdist_records.append(
                                                         DiagramDistanceRecord(
                                                             sample_id=sample_id,
-                                                            condition=f"adv_{norm}_eps={eps_target}",
+                                                            condition=condition_name,
                                                             layer=layer,
                                                             metric=dist_name,
                                                             H=H,
                                                             distance=float(metrics[key]),
                                                         )
                                                     )
-                            # noise floor per layer (clean vs clean subsamples)
-                            if cfg.probes.layerwise_topology.enabled:
-                                layers = cfg.probes.layerwise_topology.layers
-                                with torch.no_grad():
-                                    _ = model(x[i : i + 1], save_layers=True)
-                                    for layer in layers:
-                                        act = model.layer_outputs[layer]
-                                        dgm_a = compute_layer_topology(
-                                            act,
-                                            sample_size=cfg.probes.layerwise_topology.sample_size,
-                                            maxdim=cfg.probes.layerwise_topology.maxdim,
-                                            normalize=cfg.probes.topology.normalize,
-                                            pca_dim=cfg.probes.topology.pca_dim,
-                                            bootstrap_repeats=1,
-                                        )
-                                        dgm_b = compute_layer_topology(
-                                            act,
-                                            sample_size=cfg.probes.layerwise_topology.sample_size,
-                                            maxdim=cfg.probes.layerwise_topology.maxdim,
-                                            normalize=cfg.probes.topology.normalize,
-                                            pca_dim=cfg.probes.topology.pca_dim,
-                                            bootstrap_repeats=1,
-                                        )
-                                        if dgm_a is None or dgm_b is None:
-                                            continue
-                                        # compute wasserstein H0/H1 as noise floor
-                                        from persim import wasserstein
-                                        for H in [0, 1]:
-                                            A = dgm_a[H] if len(dgm_a) > H else None
-                                            B = dgm_b[H] if len(dgm_b) > H else None
-                                            if A is None or B is None:
-                                                continue
-                                            A = A[np.isfinite(A[:, 1])]
-                                            B = B[np.isfinite(B[:, 1])]
-                                            if len(A) == 0 and len(B) == 0:
-                                                dist_val = 0.0
-                                            elif len(A) == 0 or len(B) == 0:
-                                                continue
-                                            else:
-                                                dist_val = float(wasserstein(A, B, matching=False))
-                                            diagdist_records.append(
-                                                DiagramDistanceRecord(
-                                                    sample_id=sample_id,
-                                                    condition="noise_floor",
-                                                    layer=layer,
-                                                    metric="wasserstein",
-                                                    H=H,
-                                                    distance=dist_val,
-                                                )
-                                            )
+                
+                # noise floor per layer (clean vs clean subsamples) - computed once per sample
+                if cfg.probes.layerwise_topology.enabled:
+                    layers = cfg.probes.layerwise_topology.layers
+                    with torch.no_grad():
+                        _ = model(x[i : i + 1], save_layers=True)
+                        for layer in layers:
+                            act = model.layer_outputs[layer]
+                            dgm_a = compute_layer_topology(
+                                act,
+                                sample_size=cfg.probes.layerwise_topology.sample_size,
+                                maxdim=cfg.probes.layerwise_topology.maxdim,
+                                normalize=cfg.probes.topology.normalize,
+                                pca_dim=cfg.probes.topology.pca_dim,
+                                bootstrap_repeats=1,
+                            )
+                            dgm_b = compute_layer_topology(
+                                act,
+                                sample_size=cfg.probes.layerwise_topology.sample_size,
+                                maxdim=cfg.probes.layerwise_topology.maxdim,
+                                normalize=cfg.probes.topology.normalize,
+                                pca_dim=cfg.probes.topology.pca_dim,
+                                bootstrap_repeats=1,
+                            )
+                            if dgm_a is None or dgm_b is None:
+                                continue
+                            # compute wasserstein H0/H1 as noise floor
+                            from persim import wasserstein
+                            for H in [0, 1]:
+                                A = dgm_a[H] if len(dgm_a) > H else None
+                                B = dgm_b[H] if len(dgm_b) > H else None
+                                if A is None or B is None:
+                                    continue
+                                A = A[np.isfinite(A[:, 1])]
+                                B = B[np.isfinite(B[:, 1])]
+                                if len(A) == 0 and len(B) == 0:
+                                    dist_val = 0.0
+                                elif len(A) == 0 or len(B) == 0:
+                                    continue
+                                else:
+                                    dist_val = float(wasserstein(A, B, matching=False))
+                                diagdist_records.append(
+                                    DiagramDistanceRecord(
+                                        sample_id=sample_id,
+                                        condition="noise_floor",
+                                        layer=layer,
+                                        metric="wasserstein",
+                                        H=H,
+                                        distance=dist_val,
+                                    )
+                                )
 
                 # geometric thresholds (per axis where applicable)
                 if cfg.probes.geometric.enabled:
@@ -529,6 +728,39 @@ class RobustnessPipeline:
             # Create subdirectories for new visualizations
             viz_dir = os.path.join(self.out_dir, "visualizations")
             os.makedirs(viz_dir, exist_ok=True)
+            
+            # Attack comparison visualizations (if multiple attacks are used)
+            if self.cfg.probes.adversarial.compare_attacks and len(self.cfg.probes.adversarial.attack_types) > 1:
+                from .report import (
+                    save_attack_comparison_bars,
+                    save_attack_topology_comparison,
+                    save_attack_efficiency_scatter,
+                )
+                attack_comp_dir = os.path.join(viz_dir, "attack_comparison")
+                os.makedirs(attack_comp_dir, exist_ok=True)
+                
+                # Compare eps* across attacks
+                for norm in self.cfg.probes.adversarial.norms:
+                    save_attack_comparison_bars(
+                        recs, norm,
+                        os.path.join(attack_comp_dir, f"eps_star_comparison_{norm}.png")
+                    )
+                
+                # Compare topology distances across attacks
+                best = best_signal_layerH(diagdist_records, metric="wasserstein")
+                if best is not None:
+                    best_layer, best_H = best
+                    for norm in self.cfg.probes.adversarial.norms:
+                        save_attack_topology_comparison(
+                            diagdist_records, best_layer, "wasserstein", best_H, norm,
+                            os.path.join(attack_comp_dir, f"topology_comparison_{norm}_{best_layer}_H{best_H}.png")
+                        )
+                        save_attack_efficiency_scatter(
+                            recs, diagdist_records, norm, best_layer, "wasserstein", best_H,
+                            os.path.join(attack_comp_dir, f"efficiency_scatter_{norm}_{best_layer}_H{best_H}.png")
+                        )
+                
+                logging.info("Wrote attack comparison visualizations")
             adv_viz_dir = os.path.join(viz_dir, "adversarial_examples")
             per_class_dir = os.path.join(viz_dir, "per_class")
             stat_dir = os.path.join(viz_dir, "statistical")

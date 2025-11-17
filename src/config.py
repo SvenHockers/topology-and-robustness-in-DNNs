@@ -37,14 +37,65 @@ class ModelConfig:
 
 
 @dataclass
+class FGSMConfig:
+    enabled: bool = True
+    eps: Optional[float] = None  # If None, uses eps_max from parent
+
+
+@dataclass
+class CWConfig:
+    enabled: bool = True
+    c_init: float = 0.001
+    c_max: float = 10.0
+    binary_search_steps: int = 9
+    max_iterations: int = 1000
+    learning_rate: float = 0.01
+    confidence: float = 0.0
+
+
+@dataclass
+class L0Config:
+    enabled: bool = True
+    max_perturbed_elements: int = 10
+    strategy: str = "gradient_based"  # "gradient_based", "random", "furthest"
+    max_iterations: int = 100
+    eps_per_element: float = 0.1
+
+
+@dataclass
+class UAPConfig:
+    enabled: bool = True
+    max_iterations: int = 1000
+    delta_init: float = 0.01
+    xi: float = 10.0  # Fooling rate threshold (%)
+
+
+@dataclass
+class BoundaryConfig:
+    enabled: bool = True
+    max_iterations: int = 1000
+    spherical_step_size: float = 0.01
+    source_step_size: float = 0.01
+
+
+@dataclass
 class AdversarialProbeConfig:
     enabled: bool = True
     norms: List[str] = field(default_factory=lambda: ["linf", "l2"])
+    attack_types: List[str] = field(default_factory=lambda: ["pgd"])  # "pgd", "fgsm", "cw", "l0", "uap", "boundary"
     eps_max: float = 1.0
     steps: int = 40
     tol: float = 1e-3
     outer_bisect: bool = True
     eps_grid: List[float] = field(default_factory=lambda: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0])
+    compare_attacks: bool = True
+    attack_comparison_metrics: List[str] = field(default_factory=lambda: ["eps_star", "topology_distance", "perturbation_magnitude"])
+    # Attack-specific configs
+    fgsm: FGSMConfig = field(default_factory=FGSMConfig)
+    cw: CWConfig = field(default_factory=CWConfig)
+    l0: L0Config = field(default_factory=L0Config)
+    uap: UAPConfig = field(default_factory=UAPConfig)
+    boundary: BoundaryConfig = field(default_factory=BoundaryConfig)
 
 
 @dataclass
@@ -243,7 +294,51 @@ class RobustnessConfig:
         _ensure_list_float(adv_src, "eps_grid")
         _ensure_bool(adv_src, "enabled")
         _ensure_bool(adv_src, "outer_bisect")
-        adversarial = AdversarialProbeConfig(**adv_src)
+        _ensure_bool(adv_src, "compare_attacks")
+        # Handle attack_types list (if present)
+        if "attack_types" in adv_src and isinstance(adv_src["attack_types"], list):
+            pass  # Keep as is
+        # Create adversarial config without nested configs first
+        adversarial = AdversarialProbeConfig(
+            **{k: v for k, v in adv_src.items() if k not in {"fgsm", "cw", "l0", "uap", "boundary"}}
+        )
+        # Load nested attack configs
+        if "fgsm" in adv_src:
+            fgsm_src = dict(adv_src["fgsm"])
+            _ensure_bool(fgsm_src, "enabled")
+            _ensure_float(fgsm_src, "eps")
+            adversarial.fgsm = FGSMConfig(**fgsm_src)
+        if "cw" in adv_src:
+            cw_src = dict(adv_src["cw"])
+            _ensure_bool(cw_src, "enabled")
+            _ensure_float(cw_src, "c_init")
+            _ensure_float(cw_src, "c_max")
+            _ensure_int(cw_src, "binary_search_steps")
+            _ensure_int(cw_src, "max_iterations")
+            _ensure_float(cw_src, "learning_rate")
+            _ensure_float(cw_src, "confidence")
+            adversarial.cw = CWConfig(**cw_src)
+        if "l0" in adv_src:
+            l0_src = dict(adv_src["l0"])
+            _ensure_bool(l0_src, "enabled")
+            _ensure_int(l0_src, "max_perturbed_elements")
+            _ensure_int(l0_src, "max_iterations")
+            _ensure_float(l0_src, "eps_per_element")
+            adversarial.l0 = L0Config(**l0_src)
+        if "uap" in adv_src:
+            uap_src = dict(adv_src["uap"])
+            _ensure_bool(uap_src, "enabled")
+            _ensure_int(uap_src, "max_iterations")
+            _ensure_float(uap_src, "delta_init")
+            _ensure_float(uap_src, "xi")
+            adversarial.uap = UAPConfig(**uap_src)
+        if "boundary" in adv_src:
+            boundary_src = dict(adv_src["boundary"])
+            _ensure_bool(boundary_src, "enabled")
+            _ensure_int(boundary_src, "max_iterations")
+            _ensure_float(boundary_src, "spherical_step_size")
+            _ensure_float(boundary_src, "source_step_size")
+            adversarial.boundary = BoundaryConfig(**boundary_src)
 
         # Geometric
         geo_src = dict(probes_raw.get("geometric", {}))
@@ -339,12 +434,15 @@ class RobustnessConfig:
         # Probes validation
         for norm in self.probes.adversarial.norms:
             assert norm in {"linf", "l2"}
+        for attack_type in self.probes.adversarial.attack_types:
+            assert attack_type in {"pgd", "fgsm", "cw", "l0", "uap", "boundary"}, f"Unknown attack type: {attack_type}"
         for ax in self.probes.geometric.rotation.axes:
             assert ax in {"x", "y", "z"}
         for ax in self.probes.geometric.translation.axes:
             assert ax in {"x", "y", "z"}
         for dist in self.probes.layerwise_topology.distances:
             assert dist in {"wasserstein", "bottleneck"}
+        assert self.probes.adversarial.l0.strategy in {"gradient_based", "random", "furthest"}
         # Reporting validation
         assert self.reporting.visualization_selection in {"diverse", "most_vulnerable", "random"}
 

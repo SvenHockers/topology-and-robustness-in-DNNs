@@ -111,13 +111,19 @@ def estimate_min_eps(
     return found, (x_best.detach().cpu() if x_best is not None else None)
 
 
-def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], steps: int) -> List[float]:
+def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], steps: int, per_class: bool = False) -> List[float] | Dict[int, List[float]]:  # type: ignore
     """
     Compute robust accuracy over an epsilon grid using PGD at each epsilon.
+    If per_class=True, returns dict mapping class_id to list of accuracies.
     """
     device = next(model.parameters()).device
     correct_counts = [0 for _ in eps_values]
     total = 0
+    if per_class:
+        from collections import defaultdict
+        correct_by_class: Dict[int, List[int]] = defaultdict(lambda: [0 for _ in eps_values])
+        total_by_class: Dict[int, int] = defaultdict(int)
+    
     model.eval()
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -126,11 +132,21 @@ def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], ste
         for i in range(x.size(0)):
             xi = x[i : i + 1]
             yi = y[i]
+            class_id = int(yi.item())
+            if per_class:
+                total_by_class[class_id] += 1
             for j, eps in enumerate(eps_values):
                 x_adv = pgd_attack(model, xi.clone(), yi, norm=norm, eps=eps, steps=steps, step_frac=1.0, random_start=True)
                 with torch.no_grad():
                     pred = model(x_adv, save_layers=False).argmax(1).item()
-                correct_counts[j] += int(pred == int(yi.item()))
+                is_correct = int(pred == int(yi.item()))
+                correct_counts[j] += is_correct
+                if per_class:
+                    correct_by_class[class_id][j] += is_correct
+    
+    if per_class:
+        return {class_id: [c / max(total_by_class[class_id], 1) for c in counts] 
+                for class_id, counts in correct_by_class.items()}
     return [c / max(total, 1) for c in correct_counts]
 
 

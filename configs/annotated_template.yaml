@@ -5,6 +5,13 @@
 # It generates a dataset, trains/loads a model, runs probes, computes
 # layerwise topology on activations, and writes metrics/plots.
 #
+# Visualization Features:
+# - Adversarial example visualizations (3D point cloud comparisons)
+# - Per-class analysis (box plots, confusion matrices, robust accuracy)
+# - Statistical plots (correlation heatmaps, percentile curves, outliers)
+# - Intuitive comparisons (summary cards, norm comparison, radar charts)
+# All visualizations are organized in subdirectories under visualizations/
+#
 # Tips:
 # - Start with this template and tweak a few keys here.
 # - Keys are validated and some stringified numbers are auto-coerced.
@@ -231,5 +238,36 @@ reporting:
 
   # Number of sample point clouds per class to visualize with persistence diagrams
   sample_visualizations_per_class: 3
+
+  # ---- Adversarial Example Visualizations ----
+  # Enable/disable saving individual adversarial example visualizations
+  # When enabled, saves 3D point cloud comparisons (clean vs adversarial)
+  save_adversarial_visualizations: false
+
+  # Number of adversarial examples to visualize (individual samples)
+  # These are saved to visualizations/adversarial_examples/
+  n_adversarial_visualizations: 10
+
+  # Strategy for selecting which samples to visualize:
+  # - "diverse": Mix of classes and eps* ranges (recommended for overview)
+  # - "most_vulnerable": Samples with lowest eps* (most easily attacked)
+  # - "random": Random selection
+  visualization_selection: "diverse"
+
+  # ---- Per-Class Analysis Plots ----
+  # Enable/disable per-class robustness analysis visualizations
+  # Generates: box plots by class, confusion matrices, robust accuracy by class
+  # Saved to: visualizations/per_class/
+  save_per_class_plots: true
+
+  # ---- Statistical Comparison Plots ----
+  # Enable/disable statistical analysis visualizations
+  # Generates: correlation heatmaps, percentile curves, outlier analysis
+  # Saved to: visualizations/statistical/
+  save_statistical_plots: true
+
+  # Note: Intuitive comparison visualizations (norm comparison, summary cards,
+  # class robustness comparison, layer sensitivity, epsilon impact, radar charts)
+  # are automatically generated when save_plots=true and saved to visualizations/intuitive/
 
 

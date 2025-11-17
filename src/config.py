@@ -124,6 +124,11 @@ class ReportingConfig:
     save_plots: bool = True
     save_artifacts: bool = False
     sample_visualizations_per_class: int = 3
+    save_adversarial_visualizations: bool = False
+    n_adversarial_visualizations: int = 10
+    visualization_selection: str = "diverse"  # diverse | most_vulnerable | random
+    save_per_class_plots: bool = True
+    save_statistical_plots: bool = True
 
 
 @dataclass
@@ -338,6 +343,8 @@ class RobustnessConfig:
             assert ax in {"x", "y", "z"}
         for dist in self.probes.layerwise_topology.distances:
             assert dist in {"wasserstein", "bottleneck"}
+        # Reporting validation
+        assert self.reporting.visualization_selection in {"diverse", "most_vulnerable", "random"}
 
     def resolved_output_dir(self) -> str:
         return os.path.join(self.general.output_dir)

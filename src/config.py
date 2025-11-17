@@ -141,6 +141,15 @@ class InterpolationProbeConfig:
 
 
 @dataclass
+class PermutationProbeConfig:
+    enabled: bool = True
+    n_permutations: int = 50  # Number of random permutations per sample
+    compute_topology: bool = True
+    layers: List[str] = field(default_factory=lambda: ["fc1", "fc2", "fc3", "pooled"])
+    distances: List[str] = field(default_factory=lambda: ["wasserstein"])  # "wasserstein", "bottleneck"
+
+
+@dataclass
 class TopologyProbeConfig:
     enabled: bool = True
     compute_dgm: bool = True
@@ -189,6 +198,7 @@ class ProbesConfig:
     adversarial: AdversarialProbeConfig = field(default_factory=AdversarialProbeConfig)
     geometric: GeometricProbeConfig = field(default_factory=GeometricProbeConfig)
     interpolation: InterpolationProbeConfig = field(default_factory=InterpolationProbeConfig)
+    permutation: PermutationProbeConfig = field(default_factory=PermutationProbeConfig)
     topology: TopologyProbeConfig = field(default_factory=TopologyProbeConfig)
     layerwise_topology: LayerwiseTopologyProbeConfig = field(default_factory=LayerwiseTopologyProbeConfig)
 
@@ -374,6 +384,13 @@ class RobustnessConfig:
         _ensure_bool(inter_src, "cross_class")
         interpolation = InterpolationProbeConfig(**inter_src)
 
+        # Permutation
+        perm_src = dict(probes_raw.get("permutation", {}))
+        _ensure_bool(perm_src, "enabled")
+        _ensure_int(perm_src, "n_permutations")
+        _ensure_bool(perm_src, "compute_topology")
+        permutation = PermutationProbeConfig(**perm_src)
+
         # Topology
         topo_src = dict(probes_raw.get("topology", {}))
         _ensure_bool(topo_src, "enabled")
@@ -414,6 +431,7 @@ class RobustnessConfig:
             adversarial=adversarial,
             geometric=geometric,
             interpolation=interpolation,
+            permutation=permutation,
             topology=topology_cfg,
             layerwise_topology=layerwise_topology,
         )

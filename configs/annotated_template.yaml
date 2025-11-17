@@ -5,16 +5,23 @@
 # It generates a dataset, trains/loads a model, runs probes, computes
 # layerwise topology on activations, and writes metrics/plots.
 #
-# Multi-Attack Support (NEW):
+# Multi-Attack Support:
 # - Supports multiple adversarial attack types: PGD, FGSM, CW, L0, UAP, Boundary
 # - All attacks are data-agnostic (work with point clouds, images, sequences, etc.)
 # - Attack comparison visualizations when multiple attacks are enabled
 # - Each attack can be configured independently
 # - See probes.adversarial.attack_types and attack-specific configs below
 #
+# Permutation Robustness Testing (NEW):
+# - Tests model robustness to point order permutations (fundamental for point cloud models)
+# - Computes permutation accuracy, confidence/margin drops, and topology distances
+# - Generates correlation analyses with adversarial robustness
+# - See probes.permutation for configuration
+#
 # Visualization Features:
 # - Adversarial example visualizations (3D point cloud comparisons)
 # - Attack comparison visualizations (eps* bars, topology comparisons, efficiency scatter)
+# - Permutation robustness visualizations (overview, heatmaps, correlations, scorecard)
 # - Per-class analysis (box plots, confusion matrices, robust accuracy)
 # - Statistical plots (correlation heatmaps, percentile curves, outliers)
 # - Intuitive comparisons (summary cards, norm comparison, radar charts)
@@ -250,6 +257,55 @@ probes:
     # Whether to include cross-class pairs (disabled by default)
     cross_class: false
 
+  # ---- Permutation Robustness Probe ----
+  permutation:
+    # Enable/disable permutation robustness testing
+    # 
+    # Permutation robustness is a fundamental test for point cloud models:
+    # - Point clouds are inherently orderless sets
+    # - A robust model should predict identically regardless of point order
+    # - Tests whether model learns geometric features vs. order-dependent memorization
+    #
+    # Metrics computed:
+    # - permutation_accuracy: Fraction of random permutations maintaining correct prediction
+    # - permutation_confidence_drop: Mean drop in confidence under permutation
+    # - permutation_margin_drop: Mean drop in prediction margin under permutation
+    # - Topology distances: Wasserstein/Bottleneck distances between clean and permuted activations
+    #
+    # Visualizations generated (when save_plots=true):
+    # - permutation_robustness_overview.png: 2x2 grid summary (accuracy, vs margin, vs adversarial, topology by layer)
+    # - permutation_accuracy_histogram.png: Distribution of permutation accuracy across samples
+    # - permutation_heatmap_H0/H1.png: Topology distance by layer (raw and normalized)
+    # - permutation_distance_by_layer_H0/H1.png: Bar chart with error bars
+    # - permutation_vs_adversarial_{norm}.png: Correlation scatter plots
+    # - permutation_accuracy_by_class.png: Box plots showing permutation robustness per class
+    # - permutation_scorecard.png: Summary scorecard with key metrics
+    # All saved to: visualizations/permutation_robustness/
+    enabled: true
+
+    # Number of random permutations per sample to test
+    # - More permutations = better statistics but slower computation
+    # - Recommended: 30-50 for testing, 100+ for final analysis
+    # - Each permutation uses a different seed for reproducibility
+    n_permutations: 50
+
+    # Whether to compute topology distances under permutation
+    # - If true, computes Wasserstein/Bottleneck distances between clean and permuted activations
+    # - Required for topology-based permutation analysis visualizations
+    # - Uses probes.topology settings for normalization and dimensionality reduction
+    compute_topology: true
+
+    # Layers to analyze for topology changes under permutation
+    # - Must match model.layer_outputs keys (e.g., ["fc1", "fc2", "fc3", "pooled"] for MLP)
+    # - Topology distances are computed per layer and aggregated
+    layers: ["fc1", "fc2", "fc3", "pooled"]
+
+    # Diagram distance metrics to compute between clean and permuted diagrams
+    # Options: "wasserstein", "bottleneck"
+    # - "wasserstein": Standard Wasserstein distance (more stable, recommended)
+    # - "bottleneck": Bottleneck distance (faster but less informative for H0/H1)
+    distances: ["wasserstein"]
+
   # ---- Topology (TDA) settings ----
   topology:
     # Enable/disable computing persistence diagrams and stats
@@ -409,5 +465,17 @@ reporting:
   # - topology_comparison_{norm}_{layer}_H{H}.png: Topology distance comparisons
   # - efficiency_scatter_{norm}_{layer}_H{H}.png: Perturbation magnitude vs topology distance
   # All saved to: visualizations/attack_comparison/
+  #
+  # Note: Permutation robustness visualizations are automatically generated when:
+  # - probes.permutation.enabled=true
+  # - reporting.save_plots=true
+  # Generated plots (all saved to visualizations/permutation_robustness/):
+  # - permutation_robustness_overview.png: 2x2 grid summary panel
+  # - permutation_accuracy_histogram.png: Distribution of permutation accuracy
+  # - permutation_heatmap_H0/H1.png: Topology distance heatmaps (raw and normalized)
+  # - permutation_distance_by_layer_H0/H1.png: Bar charts with error bars
+  # - permutation_vs_adversarial_{norm}.png: Correlation scatter plots with adversarial robustness
+  # - permutation_accuracy_by_class.png: Box plots by class
+  # - permutation_scorecard.png: Summary scorecard with key metrics
 
 

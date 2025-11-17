@@ -1,0 +1,138 @@
+{
+  "general": {
+    "seed": 42,
+    "exp_name": "mlp_experiment",
+    "device": "auto",
+    "output_dir": "outputs/robustness/mlp_experiment",
+    "sample_limit": null,
+    "style": "default"
+  },
+  "data": {
+    "n_samples_per_shape": 200,
+    "n_points": 20,
+    "noise": 0.1,
+    "val_split": 0.2,
+    "batch_size": 32
+  },
+  "model": {
+    "arch": "MLP",
+    "train": true,
+    "epochs": 20,
+    "lr": 0.001,
+    "checkpoint": null
+  },
+  "probes": {
+    "adversarial": {
+      "enabled": true,
+      "norms": [
+        "linf",
+        "l2"
+      ],
+      "eps_max": 1.0,
+      "steps": 40,
+      "tol": 0.001,
+      "outer_bisect": true,
+      "eps_grid": [
+        0.0,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.5,
+        1.0
+      ]
+    },
+    "geometric": {
+      "enabled": true,
+      "tol": 0.001,
+      "rotation": {
+        "axes": [
+          "z"
+        ],
+        "deg_range": [
+          -45,
+          45
+        ]
+      },
+      "translation": {
+        "axes": [
+          "x",
+          "y",
+          "z"
+        ],
+        "range": [
+          -0.2,
+          0.2
+        ]
+      },
+      "jitter": {
+        "std_range": [
+          0.0,
+          0.2
+        ],
+        "clip": 0.5
+      },
+      "dropout": {
+        "ratio_range": [
+          0.0,
+          0.5
+        ]
+      }
+    },
+    "interpolation": {
+      "enabled": true,
+      "pairs_per_class": 20,
+      "match": "index",
+      "steps": 50,
+      "cross_class": false
+    },
+    "topology": {
+      "enabled": true,
+      "compute_dgm": true,
+      "maxdim": 1,
+      "sample_size": 200,
+      "normalize": "zscore",
+      "pca_dim": 16,
+      "batches_for_topology": 1,
+      "bootstrap_repeats": 1
+    },
+    "layerwise_topology": {
+      "enabled": true,
+      "layers": [
+        "input",
+        "fc1",
+        "fc2",
+        "fc3",
+        "pooled"
+      ],
+      "distances": [
+        "wasserstein"
+      ],
+      "maxdim": 1,
+      "sample_size": 200,
+      "conditions": {
+        "adv_linf_eps": [
+          0.2,
+          0.4
+        ],
+        "adv_l2_eps": [
+          0.2,
+          0.4
+        ],
+        "rotation_deg": [
+          10.0,
+          20.0
+        ],
+        "jitter_std": [
+          0.05
+        ]
+      }
+    }
+  },
+  "reporting": {
+    "save_csv": true,
+    "save_plots": true,
+    "save_artifacts": false,
+    "sample_visualizations_per_class": 3
+  }
+}

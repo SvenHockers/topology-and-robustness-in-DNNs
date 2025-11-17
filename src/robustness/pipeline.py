@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
+from scipy.special import softmax
 
 from ..config import RobustnessConfig
 from ..data import GiottoPointCloudDataset, make_point_clouds
@@ -40,6 +41,7 @@ from .report import (
     save_hist_png,
     save_layer_distance_bar,
 )
+from .transforms import permute_points
 from ..topology import compute_layer_topology, extract_persistence_stats
 
 
@@ -628,6 +630,89 @@ class RobustnessPipeline:
                             break
                     rec.alpha_star = alpha_star
 
+                # permutation probes
+                if cfg.probes.permutation.enabled:
+                    n_perm = cfg.probes.permutation.n_permutations
+                    perm_accs = []
+                    perm_confidences = []
+                    perm_margins = []
+                    perm_topology_distances = []
+                    
+                    # Compute clean logits for comparison
+                    with torch.no_grad():
+                        clean_logits = model(x[i : i + 1], save_layers=False)
+                        clean_logits_np = clean_logits.squeeze(0).detach().cpu().numpy()
+                        clean_confidence = float(np.max(softmax(clean_logits_np)))
+                    
+                    for seed in range(n_perm):
+                        x_perm = permute_points(xi, seed=seed)
+                        with torch.no_grad():
+                            logits_perm = model(x_perm.unsqueeze(0).to(device), save_layers=cfg.probes.permutation.compute_topology)
+                            pred_perm = int(logits_perm.argmax(1).item())
+                            perm_accs.append(pred_perm == int(yi.item()))
+                            
+                            # Compute confidence and margin for permuted
+                            logits_perm_np = logits_perm.squeeze(0).detach().cpu().numpy()
+                            confidence_perm = float(np.max(softmax(logits_perm_np)))
+                            perm_confidences.append(confidence_perm)
+                            
+                            true_logit_perm = logits_perm_np[int(yi.item())]
+                            best_other_perm = np.max(np.delete(logits_perm_np, int(yi.item())))
+                            margin_perm = float(true_logit_perm - best_other_perm)
+                            perm_margins.append(margin_perm)
+                            
+                            # Topology under permutation
+                            if cfg.probes.permutation.compute_topology:
+                                layers = cfg.probes.permutation.layers if cfg.probes.permutation.layers else list(model.layer_outputs.keys())
+                                for layer in layers:
+                                    if layer not in model.layer_outputs:
+                                        continue
+                                    act_perm = model.layer_outputs[layer]
+                                    
+                                    # Compute topology distance vs clean
+                                    try:
+                                        topo = compare_layer_topology(
+                                            model,
+                                            xi.unsqueeze(0).to(device),
+                                            x_perm.unsqueeze(0).to(device),
+                                            device,
+                                            layers=[layer],
+                                            maxdim=cfg.probes.topology.maxdim if cfg.probes.topology.enabled else 1,
+                                            sample_size=cfg.probes.topology.sample_size if cfg.probes.topology.enabled else 200,
+                                            distances=cfg.probes.permutation.distances,
+                                            normalize=cfg.probes.topology.normalize if cfg.probes.topology.enabled else "none",
+                                            pca_dim=cfg.probes.topology.pca_dim if cfg.probes.topology.enabled else None,
+                                            bootstrap_repeats=cfg.probes.topology.bootstrap_repeats if cfg.probes.topology.enabled else 1,
+                                        )
+                                        metrics = topo.get(layer, {})
+                                        for dist_name in cfg.probes.permutation.distances:
+                                            for H in [0, 1]:
+                                                key = f"{dist_name}_H{H}"
+                                                if key in metrics:
+                                                    condition_name = f"permutation_seed={seed}"
+                                                    perm_topology_distances.append(float(metrics[key]))
+                                                    diagdist_records.append(
+                                                        DiagramDistanceRecord(
+                                                            sample_id=sample_id,
+                                                            condition=condition_name,
+                                                            layer=layer,
+                                                            metric=dist_name,
+                                                            H=H,
+                                                            distance=float(metrics[key]),
+                                                        )
+                                                    )
+                                    except Exception as e:
+                                        logging.warning(f"Failed to compute topology for permutation seed {seed}, layer {layer}: {e}")
+                    
+                    # Store aggregated metrics
+                    rec.permutation_accuracy = float(np.mean(perm_accs)) if perm_accs else None
+                    if perm_confidences:
+                        rec.permutation_confidence_drop = float(np.mean([clean_confidence - c for c in perm_confidences]))
+                    if perm_margins:
+                        rec.permutation_margin_drop = float(np.mean([margin - m for m in perm_margins]))
+                    if perm_topology_distances:
+                        rec.mean_permutation_topology_distance = float(np.mean(perm_topology_distances))
+
                 sample_records.append(rec)
                 sample_id += 1
                 if sample_id % 20 == 0:
@@ -954,6 +1039,79 @@ class RobustnessPipeline:
                 # Radar chart (multi-dimensional profile)
                 save_robustness_radar(recs, diagdist_records, os.path.join(intuitive_dir, "robustness_radar.png"))
                 logging.info("Wrote robustness radar chart")
+            
+            # Permutation robustness visualizations
+            if self.cfg.probes.permutation.enabled and self.cfg.reporting.save_plots:
+                perm_dir = os.path.join(viz_dir, "permutation_robustness")
+                os.makedirs(perm_dir, exist_ok=True)
+                
+                from .report import (
+                    save_permutation_accuracy_histogram,
+                    save_permutation_topology_heatmap,
+                    save_permutation_vs_adversarial_scatter,
+                    save_permutation_distance_by_layer,
+                    save_permutation_robustness_overview,
+                    save_permutation_accuracy_by_class,
+                    save_permutation_scorecard,
+                )
+                
+                # Permutation robustness overview (2x2 grid)
+                save_permutation_robustness_overview(
+                    recs, diagdist_records,
+                    os.path.join(perm_dir, "permutation_robustness_overview.png")
+                )
+                logging.info("Wrote permutation robustness overview")
+                
+                # Permutation accuracy histogram
+                save_permutation_accuracy_histogram(
+                    recs,
+                    os.path.join(perm_dir, "permutation_accuracy_histogram.png")
+                )
+                logging.info("Wrote permutation accuracy histogram")
+                
+                # Permutation topology heatmaps
+                for H in [0, 1]:
+                    save_permutation_topology_heatmap(
+                        diagdist_records, "wasserstein", H,
+                        os.path.join(perm_dir, f"permutation_heatmap_H{H}.png"),
+                        normalized=False
+                    )
+                    save_permutation_topology_heatmap(
+                        diagdist_records, "wasserstein", H,
+                        os.path.join(perm_dir, f"permutation_heatmap_H{H}_norm.png"),
+                        normalized=True
+                    )
+                logging.info("Wrote permutation topology heatmaps")
+                
+                # Permutation distance by layer
+                for H in [0, 1]:
+                    save_permutation_distance_by_layer(
+                        diagdist_records, "wasserstein", H,
+                        os.path.join(perm_dir, f"permutation_distance_by_layer_H{H}.png")
+                    )
+                logging.info("Wrote permutation distance by layer")
+                
+                # Permutation vs adversarial scatter plots
+                for norm in self.cfg.probes.adversarial.norms:
+                    save_permutation_vs_adversarial_scatter(
+                        recs, norm,
+                        os.path.join(perm_dir, f"permutation_vs_adversarial_{norm}.png")
+                    )
+                logging.info("Wrote permutation vs adversarial scatter plots")
+                
+                # Permutation accuracy by class
+                save_permutation_accuracy_by_class(
+                    recs,
+                    os.path.join(perm_dir, "permutation_accuracy_by_class.png")
+                )
+                logging.info("Wrote permutation accuracy by class")
+                
+                # Permutation scorecard
+                save_permutation_scorecard(
+                    recs, diagdist_records,
+                    os.path.join(perm_dir, "permutation_scorecard.png")
+                )
+                logging.info("Wrote permutation scorecard")
             
             # Layer transformation visualizations
             if self.cfg.reporting.save_layer_transformations:

@@ -42,6 +42,11 @@ class SampleRecord:
     dropout_star: Optional[float] = None
     alpha_star: Optional[float] = None
     chamfer_clean_adv: Optional[float] = None
+    # Permutation robustness metrics
+    permutation_accuracy: Optional[float] = None
+    permutation_confidence_drop: Optional[float] = None
+    permutation_margin_drop: Optional[float] = None
+    mean_permutation_topology_distance: Optional[float] = None
 
     def as_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -2301,6 +2306,385 @@ def save_topology_disruption_ranking(
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt_close(fig)
+
+
+# ---------------------------
+# Permutation Robustness Visualizations
+# ---------------------------
+
+def save_permutation_accuracy_histogram(
+    sample_records: List[SampleRecord],
+    path: str,
+) -> None:
+    """Histogram of permutation accuracy across samples."""
+    accs = [r.permutation_accuracy for r in sample_records 
+            if r.permutation_accuracy is not None and not np.isnan(r.permutation_accuracy)]
+    
+    if not accs:
+        return
+    
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    ax.hist(accs, bins=30, alpha=0.8, edgecolor='black')
+    ax.set_xlabel("Permutation Accuracy")
+    ax.set_ylabel("Count")
+    ax.set_title("Distribution of Permutation Accuracy")
+    ax.axvline(np.mean(accs), color='red', linestyle='--', linewidth=2, label=f'Mean: {np.mean(accs):.3f}')
+    ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_topology_heatmap(
+    diagdist_records: List[DiagramDistanceRecord],
+    metric: str,
+    H: int,
+    path: str,
+    title: Optional[str] = None,
+    normalized: bool = False,
+) -> None:
+    """Heatmap of topology distances under permutation by layer."""
+    from collections import defaultdict
+    
+    # Filter for permutation condition
+    condition_prefix = "permutation"
+    
+    # Get noise floor for normalization
+    noise_floor = defaultdict(list)
+    for r in diagdist_records:
+        if r.metric == metric and r.H == H and r.condition == "noise_floor":
+            if r.distance is not None and not np.isnan(r.distance):
+                noise_floor[r.layer].append(r.distance)
+    noise_mean = {layer: float(np.mean(vals)) if vals else 0.0 
+                  for layer, vals in noise_floor.items()}
+    
+    # Aggregate permutation distances
+    agg: Dict[str, List[float]] = defaultdict(list)
+    for r in diagdist_records:
+        if r.metric == metric and r.H == H and r.condition.startswith(condition_prefix):
+            if r.distance is not None and not np.isnan(r.distance):
+                agg[r.layer].append(float(r.distance))
+    
+    if not agg:
+        return
+    
+    layers = sorted(agg.keys())
+    means = [np.mean(agg[l]) for l in layers]
+    if normalized:
+        means = [max(0.0, m - noise_mean.get(l, 0.0)) for l, m in zip(layers, means)]
+    
+    # Create simple bar chart (could be expanded to multiple conditions)
+    fig, ax = new_figure(kind="custom", figsize=(max(6, len(layers) * 0.8), 5))
+    ax = cast(Axes, ax)
+    
+    bars = ax.bar(range(len(layers)), means, alpha=0.7, 
+                  color=plt.cm.viridis(np.linspace(0, 1, len(layers))))
+    ax.set_xticks(range(len(layers)))
+    ax.set_xticklabels(layers, rotation=45, ha='right')
+    ax.set_ylabel(f"{metric.capitalize()} Distance (H{H})")
+    norm_suffix = " (normalized)" if normalized else ""
+    ax.set_title(title or f"Permutation Topology Distance by Layer{norm_suffix}")
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # Add value labels
+    for bar, mean in zip(bars, means):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+               f'{mean:.3f}', ha='center', va='bottom', fontsize=9)
+    
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_vs_adversarial_scatter(
+    sample_records: List[SampleRecord],
+    norm: str,
+    path: str,
+) -> None:
+    """Scatter plot: Permutation accuracy vs adversarial robustness (eps*)."""
+    xs, ys = [], []
+    for r in sample_records:
+        eps_star = r.eps_star_linf if norm == "linf" else r.eps_star_l2
+        perm_acc = r.permutation_accuracy
+        if eps_star is not None and perm_acc is not None:
+            if not (np.isnan(eps_star) or np.isnan(perm_acc)):
+                xs.append(float(eps_star))
+                ys.append(float(perm_acc))
+    
+    if not xs:
+        return
+    
+    # Compute correlation
+    if len(xs) >= 3 and np.std(xs) > 0 and np.std(ys) > 0:
+        corr = float(np.corrcoef(xs, ys)[0, 1])
+    else:
+        corr = float('nan')
+    
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    ax.scatter(xs, ys, s=14, alpha=0.7)
+    
+    # Add trend line
+    if len(xs) > 1 and not np.isnan(corr):
+        z = np.polyfit(xs, ys, 1)
+        p = np.poly1d(z)
+        x_range = (min(xs), max(xs))
+        ax.plot(x_range, p(x_range), "--", color='red', alpha=0.5, linewidth=2)
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    title = f"Permutation Accuracy vs Adversarial Robustness (r={corr:.2f})" if not np.isnan(corr) else "Permutation Accuracy vs Adversarial Robustness"
+    setup_scatter_axes(
+        ax,
+        xlabel=rf"$\epsilon^\star$ ({norm_label})",
+        ylabel="Permutation Accuracy",
+        title=title.replace("epsilon", r"$\epsilon$"),
+    )
+    ax.grid(True, alpha=0.3)
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_distance_by_layer(
+    diagdist_records: List[DiagramDistanceRecord],
+    metric: str,
+    H: int,
+    path: str,
+) -> None:
+    """Bar chart with error bars showing permutation topology distance per layer."""
+    from collections import defaultdict
+    
+    agg: Dict[str, List[float]] = defaultdict(list)
+    for r in diagdist_records:
+        if r.metric == metric and r.H == H and r.condition.startswith("permutation"):
+            if r.distance is not None and not np.isnan(r.distance):
+                agg[r.layer].append(float(r.distance))
+    
+    if not agg:
+        return
+    
+    layers = sorted(agg.keys())
+    means = [np.mean(agg[l]) for l in layers]
+    stds = [np.std(agg[l]) for l in layers]
+    
+    fig, ax = new_figure(kind="custom", figsize=(max(6, len(layers) * 0.8), 5))
+    ax = cast(Axes, ax)
+    
+    x = np.arange(len(layers))
+    bars = ax.bar(x, means, yerr=stds, capsize=5, alpha=0.7,
+                  color=plt.cm.viridis(np.linspace(0, 1, len(layers))))
+    ax.set_xticks(x)
+    ax.set_xticklabels(layers, rotation=45, ha='right')
+    ax.set_ylabel(f"{metric.capitalize()} Distance (H{H})")
+    ax.set_title(f"Permutation Topology Distance by Layer (H{H})")
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # Add value labels
+    for bar, mean in zip(bars, means):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+               f'{mean:.3f}', ha='center', va='bottom', fontsize=9)
+    
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_robustness_overview(
+    sample_records: List[SampleRecord],
+    diagdist_records: List[DiagramDistanceRecord],
+    path: str,
+) -> None:
+    """2x2 grid overview of permutation robustness."""
+    import matplotlib.pyplot as plt
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes = axes.flatten()
+    
+    # Top-left: Permutation accuracy histogram
+    ax = axes[0]
+    accs = [r.permutation_accuracy for r in sample_records 
+            if r.permutation_accuracy is not None and not np.isnan(r.permutation_accuracy)]
+    if accs:
+        ax.hist(accs, bins=30, alpha=0.8, edgecolor='black')
+        ax.axvline(np.mean(accs), color='red', linestyle='--', linewidth=2, 
+                  label=f'Mean: {np.mean(accs):.3f}')
+        ax.set_xlabel("Permutation Accuracy")
+        ax.set_ylabel("Count")
+        ax.set_title("Permutation Accuracy Distribution")
+        ax.legend()
+        ax.grid(True, alpha=0.3, axis='y')
+    
+    # Top-right: Permutation accuracy vs clean margin
+    ax = axes[1]
+    margins, perm_accs = [], []
+    for r in sample_records:
+        if r.permutation_accuracy is not None and r.clean_margin is not None:
+            if not (np.isnan(r.permutation_accuracy) or np.isnan(r.clean_margin)):
+                margins.append(float(r.clean_margin))
+                perm_accs.append(float(r.permutation_accuracy))
+    if margins:
+        ax.scatter(margins, perm_accs, s=14, alpha=0.7)
+        if len(margins) >= 3 and np.std(margins) > 0 and np.std(perm_accs) > 0:
+            corr = float(np.corrcoef(margins, perm_accs)[0, 1])
+            z = np.polyfit(margins, perm_accs, 1)
+            p = np.poly1d(z)
+            x_range = (min(margins), max(margins))
+            ax.plot(x_range, p(x_range), "--", color='red', alpha=0.5, linewidth=2)
+            ax.set_title(f"Permutation Accuracy vs Clean Margin (r={corr:.2f})")
+        else:
+            ax.set_title("Permutation Accuracy vs Clean Margin")
+        ax.set_xlabel("Clean Margin")
+        ax.set_ylabel("Permutation Accuracy")
+        ax.grid(True, alpha=0.3)
+    
+    # Bottom-left: Permutation topology distance by layer
+    ax = axes[2]
+    from collections import defaultdict
+    agg: Dict[str, List[float]] = defaultdict(list)
+    for r in diagdist_records:
+        if r.metric == "wasserstein" and r.H == 1 and r.condition.startswith("permutation"):
+            if r.distance is not None and not np.isnan(r.distance):
+                agg[r.layer].append(float(r.distance))
+    if agg:
+        layers = sorted(agg.keys())
+        means = [np.mean(agg[l]) for l in layers]
+        stds = [np.std(agg[l]) for l in layers]
+        x = np.arange(len(layers))
+        bars = ax.bar(x, means, yerr=stds, capsize=5, alpha=0.7,
+                     color=plt.cm.viridis(np.linspace(0, 1, len(layers))))
+        ax.set_xticks(x)
+        ax.set_xticklabels(layers, rotation=45, ha='right')
+        ax.set_ylabel("Wasserstein Distance (H1)")
+        ax.set_title("Permutation Topology Distance by Layer")
+        ax.grid(True, alpha=0.3, axis='y')
+    
+    # Bottom-right: Permutation vs adversarial correlation
+    ax = axes[3]
+    for norm in ["linf", "l2"]:
+        xs, ys = [], []
+        for r in sample_records:
+            eps_star = r.eps_star_linf if norm == "linf" else r.eps_star_l2
+            perm_acc = r.permutation_accuracy
+            if eps_star is not None and perm_acc is not None:
+                if not (np.isnan(eps_star) or np.isnan(perm_acc)):
+                    xs.append(float(eps_star))
+                    ys.append(float(perm_acc))
+        if xs:
+            norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+            ax.scatter(xs, ys, s=14, alpha=0.7, label=norm_label)
+            if len(xs) >= 3 and np.std(xs) > 0 and np.std(ys) > 0:
+                corr = float(np.corrcoef(xs, ys)[0, 1])
+                z = np.polyfit(xs, ys, 1)
+                p = np.poly1d(z)
+                x_range = (min(xs), max(xs))
+                ax.plot(x_range, p(x_range), "--", alpha=0.5, linewidth=2)
+    ax.set_xlabel(r"$\epsilon^\star$")
+    ax.set_ylabel("Permutation Accuracy")
+    ax.set_title("Permutation vs Adversarial Robustness")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_accuracy_by_class(
+    sample_records: List[SampleRecord],
+    path: str,
+) -> None:
+    """Box plot of permutation accuracy distribution per class."""
+    from collections import defaultdict
+    class_names = {0: "Circle", 1: "Sphere", 2: "Torus"}
+    
+    by_class: Dict[int, List[float]] = defaultdict(list)
+    for r in sample_records:
+        if r.permutation_accuracy is not None and not np.isnan(r.permutation_accuracy):
+            by_class[r.true_label].append(float(r.permutation_accuracy))
+    
+    if not by_class:
+        return
+    
+    classes = sorted(by_class.keys())
+    data = [by_class[c] for c in classes]
+    labels = [class_names.get(c, f"Class {c}") for c in classes]
+    
+    fig, ax = new_figure(kind="single")
+    ax = cast(Axes, ax)
+    bp = ax.boxplot(data, labels=labels, patch_artist=True)
+    for patch in bp['boxes']:
+        patch.set_facecolor('lightblue')
+        patch.set_alpha(0.7)
+    
+    setup_axes(ax, xlabel="Class", ylabel="Permutation Accuracy", 
+               title="Permutation Accuracy by Class")
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_permutation_scorecard(
+    sample_records: List[SampleRecord],
+    diagdist_records: List[DiagramDistanceRecord],
+    path: str,
+) -> None:
+    """Summary scorecard for permutation robustness."""
+    fig, ax = new_figure(kind="custom", figsize=(8, 6))
+    ax = cast(Axes, ax)
+    ax.axis('off')
+    
+    # Compute metrics
+    accs = [r.permutation_accuracy for r in sample_records 
+            if r.permutation_accuracy is not None and not np.isnan(r.permutation_accuracy)]
+    mean_acc = np.mean(accs) if accs else 0.0
+    
+    from collections import defaultdict
+    agg: Dict[str, List[float]] = defaultdict(list)
+    for r in diagdist_records:
+        if r.metric == "wasserstein" and r.H == 1 and r.condition.startswith("permutation"):
+            if r.distance is not None and not np.isnan(r.distance):
+                agg[r.layer].append(float(r.distance))
+    
+    mean_dist = np.mean([v for vals in agg.values() for v in vals]) if agg else 0.0
+    most_sensitive = max(agg.items(), key=lambda x: np.mean(x[1]))[0] if agg else "N/A"
+    
+    # Correlation with adversarial
+    corr_linf = float('nan')
+    for norm in ["linf", "l2"]:
+        xs, ys = [], []
+        for r in sample_records:
+            eps_star = r.eps_star_linf if norm == "linf" else r.eps_star_l2
+            perm_acc = r.permutation_accuracy
+            if eps_star is not None and perm_acc is not None:
+                if not (np.isnan(eps_star) or np.isnan(perm_acc)):
+                    xs.append(float(eps_star))
+                    ys.append(float(perm_acc))
+        if len(xs) >= 3 and np.std(xs) > 0 and np.std(ys) > 0:
+            corr_linf = float(np.corrcoef(xs, ys)[0, 1])
+            break
+    
+    perm_invariant = "Yes" if mean_acc >= 0.95 else "No"
+    
+    # Create text summary
+    summary_text = f"""
+Permutation Robustness Scorecard
+{'='*40}
+
+Overall Permutation Accuracy: {mean_acc:.1%}
+Mean Topology Distance: {mean_dist:.3f}
+Most Sensitive Layer: {most_sensitive}
+Correlation with Adversarial Robustness: r = {corr_linf:.2f} (if available)
+
+Permutation-Invariant: {perm_invariant}
+  (Threshold: ≥95% accuracy)
+
+{'='*40}
+"""
+    
+    ax.text(0.1, 0.5, summary_text, fontsize=12, family='monospace',
+            verticalalignment='center', transform=ax.transAxes)
+    ax.set_title("Permutation Robustness Summary", fontsize=14, fontweight='bold', pad=20)
+    
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
 
 
 # ---------------------------

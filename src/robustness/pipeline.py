@@ -735,15 +735,39 @@ class RobustnessPipeline:
                     save_attack_comparison_bars,
                     save_attack_topology_comparison,
                     save_attack_efficiency_scatter,
+                    save_attack_success_rate,
+                    save_attack_agreement_matrix,
+                    save_attack_vs_margin,
+                    save_topology_disruption_ranking,
                 )
                 attack_comp_dir = os.path.join(viz_dir, "attack_comparison")
                 os.makedirs(attack_comp_dir, exist_ok=True)
+                
+                eps_max = self.cfg.probes.adversarial.eps_max
                 
                 # Compare eps* across attacks
                 for norm in self.cfg.probes.adversarial.norms:
                     save_attack_comparison_bars(
                         recs, norm,
                         os.path.join(attack_comp_dir, f"eps_star_comparison_{norm}.png")
+                    )
+                    
+                    # Attack success rate
+                    save_attack_success_rate(
+                        recs, norm, eps_max,
+                        os.path.join(attack_comp_dir, f"success_rate_{norm}.png")
+                    )
+                    
+                    # Attack agreement matrix
+                    save_attack_agreement_matrix(
+                        recs, norm,
+                        os.path.join(attack_comp_dir, f"agreement_matrix_{norm}.png")
+                    )
+                    
+                    # Attack vs clean margin
+                    save_attack_vs_margin(
+                        recs, norm,
+                        os.path.join(attack_comp_dir, f"attack_vs_margin_{norm}.png")
                     )
                 
                 # Compare topology distances across attacks
@@ -758,6 +782,12 @@ class RobustnessPipeline:
                         save_attack_efficiency_scatter(
                             recs, diagdist_records, norm, best_layer, "wasserstein", best_H,
                             os.path.join(attack_comp_dir, f"efficiency_scatter_{norm}_{best_layer}_H{best_H}.png")
+                        )
+                        
+                        # Topology disruption ranking
+                        save_topology_disruption_ranking(
+                            diagdist_records, norm, "wasserstein", best_H,
+                            os.path.join(attack_comp_dir, f"topology_disruption_ranking_{norm}_H{best_H}.png")
                         )
                 
                 logging.info("Wrote attack comparison visualizations")

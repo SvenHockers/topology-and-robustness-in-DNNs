@@ -27,10 +27,13 @@ class SampleRecord:
     true_label: int
     clean_pred: int
     clean_margin: float
+    # PGD (backward compatibility)
     eps_star_linf: Optional[float] = None
     adv_pred_linf: Optional[int] = None
     eps_star_l2: Optional[float] = None
     adv_pred_l2: Optional[int] = None
+    # Other attacks (dynamic fields stored as dict in metadata)
+    attack_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # {attack_type: {norm: {eps_star, adv_pred, ...}}}
     rot_deg_star: Optional[float] = None
     trans_x_star: Optional[float] = None
     trans_y_star: Optional[float] = None
@@ -41,7 +44,23 @@ class SampleRecord:
     chamfer_clean_adv: Optional[float] = None
 
     def as_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        # Flatten attack_results for CSV export
+        for attack_type, norms in self.attack_results.items():
+            for norm, results in norms.items():
+                d[f"eps_star_{attack_type}_{norm}"] = results.get("eps_star")
+                d[f"adv_pred_{attack_type}_{norm}"] = results.get("adv_pred")
+        return d
+    
+    def set_attack_result(self, attack_type: str, norm: str, eps_star: Optional[float], adv_pred: Optional[int], metadata: Optional[Dict[str, Any]] = None):
+        """Set attack result for a specific attack type and norm."""
+        if attack_type not in self.attack_results:
+            self.attack_results[attack_type] = {}
+        self.attack_results[attack_type][norm] = {
+            "eps_star": eps_star,
+            "adv_pred": adv_pred,
+            "metadata": metadata or {},
+        }
 
 
 @dataclass
@@ -1712,6 +1731,576 @@ def _plot_layer_activation(
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
+
+
+# ---------------------------
+# Attack Comparison Visualizations
+# ---------------------------
+
+def save_attack_comparison_bars(
+    recs: List[SampleRecord],
+    norm: str,
+    save_path: str,
+) -> None:
+    """
+    Compare eps* across different attack types using box plot for better distribution visibility.
+    Shows minimum perturbation needed to fool the model for each attack type.
+    """
+    from collections import defaultdict
+    
+    # Collect eps* values by attack type
+    attack_eps: Dict[str, List[float]] = defaultdict(list)
+    
+    for rec in recs:
+        # PGD (backward compatibility)
+        if norm == "linf" and rec.eps_star_linf is not None:
+            if not (isinstance(rec.eps_star_linf, float) and np.isnan(rec.eps_star_linf)):
+                attack_eps["pgd"].append(float(rec.eps_star_linf))
+        elif norm == "l2" and rec.eps_star_l2 is not None:
+            if not (isinstance(rec.eps_star_l2, float) and np.isnan(rec.eps_star_l2)):
+                attack_eps["pgd"].append(float(rec.eps_star_l2))
+        
+        # Other attacks from attack_results
+        for attack_type, norms_dict in rec.attack_results.items():
+            if norm in norms_dict:
+                eps_star = norms_dict[norm].get("eps_star")
+                if eps_star is not None and not (isinstance(eps_star, float) and np.isnan(eps_star)):
+                    attack_eps[attack_type].append(float(eps_star))
+    
+    if not attack_eps:
+        return
+    
+    # Use box plot instead of bar chart to show distributions
+    fig, ax = new_figure(kind="custom", figsize=(10, 6))
+    ax = cast(Axes, ax)
+    
+    attacks = sorted(attack_eps.keys())
+    data = [attack_eps[at] for at in attacks]
+    
+    # Create box plot
+    bp = ax.boxplot(data, labels=attacks, patch_artist=True, 
+                    showmeans=True, meanline=False,
+                    medianprops=dict(color='black', linewidth=1.5),
+                    meanprops=dict(marker='D', markerfacecolor='red', markeredgecolor='red', markersize=6))
+    
+    # Color the boxes
+    colors = plt.cm.Set3(np.linspace(0, 1, len(attacks)))
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.7)
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    ax.set_ylabel(rf"$\epsilon^\star$ ({norm_label})", fontsize=12)
+    ax.set_xlabel("Attack Type", fontsize=12)
+    ax.set_title(f"Minimum Perturbation Required by Attack Type ({norm_label})\n" +
+                 "Lower values = more effective attacks", fontsize=13, pad=10)
+    ax.grid(True, alpha=0.3, axis='y')
+    ax.set_xticklabels(attacks, rotation=45, ha='right')
+    
+    # Add sample count annotations
+    for i, (at, vals) in enumerate(zip(attacks, data)):
+        n = len(vals)
+        mean_val = np.mean(vals)
+        ax.text(i+1, mean_val, f'n={n}', ha='center', va='bottom', fontsize=9, alpha=0.7)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_attack_topology_comparison(
+    diagdist_records: List[DiagramDistanceRecord],
+    layer: str,
+    metric: str,
+    H: int,
+    norm: str,
+    save_path: str,
+) -> None:
+    """
+    Compare topology distances across different attack types as epsilon increases.
+    Shows how each attack affects topology at different perturbation magnitudes.
+    """
+    from collections import defaultdict
+    
+    # Group by attack type AND epsilon value
+    # Format: "adv_{attack_type}_{norm}_eps={eps}"
+    attack_eps_distances: Dict[str, Dict[float, List[float]]] = defaultdict(lambda: defaultdict(list))
+    
+    for rec in diagdist_records:
+        if rec.layer != layer or rec.metric != metric or rec.H != H:
+            continue
+        
+        # Parse condition to extract attack type and epsilon
+        if rec.condition.startswith("adv_"):
+            parts = rec.condition.split("_")
+            if len(parts) >= 3:
+                attack_type = parts[1]  # e.g., "pgd", "fgsm", "cw"
+                condition_norm = parts[2] if len(parts) > 2 else ""
+                
+                if condition_norm == norm and rec.distance is not None:
+                    if not (isinstance(rec.distance, float) and np.isnan(rec.distance)):
+                        # Extract epsilon value
+                        try:
+                            eps_str = rec.condition.split("eps=")[1] if "eps=" in rec.condition else None
+                            if eps_str:
+                                eps = float(eps_str)
+                                attack_eps_distances[attack_type][eps].append(float(rec.distance))
+                        except (ValueError, IndexError):
+                            continue
+    
+    if not attack_eps_distances:
+        return
+    
+    fig, ax = new_figure(kind="custom", figsize=(10, 6))
+    ax = cast(Axes, ax)
+    
+    # Plot curves for each attack type
+    colors = plt.cm.tab10(np.linspace(0, 1, len(attack_eps_distances)))
+    attacks = sorted(attack_eps_distances.keys())
+    
+    for attack_type, color in zip(attacks, colors):
+        eps_vals = sorted(attack_eps_distances[attack_type].keys())
+        mean_dists = [np.mean(attack_eps_distances[attack_type][eps]) for eps in eps_vals]
+        std_dists = [np.std(attack_eps_distances[attack_type][eps]) for eps in eps_vals]
+        
+        # Plot mean line with error bars
+        ax.plot(eps_vals, mean_dists, 'o-', label=attack_type.upper(), 
+                color=color, linewidth=2, markersize=6, alpha=0.8)
+        ax.fill_between(eps_vals, 
+                        [m - s for m, s in zip(mean_dists, std_dists)],
+                        [m + s for m, s in zip(mean_dists, std_dists)],
+                        alpha=0.2, color=color)
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    metric_label = metric.capitalize()
+    ax.set_xlabel(rf"Perturbation Magnitude $\epsilon$ ({norm_label})", fontsize=12)
+    ax.set_ylabel(f"{metric_label} Distance (H{H})", fontsize=12)
+    ax.set_title(f"Topology Change vs Perturbation by Attack Type\n{layer}, {metric_label} H{H}, {norm_label}",
+                 fontsize=13, pad=10)
+    ax.legend(loc='best', framealpha=0.9)
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_attack_efficiency_scatter(
+    recs: List[SampleRecord],
+    diagdist_records: List[DiagramDistanceRecord],
+    norm: str,
+    layer: str,
+    metric: str,
+    H: int,
+    save_path: str,
+) -> None:
+    """
+    Scatter plot: Attack efficiency - topology change per unit perturbation.
+    Shows which attacks cause more topology disruption for the same perturbation magnitude.
+    Uses topology distance at eps* (minimum successful perturbation) for each attack.
+    """
+    from collections import defaultdict
+    
+    # Collect (eps_star, topology_distance_at_eps_star) pairs by attack type
+    attack_data: Dict[str, List[Tuple[float, float]]] = defaultdict(list)
+    
+    # Build a map: (sample_id, attack_type, norm) -> eps_star
+    eps_star_by_sample_attack: Dict[Tuple[int, str], float] = {}
+    for rec in recs:
+        # PGD
+        if norm == "linf" and rec.eps_star_linf is not None:
+            if not (isinstance(rec.eps_star_linf, float) and np.isnan(rec.eps_star_linf)):
+                eps_star_by_sample_attack[(rec.sample_id, "pgd")] = float(rec.eps_star_linf)
+        elif norm == "l2" and rec.eps_star_l2 is not None:
+            if not (isinstance(rec.eps_star_l2, float) and np.isnan(rec.eps_star_l2)):
+                eps_star_by_sample_attack[(rec.sample_id, "pgd")] = float(rec.eps_star_l2)
+        
+        # Other attacks
+        for attack_type, norms_dict in rec.attack_results.items():
+            if norm in norms_dict:
+                eps_star = norms_dict[norm].get("eps_star")
+                if eps_star is not None and not (isinstance(eps_star, float) and np.isnan(eps_star)):
+                    eps_star_by_sample_attack[(rec.sample_id, attack_type)] = float(eps_star)
+    
+    # Get topology distances at eps* for each sample and attack
+    # We'll find the closest epsilon value to eps* for each attack
+    dist_by_sample_attack_eps: Dict[Tuple[int, str, float], float] = {}
+    for rec in diagdist_records:
+        if rec.layer == layer and rec.metric == metric and rec.H == H:
+            if rec.condition.startswith("adv_") and norm in rec.condition:
+                if rec.distance is not None and not (isinstance(rec.distance, float) and np.isnan(rec.distance)):
+                    # Parse condition: "adv_{attack_type}_{norm}_eps={eps}"
+                    parts = rec.condition.split("_")
+                    if len(parts) >= 3:
+                        attack_type = parts[1]
+                        try:
+                            eps_str = rec.condition.split("eps=")[1] if "eps=" in rec.condition else None
+                            if eps_str:
+                                eps = float(eps_str)
+                                dist_by_sample_attack_eps[(rec.sample_id, attack_type, eps)] = float(rec.distance)
+                        except (ValueError, IndexError):
+                            continue
+    
+    # Match eps* with closest topology distance
+    for (sample_id, attack_type), eps_star in eps_star_by_sample_attack.items():
+        # Find topology distance at eps* (or closest epsilon)
+        best_dist = None
+        best_eps_diff = float('inf')
+        
+        for (sid, at, eps), dist in dist_by_sample_attack_eps.items():
+            if sid == sample_id and at == attack_type:
+                eps_diff = abs(eps - eps_star)
+                if eps_diff < best_eps_diff:
+                    best_eps_diff = eps_diff
+                    best_dist = dist
+        
+        if best_dist is not None:
+            attack_data[attack_type].append((eps_star, best_dist))
+    
+    if not attack_data:
+        return
+    
+    fig, ax = new_figure(kind="custom", figsize=(10, 6))
+    ax = cast(Axes, ax)
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    metric_label = metric.capitalize()
+    
+    colors = plt.cm.tab10(np.linspace(0, 1, len(attack_data)))
+    for (attack_type, data), color in zip(sorted(attack_data.items()), colors):
+        if data:
+            eps_vals, dist_vals = zip(*data)
+            ax.scatter(eps_vals, dist_vals, label=attack_type.upper(), 
+                      alpha=0.6, s=50, c=[color], edgecolors='black', linewidths=0.5)
+    
+    ax.set_xlabel(rf"Minimum Perturbation $\epsilon^\star$ ({norm_label})", fontsize=12)
+    ax.set_ylabel(f"{metric_label} Distance at $\epsilon^\star$ (H{H})", fontsize=12)
+    ax.set_title(f"Attack Efficiency: Topology Change vs Minimum Perturbation\n" +
+                 f"{layer}, {metric_label} H{H}, {norm_label}\n" +
+                 "Upper-right = more efficient (high topology change, low perturbation)",
+                 fontsize=13, pad=10)
+    ax.legend(loc='best', framealpha=0.9)
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_attack_success_rate(
+    recs: List[SampleRecord],
+    norm: str,
+    eps_max: float,
+    save_path: str,
+) -> None:
+    """
+    Compare attack success rates - percentage of samples where each attack succeeds.
+    An attack succeeds if it finds an adversarial example (eps* is not None and <= eps_max).
+    """
+    from collections import defaultdict
+    
+    attack_successes: Dict[str, List[bool]] = defaultdict(list)
+    
+    for rec in recs:
+        # PGD (backward compatibility)
+        if norm == "linf" and rec.eps_star_linf is not None:
+            if not (isinstance(rec.eps_star_linf, float) and np.isnan(rec.eps_star_linf)):
+                attack_successes["pgd"].append(rec.eps_star_linf <= eps_max)
+        elif norm == "l2" and rec.eps_star_l2 is not None:
+            if not (isinstance(rec.eps_star_l2, float) and np.isnan(rec.eps_star_l2)):
+                attack_successes["pgd"].append(rec.eps_star_l2 <= eps_max)
+        
+        # Other attacks from attack_results
+        for attack_type, norms_dict in rec.attack_results.items():
+            if norm in norms_dict:
+                eps_star = norms_dict[norm].get("eps_star")
+                if eps_star is not None and not (isinstance(eps_star, float) and np.isnan(eps_star)):
+                    attack_successes[attack_type].append(float(eps_star) <= eps_max)
+    
+    if not attack_successes:
+        return
+    
+    # Compute success rates
+    attack_rates = {at: np.mean(vals) * 100.0 for at, vals in attack_successes.items() if vals}
+    attack_counts = {at: len(vals) for at, vals in attack_successes.items() if vals}
+    
+    if not attack_rates:
+        return
+    
+    fig, ax = new_figure(kind="custom", figsize=(10, 6))
+    ax = cast(Axes, ax)
+    
+    attacks = sorted(attack_rates.keys())
+    rates = [attack_rates[at] for at in attacks]
+    counts = [attack_counts[at] for at in attacks]
+    
+    # Create horizontal bar chart for better readability
+    y_pos = np.arange(len(attacks))
+    bars = ax.barh(y_pos, rates, alpha=0.7, color=plt.cm.viridis(np.linspace(0, 1, len(attacks))))
+    
+    # Add value labels
+    for i, (rate, count) in enumerate(zip(rates, counts)):
+        ax.text(rate + 1, i, f'{rate:.1f}% (n={count})', 
+                va='center', fontsize=10, fontweight='bold')
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels([at.upper() for at in attacks])
+    ax.set_xlabel(f"Success Rate (%)", fontsize=12)
+    ax.set_title(f"Attack Success Rate ({norm_label}, ε_max={eps_max})\n" +
+                 "Percentage of samples where attack finds adversarial example",
+                 fontsize=13, pad=10)
+    ax.set_xlim(0, 105)
+    ax.grid(True, alpha=0.3, axis='x')
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_attack_agreement_matrix(
+    recs: List[SampleRecord],
+    norm: str,
+    save_path: str,
+) -> None:
+    """
+    Show agreement/correlation between attacks - do they agree on which samples are vulnerable?
+    Computes pairwise correlation of eps* values between attack types.
+    """
+    from collections import defaultdict
+    import pandas as pd
+    
+    # Collect eps* values by attack type for each sample
+    attack_eps_by_sample: Dict[str, Dict[int, float]] = defaultdict(dict)
+    
+    for rec in recs:
+        # PGD (backward compatibility)
+        if norm == "linf" and rec.eps_star_linf is not None:
+            if not (isinstance(rec.eps_star_linf, float) and np.isnan(rec.eps_star_linf)):
+                attack_eps_by_sample["pgd"][rec.sample_id] = float(rec.eps_star_linf)
+        elif norm == "l2" and rec.eps_star_l2 is not None:
+            if not (isinstance(rec.eps_star_l2, float) and np.isnan(rec.eps_star_l2)):
+                attack_eps_by_sample["pgd"][rec.sample_id] = float(rec.eps_star_l2)
+        
+        # Other attacks
+        for attack_type, norms_dict in rec.attack_results.items():
+            if norm in norms_dict:
+                eps_star = norms_dict[norm].get("eps_star")
+                if eps_star is not None and not (isinstance(eps_star, float) and np.isnan(eps_star)):
+                    attack_eps_by_sample[attack_type][rec.sample_id] = float(eps_star)
+    
+    if len(attack_eps_by_sample) < 2:
+        return
+    
+    # Build DataFrame with samples as rows, attacks as columns
+    all_sample_ids = set()
+    for attack_data in attack_eps_by_sample.values():
+        all_sample_ids.update(attack_data.keys())
+    
+    data_dict = {}
+    for sample_id in all_sample_ids:
+        data_dict[sample_id] = {}
+        for attack_type in attack_eps_by_sample.keys():
+            data_dict[sample_id][attack_type] = attack_eps_by_sample[attack_type].get(sample_id, np.nan)
+    
+    df = pd.DataFrame.from_dict(data_dict, orient='index')
+    df = df.dropna(how='all')  # Remove samples with no attack data
+    
+    if len(df) < 3 or len(df.columns) < 2:
+        return
+    
+    # Compute correlation matrix
+    corr = df.corr()
+    
+    fig, ax = new_figure(kind="custom", figsize=(8, 7))
+    ax = cast(Axes, ax)
+    
+    # Use seaborn if available, otherwise matplotlib
+    try:
+        import seaborn as sns
+        sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', center=0,
+                    square=True, ax=ax, vmin=-1, vmax=1, cbar_kws={'label': 'Correlation'})
+    except ImportError:
+        im = ax.imshow(corr.values, cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+        ax.set_xticks(range(len(corr.columns)))
+        ax.set_yticks(range(len(corr.columns)))
+        ax.set_xticklabels(corr.columns, rotation=45, ha='right')
+        ax.set_yticklabels(corr.columns)
+        for i in range(len(corr.columns)):
+            for j in range(len(corr.columns)):
+                ax.text(j, i, f'{corr.iloc[i, j]:.2f}', 
+                       ha='center', va='center', color='white' if abs(corr.iloc[i, j]) > 0.5 else 'black')
+        plt.colorbar(im, ax=ax, label='Correlation')
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    ax.set_title(f"Attack Agreement Matrix ({norm_label})\n" +
+                 "Correlation of ε* values - High correlation = attacks find similar vulnerabilities",
+                 fontsize=13, pad=10)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_attack_vs_margin(
+    recs: List[SampleRecord],
+    norm: str,
+    save_path: str,
+) -> None:
+    """
+    Scatter plot showing relationship between clean prediction margin and attack success (eps*).
+    Tests if attacks work better on samples with smaller margins (lower confidence).
+    """
+    from collections import defaultdict
+    
+    attack_data: Dict[str, List[Tuple[float, float]]] = defaultdict(list)
+    
+    for rec in recs:
+        if rec.clean_margin is None or (isinstance(rec.clean_margin, float) and np.isnan(rec.clean_margin)):
+            continue
+        
+        margin = float(rec.clean_margin)
+        
+        # PGD (backward compatibility)
+        if norm == "linf" and rec.eps_star_linf is not None:
+            if not (isinstance(rec.eps_star_linf, float) and np.isnan(rec.eps_star_linf)):
+                attack_data["pgd"].append((margin, float(rec.eps_star_linf)))
+        elif norm == "l2" and rec.eps_star_l2 is not None:
+            if not (isinstance(rec.eps_star_l2, float) and np.isnan(rec.eps_star_l2)):
+                attack_data["pgd"].append((margin, float(rec.eps_star_l2)))
+        
+        # Other attacks
+        for attack_type, norms_dict in rec.attack_results.items():
+            if norm in norms_dict:
+                eps_star = norms_dict[norm].get("eps_star")
+                if eps_star is not None and not (isinstance(eps_star, float) and np.isnan(eps_star)):
+                    attack_data[attack_type].append((margin, float(eps_star)))
+    
+    if not attack_data:
+        return
+    
+    fig, ax = new_figure(kind="custom", figsize=(10, 6))
+    ax = cast(Axes, ax)
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    colors = plt.cm.tab10(np.linspace(0, 1, len(attack_data)))
+    
+    for (attack_type, data), color in zip(sorted(attack_data.items()), colors):
+        if data:
+            margins, eps_stars = zip(*data)
+            ax.scatter(margins, eps_stars, label=attack_type.upper(), 
+                      alpha=0.6, s=50, c=[color], edgecolors='black', linewidths=0.5)
+            
+            # Add trend line
+            if len(data) > 1:
+                z = np.polyfit(margins, eps_stars, 1)
+                p = np.poly1d(z)
+                margin_range = (min(margins), max(margins))
+                ax.plot(margin_range, p(margin_range), "--", color=color, alpha=0.5, linewidth=2)
+    
+    ax.set_xlabel("Clean Prediction Margin", fontsize=12)
+    ax.set_ylabel(rf"Minimum Perturbation $\epsilon^\star$ ({norm_label})", fontsize=12)
+    ax.set_title(f"Attack Effectiveness vs Model Confidence ({norm_label})\n" +
+                 "Lower margin (less confident) → Lower eps* (more vulnerable)",
+                 fontsize=13, pad=10)
+    ax.legend(loc='best', framealpha=0.9)
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
+
+
+def save_topology_disruption_ranking(
+    diagdist_records: List[DiagramDistanceRecord],
+    norm: str,
+    metric: str,
+    H: int,
+    save_path: str,
+) -> None:
+    """
+    Rank layers by topology disruption for each attack type.
+    Shows which layers are most affected by which attacks.
+    """
+    from collections import defaultdict
+    
+    # Group by attack type and layer
+    # Format: "adv_{attack_type}_{norm}_eps={eps}"
+    attack_layer_distances: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    
+    for rec in diagdist_records:
+        if rec.metric != metric or rec.H != H:
+            continue
+        
+        if rec.condition.startswith("adv_"):
+            parts = rec.condition.split("_")
+            if len(parts) >= 3:
+                attack_type = parts[1]
+                condition_norm = parts[2] if len(parts) > 2 else ""
+                
+                if condition_norm == norm and rec.distance is not None:
+                    if not (isinstance(rec.distance, float) and np.isnan(rec.distance)):
+                        attack_layer_distances[attack_type][rec.layer].append(float(rec.distance))
+    
+    if not attack_layer_distances:
+        return
+    
+    # Compute mean distances per attack per layer
+    attack_layer_means: Dict[str, Dict[str, float]] = {}
+    for attack_type, layer_data in attack_layer_distances.items():
+        attack_layer_means[attack_type] = {
+            layer: np.mean(distances) 
+            for layer, distances in layer_data.items()
+        }
+    
+    # Get all layers and attacks
+    all_layers = set()
+    for layer_data in attack_layer_distances.values():
+        all_layers.update(layer_data.keys())
+    all_layers = sorted(all_layers)
+    attacks = sorted(attack_layer_distances.keys())
+    
+    if not all_layers or not attacks:
+        return
+    
+    # Build matrix for heatmap
+    matrix = []
+    for attack_type in attacks:
+        row = [attack_layer_means[attack_type].get(layer, 0.0) for layer in all_layers]
+        matrix.append(row)
+    
+    fig, ax = new_figure(kind="custom", figsize=(max(8, len(all_layers) * 0.8), max(6, len(attacks) * 0.6)))
+    ax = cast(Axes, ax)
+    
+    # Create heatmap
+    try:
+        import seaborn as sns
+        sns.heatmap(matrix, annot=True, fmt='.3f', cmap='YlOrRd', 
+                   xticklabels=all_layers, yticklabels=[at.upper() for at in attacks],
+                   ax=ax, cbar_kws={'label': f'{metric.capitalize()} Distance'})
+    except ImportError:
+        im = ax.imshow(matrix, cmap='YlOrRd', aspect='auto')
+        ax.set_xticks(range(len(all_layers)))
+        ax.set_yticks(range(len(attacks)))
+        ax.set_xticklabels(all_layers, rotation=45, ha='right')
+        ax.set_yticklabels([at.upper() for at in attacks])
+        for i in range(len(attacks)):
+            for j in range(len(all_layers)):
+                ax.text(j, i, f'{matrix[i][j]:.3f}', 
+                       ha='center', va='center', 
+                       color='white' if matrix[i][j] > np.max(matrix) * 0.5 else 'black')
+        plt.colorbar(im, ax=ax, label=f'{metric.capitalize()} Distance')
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    ax.set_xlabel("Layer", fontsize=12)
+    ax.set_ylabel("Attack Type", fontsize=12)
+    ax.set_title(f"Topology Disruption by Attack and Layer ({norm_label})\n" +
+                 f"{metric.capitalize()} Distance H{H} - Darker = more disruption",
+                 fontsize=13, pad=10)
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt_close(fig)
 
 
 # ---------------------------

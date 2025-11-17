@@ -129,6 +129,8 @@ class ReportingConfig:
     visualization_selection: str = "diverse"  # diverse | most_vulnerable | random
     save_per_class_plots: bool = True
     save_statistical_plots: bool = True
+    save_layer_transformations: bool = True
+    n_layer_transformation_samples: int = 3  # Number of samples to visualize layer transformations for
 
 
 @dataclass

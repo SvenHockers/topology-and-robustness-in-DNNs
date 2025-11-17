@@ -10,6 +10,7 @@
 # - Per-class analysis (box plots, confusion matrices, robust accuracy)
 # - Statistical plots (correlation heatmaps, percentile curves, outliers)
 # - Intuitive comparisons (summary cards, norm comparison, radar charts)
+# - Layer transformation visualizations (3D point cloud transformations through network layers)
 # All visualizations are organized in subdirectories under visualizations/
 #
 # Tips:
@@ -183,9 +184,12 @@ probes:
     # - "none": raw activations
     # - "zscore": per-feature standardization
     # - "l2": per-point L2 normalization
+    # NOTE: This normalization is also used for layer transformation visualizations
     normalize: "zscore"
 
     # Optional PCA dimensionality (SVD) before TDA; set null to disable
+    # NOTE: If set, layer visualizations will use this for intermediate reduction:
+    # e.g., 32D → 16D (PCA) → 3D (PCA) for better stability
     pca_dim: 16
 
     # Reserved for future: aggregate multiple batches before TDA
@@ -265,6 +269,34 @@ reporting:
   # Generates: correlation heatmaps, percentile curves, outlier analysis
   # Saved to: visualizations/statistical/
   save_statistical_plots: true
+
+  # ---- Layer Transformation Visualizations ----
+  # Enable/disable layer-by-layer 3D visualizations showing how point clouds
+  # transform through each network layer
+  # 
+  # Features:
+  # - Grid visualization showing transformations at each layer (input → fc1 → fc2 → ...)
+  # - Clean vs adversarial comparisons (side-by-side layer transformations)
+  # - Automatic dimensionality reduction (32D/64D → 3D via PCA with variance explained)
+  # - Uses normalization and PCA settings from probes.topology for consistency
+  #
+  # Output:
+  # - Clean transformations: visualizations/layer_transformations/layer_transformations_sample_*.png
+  # - Comparisons: visualizations/layer_transformations/layer_transformations_clean_vs_adv_*.png
+  #
+  # Configuration:
+  # - Automatically uses probes.topology.normalize for normalization
+  # - Automatically uses probes.topology.pca_dim for intermediate PCA reduction (if set)
+  # - Layer titles show variance explained: e.g., "fc1 (32D→3D (78.5% var))"
+  #
+  # Requirements:
+  # - probes.layerwise_topology.enabled must be true
+  # - probes.layerwise_topology.layers defines which layers to visualize
+  save_layer_transformations: true
+
+  # Number of samples to visualize layer transformations for
+  # Automatically selects diverse samples (one per class if possible)
+  n_layer_transformation_samples: 3
 
   # Note: Intuitive comparison visualizations (norm comparison, summary cards,
   # class robustness comparison, layer sensitivity, epsilon impact, radar charts)

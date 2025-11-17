@@ -165,9 +165,13 @@ def _save_figure_safe(fig, save_path: str, has_3d: bool = False) -> bool:
     try:
         if hasattr(fig.canvas, 'print_png'):
             with increased_recursion_limit(10000):
-                fig.canvas.print_png(save_path, dpi=150)
+                # Set DPI on figure before calling print_png (print_png doesn't accept dpi argument)
+                original_dpi = fig.dpi
+                fig.set_dpi(150)
+                fig.canvas.print_png(save_path)
+                fig.set_dpi(original_dpi)  # Restore original DPI
             return True
-    except (RecursionError, AttributeError, RuntimeError) as e:
+    except (RecursionError, AttributeError, RuntimeError, TypeError) as e:
         logging.debug(f"Strategy 3 failed: {type(e).__name__}")
         pass
     

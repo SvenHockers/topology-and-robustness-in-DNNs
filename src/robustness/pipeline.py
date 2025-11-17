@@ -8,6 +8,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import logging
 from scipy.special import softmax
+from tqdm import tqdm
+import time
 
 from ..config import RobustnessConfig
 from ..data import GiottoPointCloudDataset, make_point_clouds
@@ -299,8 +301,12 @@ class RobustnessPipeline:
         if m.train:
             optimizer = torch.optim.Adam(self._model.parameters(), lr=m.lr)
             criterion = nn.CrossEntropyLoss()
-            for epoch in range(1, m.epochs + 1):
+            logging.info(f"Training model for {m.epochs} epochs...")
+            train_start = time.time()
+            for epoch in tqdm(range(1, m.epochs + 1), desc="Training epochs", unit="epoch"):
                 train_one_epoch(self._model, self._train_loader, optimizer, criterion, self.device)
+            train_time = time.time() - train_start
+            logging.info(f"Training completed in {train_time:.2f}s ({train_time/60:.1f} minutes)")
             # quick val to warm-up
             v_loss, v_acc = evaluate(self._model, self._val_loader, criterion, self.device)
             logging.info(f"Post-train eval: val_loss={v_loss:.4f}, val_acc={v_acc:.3f}")
@@ -316,6 +322,23 @@ class RobustnessPipeline:
         cfg = self.cfg
         device = self.device
 
+        # Log probe configuration
+        logging.info("\n" + "=" * 80)
+        logging.info("PROBE CONFIGURATION")
+        logging.info("=" * 80)
+        logging.info(f"Adversarial probes: {'ENABLED' if cfg.probes.adversarial.enabled else 'DISABLED'}")
+        if cfg.probes.adversarial.enabled:
+            logging.info(f"  - Attack types: {cfg.probes.adversarial.attack_types}")
+            logging.info(f"  - Norms: {cfg.probes.adversarial.norms}")
+            logging.info(f"  - Epsilon max: {cfg.probes.adversarial.eps_max}")
+        logging.info(f"Geometric probes: {'ENABLED' if cfg.probes.geometric.enabled else 'DISABLED'}")
+        logging.info(f"Interpolation probes: {'ENABLED' if cfg.probes.interpolation.enabled else 'DISABLED'}")
+        logging.info(f"Permutation probes: {'ENABLED' if cfg.probes.permutation.enabled else 'DISABLED'}")
+        if cfg.probes.permutation.enabled:
+            logging.info(f"  - N permutations: {cfg.probes.permutation.n_permutations}")
+        logging.info(f"Layerwise topology: {'ENABLED' if cfg.probes.layerwise_topology.enabled else 'DISABLED'}")
+        logging.info("=" * 80 + "\n")
+
         sample_records: List[SampleRecord] = []
         layerwise_records: List[LayerwiseRecord] = []
         diagdist_records: List[DiagramDistanceRecord] = []
@@ -329,15 +352,32 @@ class RobustnessPipeline:
         ra_curves: Dict[str, List[float]] = {}
         if cfg.probes.adversarial.enabled and cfg.probes.adversarial.eps_grid:
             logging.info(f"Computing RA curves over eps_grid={cfg.probes.adversarial.eps_grid}")
-            for norm in cfg.probes.adversarial.norms:
+            ra_start = time.time()
+            for norm in tqdm(cfg.probes.adversarial.norms, desc="Computing RA curves", unit="norm"):
                 ra = robust_accuracy_curve(model, self._val_loader, norm, cfg.probes.adversarial.eps_grid, cfg.probes.adversarial.steps)
                 ra_curves[norm] = ra
                 logging.info(f"RA({norm})={ra}")
+            ra_time = time.time() - ra_start
+            logging.info(f"RA curves computation completed in {ra_time:.2f}s")
+
+        # Calculate total number of samples to process
+        total_samples = 0
+        if cfg.general.sample_limit is not None:
+            total_samples = min(cfg.general.sample_limit, len(self._val_loader.dataset))
+        else:
+            total_samples = len(self._val_loader.dataset)
+        
+        logging.info(f"Processing {total_samples} samples...")
+        if cfg.general.sample_limit is not None:
+            logging.info(f"(Limited to {cfg.general.sample_limit} samples)")
 
         # per-sample probes
         model.eval()
         sample_id = 0
-        logging.info("Running per-sample probes...")
+        sample_start_time = time.time()
+        pbar = tqdm(total=total_samples, desc="Processing samples", unit="sample", 
+                   bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]')
+        
         for batch_idx, (x, y) in enumerate(self._val_loader):
             x, y = x.to(device), y.to(device)
             for i in range(x.size(0)):
@@ -644,6 +684,7 @@ class RobustnessPipeline:
                         clean_logits_np = clean_logits.squeeze(0).detach().cpu().numpy()
                         clean_confidence = float(np.max(softmax(clean_logits_np)))
                     
+                    # Permutation loop (no nested progress bar to avoid clutter)
                     for seed in range(n_perm):
                         x_perm = permute_points(xi, seed=seed)
                         with torch.no_grad():
@@ -715,10 +756,29 @@ class RobustnessPipeline:
 
                 sample_records.append(rec)
                 sample_id += 1
+                pbar.update(1)
+                
+                # Update progress bar description with time estimate
+                if sample_id > 0:
+                    elapsed = time.time() - sample_start_time
+                    avg_time_per_sample = elapsed / sample_id
+                    remaining_samples = total_samples - sample_id
+                    eta_seconds = avg_time_per_sample * remaining_samples
+                    eta_minutes = eta_seconds / 60
+                    pbar.set_postfix({
+                        'ETA': f'{eta_minutes:.1f}m' if eta_minutes > 1 else f'{eta_seconds:.0f}s',
+                        'avg': f'{avg_time_per_sample:.1f}s/sample'
+                    })
+                
                 if sample_id % 20 == 0:
-                    logging.info(f"Processed {sample_id} samples")
+                    elapsed = time.time() - sample_start_time
+                    logging.info(f"Processed {sample_id}/{total_samples} samples (elapsed: {elapsed/60:.1f}m, avg: {elapsed/sample_id:.2f}s/sample)")
             if cfg.general.sample_limit is not None and sample_id >= cfg.general.sample_limit:
                 break
+        
+        pbar.close()
+        sample_time = time.time() - sample_start_time
+        logging.info(f"Completed processing {sample_id} samples in {sample_time:.2f}s ({sample_time/60:.1f} minutes)")
 
         # write partial outputs
         write_csv([r.as_dict() for r in sample_records], os.path.join(self.out_dir, "metrics.csv"))
@@ -743,12 +803,20 @@ class RobustnessPipeline:
         }
 
     def aggregate_and_report(self, results):
+        logging.info("\n" + "=" * 80)
+        logging.info("AGGREGATING RESULTS AND GENERATING REPORTS")
+        logging.info("=" * 80)
+        
         recs: List[SampleRecord] = results["sample_records"]
         ra_curves = results["ra_curves"]
         diagdist_records: List[DiagramDistanceRecord] = results["diagdist_records"]
         adversarial_examples = results.get("adversarial_examples", {})
         original_samples = results.get("original_samples", {})
         layer_viz_samples = results.get("layer_viz_samples", {})
+        
+        logging.info(f"Processing {len(recs)} sample records")
+        logging.info(f"Processing {len(diagdist_records)} diagram distance records")
+        logging.info(f"Processing {len(results.get('layerwise_records', []))} layerwise records")
 
         def mean_safe(vals):
             arr = [v for v in vals if v is not None and not (isinstance(v, float) and (np.isnan(v)))]
@@ -762,9 +830,11 @@ class RobustnessPipeline:
 
         # plots
         if self.cfg.reporting.save_plots:
+            logging.info("Generating plots...")
+            plot_start = time.time()
             save_hist_png([r.eps_star_linf for r in recs], "eps* L_inf", os.path.join(self.out_dir, "hist_eps_linf.png"))
             save_hist_png([r.eps_star_l2 for r in recs], "eps* L2", os.path.join(self.out_dir, "hist_eps_l2.png"))
-            logging.info("Wrote eps* histograms")
+            logging.info(f"Wrote eps* histograms (took {time.time() - plot_start:.2f}s)")
             # simple per-layer average Wasserstein H0/H1 bars
             from collections import defaultdict
             from .report import (

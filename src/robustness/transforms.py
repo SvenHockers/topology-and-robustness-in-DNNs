@@ -72,6 +72,45 @@ def dropout_points(x: torch.Tensor, ratio: float, keep_size: bool = True) -> tor
     return out
 
 
+def permute_points(x: torch.Tensor, seed: Optional[int] = None) -> torch.Tensor:
+    """
+    Randomly permute the order of points in a point cloud.
+    x: (B?, N, 3) or (N, 3)
+    seed: Optional seed for reproducibility
+    """
+    if x.dim() == 2:
+        x = x.unsqueeze(0)
+        squeeze_back = True
+    else:
+        squeeze_back = False
+    
+    b, n, _ = x.shape
+    
+    if seed is not None:
+        generator = torch.Generator(device=x.device).manual_seed(seed)
+    else:
+        generator = None
+    
+    # Generate permutation indices for each batch
+    perm_indices_list = []
+    for i in range(b):
+        if generator is not None:
+            # Create a new generator for each batch with offset seed
+            gen = torch.Generator(device=x.device).manual_seed(seed + i if seed is not None else None)
+        else:
+            gen = None
+        perm = torch.randperm(n, generator=gen, device=x.device)
+        perm_indices_list.append(perm)
+    
+    perm_indices = torch.stack(perm_indices_list)  # (B, N)
+    batch_idx = torch.arange(b, device=x.device).unsqueeze(-1).expand_as(perm_indices)
+    permuted = x[batch_idx, perm_indices]  # (B, N, 3)
+    
+    if squeeze_back:
+        permuted = permuted.squeeze(0)
+    return permuted
+
+
 def apply_transform(
     x: torch.Tensor,
     transform: str,

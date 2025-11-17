@@ -9,20 +9,22 @@ from persim import wasserstein, bottleneck
 
 from .transforms import apply_transform
 from ..topology import compute_layer_topology, extract_persistence_stats
+# Import attacks for backward compatibility and new functionality
+from .attacks import (
+    pgd_attack as _pgd_attack_new,
+    fgsm_attack,
+    l0_attack,
+    cw_attack,
+    uap_attack,
+    boundary_attack,
+    estimate_min_eps_fgsm,
+    AttackResult,
+    get_attack,
+    list_attacks,
+)
 
 
-def _linf_project(x_adv: torch.Tensor, x_orig: torch.Tensor, eps: float) -> torch.Tensor:
-    eta = torch.clamp(x_adv - x_orig, min=-eps, max=eps)
-    return x_orig + eta
-
-
-def _l2_project(x_adv: torch.Tensor, x_orig: torch.Tensor, eps: float) -> torch.Tensor:
-    delta = x_adv - x_orig
-    norm = torch.norm(delta.view(delta.size(0), -1), p=2, dim=1, keepdim=True) + 1e-12
-    factor = torch.clamp(eps / norm, max=1.0).view(-1, 1, 1)
-    return x_orig + delta * factor
-
-
+# Backward compatibility: keep old pgd_attack signature that returns tensor
 def pgd_attack(
     model,
     x: torch.Tensor,
@@ -36,38 +38,13 @@ def pgd_attack(
     """
     PGD attack in L_inf or L2.
     x: (1, N, 3), y: scalar tensor
+    Returns tensor (backward compatibility).
     """
-    x_orig = x.detach()
-    x_adv = x_orig.clone()
-    if random_start:
-        if norm == "linf":
-            x_adv = x_orig + torch.empty_like(x_orig).uniform_(-eps, eps)
-        elif norm == "l2":
-            noise = torch.randn_like(x_orig)
-            noise = noise / (torch.norm(noise.view(1, -1), p=2, dim=1, keepdim=True) + 1e-12).view(1, 1, 1)
-            x_adv = x_orig + eps * noise
-    x_adv.requires_grad_(True)
-
-    alpha = step_frac * (eps / max(steps, 1))
-    for _ in range(steps):
-        logits = model(x_adv, save_layers=False)
-        loss = F.cross_entropy(logits, y.unsqueeze(0))
-        model.zero_grad()
-        if x_adv.grad is not None:
-            x_adv.grad.zero_()
-        loss.backward()
-        grad = x_adv.grad
-        if norm == "linf":
-            x_adv = x_adv + alpha * grad.sign()
-            x_adv = _linf_project(x_adv, x_orig, eps)
-        elif norm == "l2":
-            grad_norm = torch.norm(grad.view(grad.size(0), -1), p=2, dim=1, keepdim=True) + 1e-12
-            x_adv = x_adv + alpha * (grad / grad_norm).view_as(x_adv)
-            x_adv = _l2_project(x_adv, x_orig, eps)
-        else:
-            raise ValueError(f"Unsupported norm: {norm}")
-        x_adv = x_adv.detach().requires_grad_(True)
-    return x_adv.detach()
+    result = _pgd_attack_new(
+        model, x, y, norm=norm, eps=eps, steps=steps,
+        step_frac=step_frac, random_start=random_start
+    )
+    return result.x_adv
 
 
 def estimate_min_eps(
@@ -84,11 +61,28 @@ def estimate_min_eps(
     Bisection on epsilon using PGD as inner oracle. Returns (eps_star, x_adv_at_eps_star).
     """
     device = next(model.parameters()).device
-    x = x.unsqueeze(0).to(device)
+    # Ensure x has batch dimension: (N, 3) -> (1, N, 3) or keep (1, N, 3) as is
+    if x.dim() == 2:
+        x = x.unsqueeze(0)  # Add batch dimension
+    # Remove extra batch dimensions if present (shouldn't happen, but defensive)
+    while x.dim() > 3:
+        x = x.squeeze(0)
+    x = x.to(device)
     y = y.to(device)
 
     with torch.no_grad():
-        clean_pred = model(x, save_layers=False).argmax(1).item()
+        logits = model(x, save_layers=False)
+        # Ensure logits has batch dimension: (num_classes,) -> (1, num_classes)
+        if logits.dim() == 1:
+            logits = logits.unsqueeze(0)
+        # Remove extra dimensions if present
+        while logits.dim() > 2:
+            logits = logits.squeeze(0)
+        # Safe argmax: handle both 1D and 2D cases
+        if logits.dim() == 1:
+            clean_pred = logits.argmax().item()
+        else:
+            clean_pred = logits.argmax(1).item()
     if clean_pred != int(y.item()):
         return 0.0, x.detach().cpu()
 
@@ -98,8 +92,28 @@ def estimate_min_eps(
     for _ in range(max_outer):
         mid = 0.5 * (lo + hi)
         x_adv = pgd_attack(model, x.clone(), y, norm=norm, eps=mid, steps=steps, step_frac=1.0, random_start=True)
+        # Ensure x_adv has correct shape: (N, 3) -> (1, N, 3) or keep (1, N, 3)
+        if x_adv.dim() == 2:
+            x_adv = x_adv.unsqueeze(0)
+        # Remove extra batch dimensions if present
+        while x_adv.dim() > 3:
+            x_adv = x_adv.squeeze(0)
+        # Ensure x_adv is on the right device
+        if x_adv.device != device:
+            x_adv = x_adv.to(device)
         with torch.no_grad():
-            pred = model(x_adv, save_layers=False).argmax(1).item()
+            logits_adv = model(x_adv, save_layers=False)
+            # Ensure logits has batch dimension: (num_classes,) -> (1, num_classes)
+            if logits_adv.dim() == 1:
+                logits_adv = logits_adv.unsqueeze(0)
+            # Remove extra dimensions if present
+            while logits_adv.dim() > 2:
+                logits_adv = logits_adv.squeeze(0)
+            # Safe argmax: handle both 1D and 2D cases
+            if logits_adv.dim() == 1:
+                pred = logits_adv.argmax().item()
+            else:
+                pred = logits_adv.argmax(1).item()
         if pred != int(y.item()):
             found = mid
             x_best = x_adv
@@ -111,13 +125,19 @@ def estimate_min_eps(
     return found, (x_best.detach().cpu() if x_best is not None else None)
 
 
-def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], steps: int) -> List[float]:
+def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], steps: int, per_class: bool = False) -> List[float] | Dict[int, List[float]]:  # type: ignore
     """
     Compute robust accuracy over an epsilon grid using PGD at each epsilon.
+    If per_class=True, returns dict mapping class_id to list of accuracies.
     """
     device = next(model.parameters()).device
     correct_counts = [0 for _ in eps_values]
     total = 0
+    if per_class:
+        from collections import defaultdict
+        correct_by_class: Dict[int, List[int]] = defaultdict(lambda: [0 for _ in eps_values])
+        total_by_class: Dict[int, int] = defaultdict(int)
+    
     model.eval()
     for x, y in loader:
         x, y = x.to(device), y.to(device)
@@ -126,11 +146,21 @@ def robust_accuracy_curve(model, loader, norm: str, eps_values: List[float], ste
         for i in range(x.size(0)):
             xi = x[i : i + 1]
             yi = y[i]
+            class_id = int(yi.item())
+            if per_class:
+                total_by_class[class_id] += 1
             for j, eps in enumerate(eps_values):
                 x_adv = pgd_attack(model, xi.clone(), yi, norm=norm, eps=eps, steps=steps, step_frac=1.0, random_start=True)
                 with torch.no_grad():
                     pred = model(x_adv, save_layers=False).argmax(1).item()
-                correct_counts[j] += int(pred == int(yi.item()))
+                is_correct = int(pred == int(yi.item()))
+                correct_counts[j] += is_correct
+                if per_class:
+                    correct_by_class[class_id][j] += is_correct
+    
+    if per_class:
+        return {class_id: [c / max(total_by_class[class_id], 1) for c in counts] 
+                for class_id, counts in correct_by_class.items()}
     return [c / max(total, 1) for c in correct_counts]
 
 

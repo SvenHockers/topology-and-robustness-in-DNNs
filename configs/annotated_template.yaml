@@ -5,10 +5,34 @@
 # It generates a dataset, trains/loads a model, runs probes, computes
 # layerwise topology on activations, and writes metrics/plots.
 #
+# Multi-Attack Support:
+# - Supports multiple adversarial attack types: PGD, FGSM, CW, L0, UAP, Boundary
+# - All attacks are data-agnostic (work with point clouds, images, sequences, etc.)
+# - Attack comparison visualizations when multiple attacks are enabled
+# - Each attack can be configured independently
+# - See probes.adversarial.attack_types and attack-specific configs below
+#
+# Permutation Robustness Testing (NEW):
+# - Tests model robustness to point order permutations (fundamental for point cloud models)
+# - Computes permutation accuracy, confidence/margin drops, and topology distances
+# - Generates correlation analyses with adversarial robustness
+# - See probes.permutation for configuration
+#
+# Visualization Features:
+# - Adversarial example visualizations (3D point cloud comparisons)
+# - Attack comparison visualizations (eps* bars, topology comparisons, efficiency scatter)
+# - Permutation robustness visualizations (overview, heatmaps, correlations, scorecard)
+# - Per-class analysis (box plots, confusion matrices, robust accuracy)
+# - Statistical plots (correlation heatmaps, percentile curves, outliers)
+# - Intuitive comparisons (summary cards, norm comparison, radar charts)
+# - Layer transformation visualizations (3D point cloud transformations through network layers)
+# All visualizations are organized in subdirectories under visualizations/
+#
 # Tips:
 # - Start with this template and tweak a few keys here.
 # - Keys are validated and some stringified numbers are auto-coerced.
 # - Paths are relative to repo root; run the script from the repo root.
+# - To test multiple attacks: set attack_types: ["pgd", "fgsm", "cw"]
 # =====================================================================
 
 # -----------------------
@@ -82,7 +106,7 @@ model:
 # Probes (robustness experiments)
 # -----------------------
 probes:
-  # ---- Adversarial (white-box) PGD probes ----
+  # ---- Adversarial (white-box) attack probes ----
   adversarial:
     # Enable/disable all adversarial probes
     enabled: true
@@ -90,10 +114,22 @@ probes:
     # Attack norms to evaluate: list of "linf" and/or "l2"
     norms: ["linf", "l2"]
 
+    # Attack types to use (data-agnostic, work with any tensor shape):
+    # - "pgd": Projected Gradient Descent (iterative, baseline)
+    # - "fgsm": Fast Gradient Sign Method (single-step, fast baseline)
+    # - "cw": Carlini-Wagner (optimization-based, finds minimal perturbations)
+    # - "l0": Sparse attack (modifies few elements)
+    # - "uap": Universal Adversarial Perturbations (single perturbation for multiple samples)
+    # - "boundary": Boundary Attack (decision-based, no gradients needed)
+    # Default: ["pgd"] for backward compatibility
+    # To compare multiple attacks: ["pgd", "fgsm", "cw"]
+    attack_types: ["pgd"]
+
     # Maximum radius considered when searching for minimal epsilon (eps*)
     eps_max: 1.0
 
     # Inner PGD steps per epsilon; more steps → stronger attack
+    # Also used as default for other iterative attacks
     steps: 40
 
     # Tolerance for outer bisection on epsilon; smaller → more precise, slower
@@ -104,6 +140,69 @@ probes:
 
     # Grid of epsilons for robust accuracy curves (RA@epsilon)
     eps_grid: [0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]
+
+    # Enable attack comparison visualizations when multiple attack_types are used
+    # Generates: bar charts comparing eps*, topology distance comparisons, efficiency scatter plots
+    # Saved to: visualizations/attack_comparison/
+    compare_attacks: true
+
+    # Attack-specific configurations
+    # ---- FGSM (Fast Gradient Sign Method) ----
+    fgsm:
+      enabled: true
+      # Epsilon value for FGSM (if null, uses eps_max from parent config)
+      eps: null
+
+    # ---- Carlini-Wagner Attack ----
+    cw:
+      enabled: true
+      # Initial value for c parameter (binary search start)
+      c_init: 0.001
+      # Maximum value for c parameter (binary search upper bound)
+      c_max: 10.0
+      # Number of binary search steps for c parameter
+      binary_search_steps: 9
+      # Maximum optimization iterations per c value
+      max_iterations: 1000
+      # Learning rate for Adam optimizer
+      learning_rate: 0.01
+      # Confidence margin (kappa in CW paper); higher → more confident misclassification
+      confidence: 0.0
+
+    # ---- L0 Sparse Attack ----
+    l0:
+      enabled: true
+      # Maximum number of elements to modify (pixels/points/timesteps)
+      max_perturbed_elements: 10
+      # Element selection strategy:
+      # - "gradient_based": Select elements with largest gradient magnitude (recommended)
+      # - "random": Random element selection
+      # - "furthest": Select elements furthest from mean (for point clouds: outliers)
+      strategy: "gradient_based"
+      # Maximum optimization iterations
+      max_iterations: 100
+      # Perturbation magnitude per modified element
+      eps_per_element: 0.1
+
+    # ---- Universal Adversarial Perturbations (UAP) ----
+    uap:
+      enabled: true
+      # Maximum optimization iterations
+      max_iterations: 1000
+      # Initial perturbation magnitude (learning rate)
+      delta_init: 0.01
+      # Fooling rate threshold (percentage); attack succeeds if this % of samples are fooled
+      xi: 10.0
+
+    # ---- Boundary Attack ----
+    boundary:
+      enabled: true
+      # Maximum iterations for boundary exploration
+      max_iterations: 1000
+      # Step size for spherical step (moving towards source)
+      spherical_step_size: 0.01
+      # Step size for source step (random orthogonal step)
+      source_step_size: 0.01
 
   # ---- Geometric robustness probes ----
   geometric:
@@ -158,6 +257,55 @@ probes:
     # Whether to include cross-class pairs (disabled by default)
     cross_class: false
 
+  # ---- Permutation Robustness Probe ----
+  permutation:
+    # Enable/disable permutation robustness testing
+    # 
+    # Permutation robustness is a fundamental test for point cloud models:
+    # - Point clouds are inherently orderless sets
+    # - A robust model should predict identically regardless of point order
+    # - Tests whether model learns geometric features vs. order-dependent memorization
+    #
+    # Metrics computed:
+    # - permutation_accuracy: Fraction of random permutations maintaining correct prediction
+    # - permutation_confidence_drop: Mean drop in confidence under permutation
+    # - permutation_margin_drop: Mean drop in prediction margin under permutation
+    # - Topology distances: Wasserstein/Bottleneck distances between clean and permuted activations
+    #
+    # Visualizations generated (when save_plots=true):
+    # - permutation_robustness_overview.png: 2x2 grid summary (accuracy, vs margin, vs adversarial, topology by layer)
+    # - permutation_accuracy_histogram.png: Distribution of permutation accuracy across samples
+    # - permutation_heatmap_H0/H1.png: Topology distance by layer (raw and normalized)
+    # - permutation_distance_by_layer_H0/H1.png: Bar chart with error bars
+    # - permutation_vs_adversarial_{norm}.png: Correlation scatter plots
+    # - permutation_accuracy_by_class.png: Box plots showing permutation robustness per class
+    # - permutation_scorecard.png: Summary scorecard with key metrics
+    # All saved to: visualizations/permutation_robustness/
+    enabled: true
+
+    # Number of random permutations per sample to test
+    # - More permutations = better statistics but slower computation
+    # - Recommended: 30-50 for testing, 100+ for final analysis
+    # - Each permutation uses a different seed for reproducibility
+    n_permutations: 50
+
+    # Whether to compute topology distances under permutation
+    # - If true, computes Wasserstein/Bottleneck distances between clean and permuted activations
+    # - Required for topology-based permutation analysis visualizations
+    # - Uses probes.topology settings for normalization and dimensionality reduction
+    compute_topology: true
+
+    # Layers to analyze for topology changes under permutation
+    # - Must match model.layer_outputs keys (e.g., ["fc1", "fc2", "fc3", "pooled"] for MLP)
+    # - Topology distances are computed per layer and aggregated
+    layers: ["fc1", "fc2", "fc3", "pooled"]
+
+    # Diagram distance metrics to compute between clean and permuted diagrams
+    # Options: "wasserstein", "bottleneck"
+    # - "wasserstein": Standard Wasserstein distance (more stable, recommended)
+    # - "bottleneck": Bottleneck distance (faster but less informative for H0/H1)
+    distances: ["wasserstein"]
+
   # ---- Topology (TDA) settings ----
   topology:
     # Enable/disable computing persistence diagrams and stats
@@ -176,9 +324,12 @@ probes:
     # - "none": raw activations
     # - "zscore": per-feature standardization
     # - "l2": per-point L2 normalization
+    # NOTE: This normalization is also used for layer transformation visualizations
     normalize: "zscore"
 
     # Optional PCA dimensionality (SVD) before TDA; set null to disable
+    # NOTE: If set, layer visualizations will use this for intermediate reduction:
+    # e.g., 32D → 16D (PCA) → 3D (PCA) for better stability
     pca_dim: 16
 
     # Reserved for future: aggregate multiple batches before TDA
@@ -206,12 +357,27 @@ probes:
     sample_size: 200
 
     # Which conditions (and parameter values) to compare against clean
-    # adv_*_eps entries trigger adversarial comparisons; others may be added similarly.
+    # Format: "adv_{attack_type}_{norm}_eps" for attack-specific conditions
+    # Format: "adv_{norm}_eps" for backward compatibility (applies to all attacks)
+    # 
+    # Examples:
+    # - adv_linf_eps: [0.2, 0.4] → applies to all attacks (backward compatible)
+    # - adv_pgd_linf_eps: [0.2, 0.4] → PGD-specific at L∞
+    # - adv_fgsm_linf_eps: [0.1, 0.2] → FGSM-specific at L∞
+    # - adv_cw_l2_eps: [0.1] → CW-specific at L2
     conditions:
-      # Compute distances at these L∞ radii
+      # Backward compatible: applies to all attacks if attack-specific not specified
+      # Compute distances at these L∞ radii (for all attacks)
       adv_linf_eps: [0.2, 0.4]
-      # Compute distances at these L2 radii (optional)
+      # Compute distances at these L2 radii (optional, for all attacks)
       adv_l2_eps: []
+      
+      # Attack-specific conditions (optional, overrides general conditions for that attack)
+      # adv_pgd_linf_eps: [0.2, 0.4]    # PGD-specific
+      # adv_fgsm_linf_eps: [0.1, 0.2]   # FGSM-specific
+      # adv_cw_linf_eps: [0.1]          # CW-specific (typically needs fewer eps values)
+      # adv_l0_linf_eps: [0.1]         # L0-specific
+      
       # Example of geometric sensitivity captures:
       # rotation_deg: [10, 20]
       # jitter_std: [0.05]
@@ -231,5 +397,85 @@ reporting:
 
   # Number of sample point clouds per class to visualize with persistence diagrams
   sample_visualizations_per_class: 3
+
+  # ---- Adversarial Example Visualizations ----
+  # Enable/disable saving individual adversarial example visualizations
+  # When enabled, saves 3D point cloud comparisons (clean vs adversarial)
+  save_adversarial_visualizations: false
+
+  # Number of adversarial examples to visualize (individual samples)
+  # These are saved to visualizations/adversarial_examples/
+  n_adversarial_visualizations: 10
+
+  # Strategy for selecting which samples to visualize:
+  # - "diverse": Mix of classes and eps* ranges (recommended for overview)
+  # - "most_vulnerable": Samples with lowest eps* (most easily attacked)
+  # - "random": Random selection
+  visualization_selection: "diverse"
+
+  # ---- Per-Class Analysis Plots ----
+  # Enable/disable per-class robustness analysis visualizations
+  # Generates: box plots by class, confusion matrices, robust accuracy by class
+  # Saved to: visualizations/per_class/
+  save_per_class_plots: true
+
+  # ---- Statistical Comparison Plots ----
+  # Enable/disable statistical analysis visualizations
+  # Generates: correlation heatmaps, percentile curves, outlier analysis
+  # Saved to: visualizations/statistical/
+  save_statistical_plots: true
+
+  # ---- Layer Transformation Visualizations ----
+  # Enable/disable layer-by-layer 3D visualizations showing how point clouds
+  # transform through each network layer
+  # 
+  # Features:
+  # - Grid visualization showing transformations at each layer (input → fc1 → fc2 → ...)
+  # - Clean vs adversarial comparisons (side-by-side layer transformations)
+  # - Automatic dimensionality reduction (32D/64D → 3D via PCA with variance explained)
+  # - Uses normalization and PCA settings from probes.topology for consistency
+  #
+  # Output:
+  # - Clean transformations: visualizations/layer_transformations/layer_transformations_sample_*.png
+  # - Comparisons: visualizations/layer_transformations/layer_transformations_clean_vs_adv_*.png
+  #
+  # Configuration:
+  # - Automatically uses probes.topology.normalize for normalization
+  # - Automatically uses probes.topology.pca_dim for intermediate PCA reduction (if set)
+  # - Layer titles show variance explained: e.g., "fc1 (32D→3D (78.5% var))"
+  #
+  # Requirements:
+  # - probes.layerwise_topology.enabled must be true
+  # - probes.layerwise_topology.layers defines which layers to visualize
+  save_layer_transformations: true
+
+  # Number of samples to visualize layer transformations for
+  # Automatically selects diverse samples (one per class if possible)
+  n_layer_transformation_samples: 3
+
+  # Note: Intuitive comparison visualizations (norm comparison, summary cards,
+  # class robustness comparison, layer sensitivity, epsilon impact, radar charts)
+  # are automatically generated when save_plots=true and saved to visualizations/intuitive/
+  #
+  # Note: Attack comparison visualizations are automatically generated when:
+  # - probes.adversarial.compare_attacks=true
+  # - Multiple attack types are specified in probes.adversarial.attack_types
+  # Generated plots:
+  # - eps_star_comparison_{norm}.png: Bar chart comparing mean eps* across attacks
+  # - topology_comparison_{norm}_{layer}_H{H}.png: Topology distance comparisons
+  # - efficiency_scatter_{norm}_{layer}_H{H}.png: Perturbation magnitude vs topology distance
+  # All saved to: visualizations/attack_comparison/
+  #
+  # Note: Permutation robustness visualizations are automatically generated when:
+  # - probes.permutation.enabled=true
+  # - reporting.save_plots=true
+  # Generated plots (all saved to visualizations/permutation_robustness/):
+  # - permutation_robustness_overview.png: 2x2 grid summary panel
+  # - permutation_accuracy_histogram.png: Distribution of permutation accuracy
+  # - permutation_heatmap_H0/H1.png: Topology distance heatmaps (raw and normalized)
+  # - permutation_distance_by_layer_H0/H1.png: Bar charts with error bars
+  # - permutation_vs_adversarial_{norm}.png: Correlation scatter plots with adversarial robustness
+  # - permutation_accuracy_by_class.png: Box plots by class
+  # - permutation_scorecard.png: Summary scorecard with key metrics
 
 

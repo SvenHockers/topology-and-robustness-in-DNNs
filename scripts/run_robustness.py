@@ -65,6 +65,10 @@ def main():
         message="The input point cloud has more columns than rows; did you mean to transpose?",
         module="ripser.ripser",
     )
+    warnings.filterwarnings(
+        "ignore",
+        message="The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?",
+    ) 
 
     args = parse_args()
     cfg = RobustnessConfig.from_yaml(args.config)
@@ -104,5 +108,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

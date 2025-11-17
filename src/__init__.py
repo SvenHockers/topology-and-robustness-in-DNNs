@@ -1,13 +1,5 @@
 """
-Topology and Robustness in DNNs - Local package
-
-This package provides:
-- Data generation utilities and PyTorch datasets
-- Point-cloud models (MLP and simple PointNet-like CNN)
-- Topological data analysis helpers (persistence diagrams, stats, visualization)
-- Training/evaluation helpers
-- Adversarial attack utilities for point clouds
-- General visualization utilities
+File used to expose various methods and classes at root of the project 
 """
 
 from .data import GiottoPointCloudDataset, make_point_clouds

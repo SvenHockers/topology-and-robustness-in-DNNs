@@ -129,6 +129,8 @@ class RobustnessPipeline:
         # Store adversarial examples and original samples for visualization
         adversarial_examples: Dict[int, Dict[str, torch.Tensor]] = {}  # sample_id -> {norm: x_adv}
         original_samples: Dict[int, torch.Tensor] = {}  # sample_id -> x_clean
+        # Store samples for layer transformation visualization (always store a few)
+        layer_viz_samples: Dict[int, torch.Tensor] = {}  # sample_id -> x_clean
 
         # robust accuracy curves
         ra_curves: Dict[str, List[float]] = {}
@@ -187,6 +189,23 @@ class RobustnessPipeline:
                 # Store original sample for visualization
                 if cfg.reporting.save_adversarial_visualizations:
                     original_samples[sample_id] = xi
+                # Store samples for layer transformation visualization (store diverse samples)
+                if cfg.reporting.save_layer_transformations:
+                    # Store one sample per class, up to n_layer_transformation_samples
+                    from collections import defaultdict
+                    if not hasattr(cfg.reporting, 'n_layer_transformation_samples'):
+                        n_target = 3
+                    else:
+                        n_target = cfg.reporting.n_layer_transformation_samples
+                    class_counts = defaultdict(int)
+                    for sid in layer_viz_samples.keys():
+                        rec_existing = next((r for r in sample_records if r.sample_id == sid), None)
+                        if rec_existing:
+                            class_counts[rec_existing.true_label] += 1
+                    current_class_count = class_counts.get(int(yi.item()), 0)
+                    n_per_class = max(1, n_target // 3)  # Assuming 3 classes
+                    if current_class_count < n_per_class and len(layer_viz_samples) < n_target:
+                        layer_viz_samples[sample_id] = xi
 
                 # adversarial min eps (linf, l2)
                 if cfg.probes.adversarial.enabled:
@@ -436,6 +455,7 @@ class RobustnessPipeline:
             "ra_curves": ra_curves,
             "adversarial_examples": adversarial_examples,
             "original_samples": original_samples,
+            "layer_viz_samples": layer_viz_samples,
         }
 
     def aggregate_and_report(self, results):
@@ -444,6 +464,7 @@ class RobustnessPipeline:
         diagdist_records: List[DiagramDistanceRecord] = results["diagdist_records"]
         adversarial_examples = results.get("adversarial_examples", {})
         original_samples = results.get("original_samples", {})
+        layer_viz_samples = results.get("layer_viz_samples", {})
 
         def mean_safe(vals):
             arr = [v for v in vals if v is not None and not (isinstance(v, float) and (np.isnan(v)))]
@@ -511,9 +532,11 @@ class RobustnessPipeline:
             adv_viz_dir = os.path.join(viz_dir, "adversarial_examples")
             per_class_dir = os.path.join(viz_dir, "per_class")
             stat_dir = os.path.join(viz_dir, "statistical")
+            layer_viz_dir = os.path.join(viz_dir, "layer_transformations")
             os.makedirs(adv_viz_dir, exist_ok=True)
             os.makedirs(per_class_dir, exist_ok=True)
             os.makedirs(stat_dir, exist_ok=True)
+            os.makedirs(layer_viz_dir, exist_ok=True)
             
             # Adversarial example visualizations
             if self.cfg.reporting.save_adversarial_visualizations and adversarial_examples:
@@ -669,6 +692,105 @@ class RobustnessPipeline:
                 # Radar chart (multi-dimensional profile)
                 save_robustness_radar(recs, diagdist_records, os.path.join(intuitive_dir, "robustness_radar.png"))
                 logging.info("Wrote robustness radar chart")
+            
+            # Layer transformation visualizations
+            if self.cfg.reporting.save_layer_transformations:
+                from .report import (
+                    save_layer_transformation_grid,
+                    save_layer_transformation_comparison,
+                )
+                # Select diverse samples (one per class if possible)
+                from collections import defaultdict
+                samples_by_class = defaultdict(list)
+                for r in recs:
+                    samples_by_class[r.true_label].append(r.sample_id)
+                
+                selected_samples = []
+                n_per_class = max(1, self.cfg.reporting.n_layer_transformation_samples // len(samples_by_class) if samples_by_class else 1)
+                for class_id, sample_ids in samples_by_class.items():
+                    selected_samples.extend(sample_ids[:n_per_class])
+                selected_samples = selected_samples[:self.cfg.reporting.n_layer_transformation_samples]
+                
+                # Get layers to visualize
+                layers = None
+                if self.cfg.probes.layerwise_topology.enabled:
+                    layers = self.cfg.probes.layerwise_topology.layers
+                
+                # Visualize layer transformations for selected samples
+                # Use stored layer_viz_samples if available, otherwise fall back to original_samples
+                samples_to_use = layer_viz_samples if layer_viz_samples else original_samples
+                
+                for sample_id in selected_samples:
+                    # Find the sample record
+                    sample_rec = next((r for r in recs if r.sample_id == sample_id), None)
+                    if sample_rec is None:
+                        continue
+                    
+                    # Get the original sample
+                    if sample_id in samples_to_use:
+                        x_sample = samples_to_use[sample_id]
+                    elif sample_id in original_samples:
+                        x_sample = original_samples[sample_id]
+                    else:
+                        # Fallback: try to find in validation loader (less reliable)
+                        found = False
+                        for x_batch, y_batch in self._val_loader:
+                            for i in range(x_batch.size(0)):
+                                if int(y_batch[i].item()) == sample_rec.true_label:
+                                    x_sample = x_batch[i].detach().cpu()
+                                    found = True
+                                    break
+                            if found:
+                                break
+                        if not found:
+                            continue
+                    
+                    # Get reduction settings from topology config (for consistency)
+                    reduction_method = "pca"  # Default, could be made configurable
+                    normalize = self.cfg.probes.topology.normalize if self.cfg.probes.topology.enabled else "zscore"
+                    pca_dim = self.cfg.probes.topology.pca_dim if self.cfg.probes.topology.enabled else None
+                    
+                    # Visualize clean transformations
+                    save_path = os.path.join(layer_viz_dir, f"layer_transformations_sample_{sample_id}.png")
+                    try:
+                        save_layer_transformation_grid(
+                            self._model,
+                            x_sample,
+                            sample_id,
+                            sample_rec.true_label,
+                            save_path,
+                            layers=layers,
+                            reduction_method=reduction_method,
+                            normalize=normalize,
+                            pca_dim=pca_dim,
+                        )
+                        logging.info(f"Wrote layer transformation grid for sample {sample_id}")
+                    except Exception as e:
+                        logging.warning(f"Failed to create layer transformation for sample {sample_id}: {e}")
+                    
+                    # If adversarial examples are available, create comparison
+                    if sample_id in adversarial_examples and sample_id in original_samples:
+                        for norm in adversarial_examples[sample_id].keys():
+                            x_clean = original_samples[sample_id]
+                            x_adv = adversarial_examples[sample_id][norm]
+                            save_path = os.path.join(layer_viz_dir, f"layer_transformations_clean_vs_adv_sample_{sample_id}_{norm}.png")
+                            try:
+                                save_layer_transformation_comparison(
+                                    self._model,
+                                    x_clean,
+                                    x_adv,
+                                    sample_id,
+                                    sample_rec.true_label,
+                                    save_path,
+                                    layers=layers,
+                                    norm=norm,
+                                    reduction_method=reduction_method,
+                                    normalize=normalize,
+                                    pca_dim=pca_dim,
+                                )
+                                logging.info(f"Wrote layer transformation comparison for sample {sample_id} ({norm})")
+                            except Exception as e:
+                                logging.warning(f"Failed to create layer comparison for sample {sample_id} ({norm}): {e}")
 
         # write summary.json
         summary.to_json(os.path.join(self.out_dir, "summary.json"))

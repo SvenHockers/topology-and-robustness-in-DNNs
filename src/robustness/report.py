@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict, field
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, cast
 import csv
 import json
 import os
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from typing import cast
 from matplotlib.axes import Axes
 from ..plot_style import (
     new_figure,
@@ -1316,6 +1315,403 @@ def save_epsilon_impact_comparison(
     
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt_close(fig=fig)
+
+
+# ---------------------------
+# Layer Transformation Visualizations
+# ---------------------------
+def save_layer_transformation_grid(
+    model,
+    x_sample: torch.Tensor,
+    sample_id: int,
+    true_label: int,
+    output_path: str,
+    layers: Optional[List[str]] = None,
+    title_suffix: str = "",
+    reduction_method: str = "pca",
+    normalize: str = "zscore",
+    pca_dim: Optional[int] = None,
+) -> None:
+    """
+    Visualize how a point cloud transforms through each layer of the network.
+    For high-dimensional layers, uses dimensionality reduction to 3D for visualization.
+    
+    Args:
+        model: The neural network model
+        x_sample: Input point cloud tensor (1, N, 3) or (N, 3)
+        sample_id: ID of the sample for labeling
+        true_label: True class label
+        output_path: Path to save the visualization
+        layers: List of layer names to visualize (if None, uses all available)
+        title_suffix: Additional text for the title
+        reduction_method: "pca" | "tsne" | "umap" - method for dimensionality reduction
+        normalize: "none" | "zscore" | "l2" - normalization before reduction
+        pca_dim: If provided, first reduce to this dimension via PCA, then to 3D
+    """
+    from mpl_toolkits.mplot3d import Axes3D
+    from sklearn.decomposition import PCA
+    
+    class_names = {0: "Circle", 1: "Sphere", 2: "Torus"}
+    class_name = class_names.get(true_label, f"Class {true_label}")
+    
+    # Ensure x_sample is in correct format (1, N, 3)
+    if x_sample.dim() == 2:
+        x_sample = x_sample.unsqueeze(0)
+    if x_sample.dim() == 3 and x_sample.size(0) > 1:
+        x_sample = x_sample[0:1]
+    
+    device = next(model.parameters()).device
+    model.eval()
+    
+    # Forward pass with layer saving
+    with torch.no_grad():
+        _ = model(x_sample.to(device), save_layers=True)
+    
+    # Get available layers
+    available_layers = list(model.layer_outputs.keys())
+    if layers is None:
+        layers = available_layers
+    else:
+        # Filter to only layers that exist
+        layers = [l for l in layers if l in available_layers]
+    
+    if not layers:
+        return
+    
+    # Create grid layout
+    n_layers = len(layers)
+    ncols = min(4, n_layers)
+    nrows = int(np.ceil(n_layers / ncols))
+    
+    fig = plt.figure(figsize=(ncols * 3.5, nrows * 3.5))
+    
+    for idx, layer_name in enumerate(layers):
+        ax = fig.add_subplot(nrows, ncols, idx + 1, projection='3d')
+        
+        layer_act = model.layer_outputs[layer_name]
+        
+        # Handle different tensor shapes
+        if layer_act.dim() == 3:
+            # (B, N, D) - per-point features
+            act = layer_act[0].detach().cpu().numpy()  # (N, D)
+        elif layer_act.dim() == 2:
+            # (B, D) - pooled/global features
+            # For pooled layers, we can't visualize per-point, so skip or show a placeholder
+            if layer_act.size(0) == 1:
+                act = layer_act[0].detach().cpu().numpy()  # (D,)
+                # For pooled layers, create a simple visualization
+                ax.text(0.5, 0.5, 0.5, f"Pooled\n({act.shape[0]}D)", 
+                       ha='center', va='center', fontsize=10)
+                ax.set_title(f"{layer_name}\n(Global features)", fontsize=9)
+                ax.set_xlim(-1, 1)
+                ax.set_ylim(-1, 1)
+                ax.set_zlim(-1, 1)
+                continue
+            else:
+                act = layer_act.detach().cpu().numpy()  # (B, D)
+        else:
+            continue
+        
+        # Get feature dimension
+        if act.ndim == 1:
+            # Single vector - can't visualize as point cloud
+            ax.text(0.5, 0.5, 0.5, f"Vector\n({act.shape[0]}D)", 
+                   ha='center', va='center', fontsize=10)
+            ax.set_title(f"{layer_name}\n(Global features)", fontsize=9)
+            ax.set_xlim(-1, 1)
+            ax.set_ylim(-1, 1)
+            ax.set_zlim(-1, 1)
+            continue
+        
+        feature_dim = act.shape[1]
+        
+        # If already 3D, use directly
+        if feature_dim == 3:
+            points_3d = act
+            variance_explained = None
+        elif feature_dim < 3:
+            # Pad with zeros
+            points_3d = np.zeros((act.shape[0], 3))
+            points_3d[:, :feature_dim] = act
+            variance_explained = None
+        else:
+            # Normalize before reduction (consistent with topology computation)
+            act_normalized = _normalize_activations(act, normalize)
+            
+            # Optional: first reduce to intermediate dimension via PCA
+            if pca_dim is not None and pca_dim < feature_dim and pca_dim > 3:
+                pca_intermediate = PCA(n_components=pca_dim)
+                act_normalized = pca_intermediate.fit_transform(act_normalized)
+            
+            # Reduce to 3D using specified method
+            points_3d, variance_explained = _reduce_to_3d(
+                act_normalized, method=reduction_method, original_dim=feature_dim
+            )
+        
+        # Plot the 3D point cloud
+        ax.scatter(points_3d[:, 0], points_3d[:, 1], points_3d[:, 2], 
+                  s=20, alpha=0.7, c=points_3d[:, 2], cmap='viridis')
+        
+        # Set equal aspect ratio
+        max_range = np.array([points_3d[:, 0].max() - points_3d[:, 0].min(),
+                             points_3d[:, 1].max() - points_3d[:, 1].min(),
+                             points_3d[:, 2].max() - points_3d[:, 2].min()]).max() / 2.0
+        mid_x = (points_3d[:, 0].max() + points_3d[:, 0].min()) * 0.5
+        mid_y = (points_3d[:, 1].max() + points_3d[:, 1].min()) * 0.5
+        mid_z = (points_3d[:, 2].max() + points_3d[:, 2].min()) * 0.5
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        
+        # Title with dimension info and variance explained
+        if variance_explained is not None:
+            dim_info = f"{feature_dim}D→3D ({variance_explained:.1f}% var)"
+        else:
+            dim_info = f"{feature_dim}D→3D" if feature_dim > 3 else f"{feature_dim}D"
+        ax.set_title(f"{layer_name}\n({dim_info})", fontsize=9)
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+    
+    # Overall title
+    fig.suptitle(f"Layer Transformations: Sample {sample_id} ({class_name}){title_suffix}", 
+                 fontsize=12, y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def save_layer_transformation_comparison(
+    model,
+    x_clean: torch.Tensor,
+    x_adv: torch.Tensor,
+    sample_id: int,
+    true_label: int,
+    output_path: str,
+    layers: Optional[List[str]] = None,
+    norm: str = "linf",
+    reduction_method: str = "pca",
+    normalize: str = "zscore",
+    pca_dim: Optional[int] = None,
+) -> None:
+    """
+    Visualize how clean and adversarial point clouds transform through layers side-by-side.
+    
+    Args:
+        model: The neural network model
+        x_clean: Clean input point cloud (1, N, 3) or (N, 3)
+        x_adv: Adversarial input point cloud (1, N, 3) or (N, 3)
+        sample_id: ID of the sample
+        true_label: True class label
+        output_path: Path to save the visualization
+        layers: List of layer names to visualize
+        norm: Norm used for adversarial example (for labeling)
+    """
+    from mpl_toolkits.mplot3d import Axes3D
+    from sklearn.decomposition import PCA
+    
+    class_names = {0: "Circle", 1: "Sphere", 2: "Torus"}
+    class_name = class_names.get(true_label, f"Class {true_label}")
+    
+    # Ensure correct format
+    if x_clean.dim() == 2:
+        x_clean = x_clean.unsqueeze(0)
+    if x_adv.dim() == 2:
+        x_adv = x_adv.unsqueeze(0)
+    
+    device = next(model.parameters()).device
+    model.eval()
+    
+    # Forward pass for clean
+    with torch.no_grad():
+        _ = model(x_clean.to(device), save_layers=True)
+    clean_outputs = {k: v.clone() for k, v in model.layer_outputs.items()}
+    
+    # Forward pass for adversarial
+    with torch.no_grad():
+        _ = model(x_adv.to(device), save_layers=True)
+    adv_outputs = {k: v.clone() for k, v in model.layer_outputs.items()}
+    
+    # Get available layers
+    available_layers = list(clean_outputs.keys())
+    if layers is None:
+        layers = available_layers
+    else:
+        layers = [l for l in layers if l in available_layers]
+    
+    if not layers:
+        return
+    
+    # Create grid: 2 columns (clean, adv) x n_layers rows
+    n_layers = len(layers)
+    fig = plt.figure(figsize=(7, n_layers * 3))
+    
+    for idx, layer_name in enumerate(layers):
+        # Clean
+        ax_clean = fig.add_subplot(n_layers, 2, idx * 2 + 1, projection='3d')
+        _plot_layer_activation(
+            ax_clean, clean_outputs[layer_name], layer_name, "Clean",
+            reduction_method=reduction_method, normalize=normalize, pca_dim=pca_dim
+        )
+        
+        # Adversarial
+        ax_adv = fig.add_subplot(n_layers, 2, idx * 2 + 2, projection='3d')
+        _plot_layer_activation(
+            ax_adv, adv_outputs[layer_name], layer_name, "Adversarial",
+            reduction_method=reduction_method, normalize=normalize, pca_dim=pca_dim
+        )
+    
+    norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
+    fig.suptitle(f"Layer Transformations: Clean vs Adversarial\nSample {sample_id} ({class_name}, {norm_label})", 
+                 fontsize=12, y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt_close(fig=fig)
+
+
+def _normalize_activations(act: np.ndarray, normalize: str) -> np.ndarray:
+    """Normalize activations using specified method."""
+    if normalize == "zscore":
+        mu = act.mean(axis=0, keepdims=True)
+        sigma = act.std(axis=0, keepdims=True) + 1e-12
+        return (act - mu) / sigma
+    elif normalize == "l2":
+        norms = np.linalg.norm(act, ord=2, axis=1, keepdims=True) + 1e-12
+        return act / norms
+    else:  # "none"
+        return act
+
+
+def _reduce_to_3d(act: np.ndarray, method: str = "pca", original_dim: Optional[int] = None) -> Tuple[np.ndarray, Optional[float]]:
+    """
+    Reduce activations to 3D using specified method.
+    Returns (points_3d, variance_explained) where variance_explained is None for non-PCA methods.
+    """
+    from sklearn.decomposition import PCA
+    
+    if method == "pca":
+        pca = PCA(n_components=3)
+        points_3d = pca.fit_transform(act)
+        variance_explained = sum(pca.explained_variance_ratio_) * 100
+        # Normalize to similar scale as input
+        if points_3d.std() > 0:
+            points_3d = points_3d / (points_3d.std() + 1e-8) * 0.5
+        return points_3d, variance_explained
+    elif method == "tsne":
+        try:
+            from sklearn.manifold import TSNE
+            tsne = TSNE(n_components=3, random_state=42, perplexity=min(30, len(act) - 1))
+            points_3d = tsne.fit_transform(act)
+            return points_3d, None
+        except ImportError:
+            # Fallback to PCA if t-SNE not available
+            pca = PCA(n_components=3)
+            points_3d = pca.fit_transform(act)
+            variance_explained = sum(pca.explained_variance_ratio_) * 100
+            return points_3d, variance_explained
+    elif method == "umap":
+        try:
+            import umap
+            reducer = umap.UMAP(n_components=3, random_state=42)
+            points_3d = reducer.fit_transform(act)
+            return points_3d, None
+        except ImportError:
+            # Fallback to PCA if UMAP not available
+            pca = PCA(n_components=3)
+            points_3d = pca.fit_transform(act)
+            variance_explained = sum(pca.explained_variance_ratio_) * 100
+            return points_3d, variance_explained
+    else:
+        # Default to PCA
+        pca = PCA(n_components=3)
+        points_3d = pca.fit_transform(act)
+        variance_explained = sum(pca.explained_variance_ratio_) * 100
+        if points_3d.std() > 0:
+            points_3d = points_3d / (points_3d.std() + 1e-8) * 0.5
+        return points_3d, variance_explained
+
+
+def _plot_layer_activation(
+    ax, 
+    layer_act: torch.Tensor, 
+    layer_name: str, 
+    condition: str,
+    reduction_method: str = "pca",
+    normalize: str = "zscore",
+    pca_dim: Optional[int] = None,
+):
+    """Helper function to plot a single layer activation in 3D."""
+    from sklearn.decomposition import PCA
+    
+    # Handle different tensor shapes
+    if layer_act.dim() == 3:
+        act = layer_act[0].detach().cpu().numpy()  # (N, D)
+    elif layer_act.dim() == 2:
+        if layer_act.size(0) == 1:
+            act = layer_act[0].detach().cpu().numpy()  # (D,)
+        else:
+            act = layer_act.detach().cpu().numpy()  # (B, D)
+    else:
+        return
+    
+    # Handle pooled/global features
+    if act.ndim == 1:
+        ax.text(0.5, 0.5, 0.5, f"Pooled\n({act.shape[0]}D)", 
+               ha='center', va='center', fontsize=9)
+        ax.set_title(f"{layer_name} ({condition})", fontsize=8)
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        ax.set_zlim(-1, 1)
+        return
+    
+    feature_dim = act.shape[1]
+    
+    # Reduce to 3D if needed
+    if feature_dim == 3:
+        points_3d = act
+        variance_explained = None
+    elif feature_dim < 3:
+        points_3d = np.zeros((act.shape[0], 3))
+        points_3d[:, :feature_dim] = act
+        variance_explained = None
+    else:
+        # Normalize before reduction
+        act_normalized = _normalize_activations(act, normalize)
+        
+        # Optional: first reduce to intermediate dimension via PCA
+        if pca_dim is not None and pca_dim < feature_dim and pca_dim > 3:
+            pca_intermediate = PCA(n_components=pca_dim)
+            act_normalized = pca_intermediate.fit_transform(act_normalized)
+        
+        # Reduce to 3D
+        points_3d, variance_explained = _reduce_to_3d(
+            act_normalized, method=reduction_method, original_dim=feature_dim
+        )
+    
+    # Plot
+    ax.scatter(points_3d[:, 0], points_3d[:, 1], points_3d[:, 2], 
+              s=15, alpha=0.7, c=points_3d[:, 2], cmap='viridis')
+    
+    # Set equal aspect
+    max_range = np.array([points_3d[:, 0].max() - points_3d[:, 0].min(),
+                         points_3d[:, 1].max() - points_3d[:, 1].min(),
+                         points_3d[:, 2].max() - points_3d[:, 2].min()]).max() / 2.0
+    mid_x = (points_3d[:, 0].max() + points_3d[:, 0].min()) * 0.5
+    mid_y = (points_3d[:, 1].max() + points_3d[:, 1].min()) * 0.5
+    mid_z = (points_3d[:, 2].max() + points_3d[:, 2].min()) * 0.5
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+    
+    # Title with variance explained
+    if variance_explained is not None:
+        dim_info = f"{feature_dim}D→3D ({variance_explained:.1f}% var)"
+    else:
+        dim_info = f"{feature_dim}D→3D" if feature_dim > 3 else f"{feature_dim}D"
+    ax.set_title(f"{layer_name} ({condition})\n{dim_info}", fontsize=8)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
 
 
 # ---------------------------

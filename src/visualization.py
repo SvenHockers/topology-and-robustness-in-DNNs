@@ -1,10 +1,182 @@
+import logging
+import sys
+import os
+import signal
 import matplotlib.pyplot as plt
+import matplotlib
+# Set Agg backend early to avoid GUI issues
+try:
+    matplotlib.use('Agg', force=False)
+except Exception:
+    pass
 import numpy as np
 import torch
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 - import required for 3D projection
 from ripser import ripser
 from typing import Dict, Optional
+from contextlib import contextmanager
 from .plot_style import new_figure
+
+# Patch matplotlib's Path.__deepcopy__ to prevent infinite recursion
+# This is a workaround for matplotlib bug where Path.__deepcopy__ calls
+# copy.deepcopy(super()) which creates infinite recursion due to circular references
+try:
+    import matplotlib.path as mpath
+    import copy
+    
+    # Store original method
+    if hasattr(mpath.Path, '__deepcopy__'):
+        _original_path_deepcopy = mpath.Path.__deepcopy__
+    else:
+        _original_path_deepcopy = None
+    
+    def _patched_path_deepcopy(self, memo):
+        """
+        Patched deepcopy that prevents infinite recursion in Path objects.
+        The bug is in matplotlib's Path.__deepcopy__ which calls copy.deepcopy(super())
+        causing infinite recursion. We fix this by avoiding the super() deepcopy entirely.
+        """
+        # Check memo first (standard deepcopy pattern to prevent cycles)
+        id_self = id(self)
+        if id_self in memo:
+            return memo[id_self]
+        
+        # Limit recursion by memo size - if we're too deep, use shallow copy
+        if len(memo) > 100:
+            # We're too deep - break the cycle with shallow copy
+            result = copy.copy(self)
+            memo[id_self] = result
+            return result
+        
+        # Create new Path with copied vertices and codes, avoiding super() call
+        # This is the key fix - we don't call super().__deepcopy__ which causes the recursion
+        try:
+            # Copy vertices (numpy array)
+            if hasattr(self.vertices, 'copy'):
+                vertices = self.vertices.copy()
+            else:
+                vertices = self.vertices
+            
+            # Copy codes (can be None or array)
+            if self.codes is not None and hasattr(self.codes, 'copy'):
+                codes = self.codes.copy()
+            else:
+                codes = self.codes
+            
+            # Create new Path object
+            new_path = mpath.Path(
+                vertices,
+                codes,
+                _interpolation_steps=getattr(self, '_interpolation_steps', 1)
+            )
+            
+            # Store in memo before returning
+            memo[id_self] = new_path
+            return new_path
+        except (RecursionError, Exception) as e:
+            # If anything fails, fall back to shallow copy
+            result = copy.copy(self)
+            memo[id_self] = result
+            return result
+    
+    # Apply the patch
+    if _original_path_deepcopy is not None:
+        mpath.Path.__deepcopy__ = _patched_path_deepcopy
+        # Verify patch was applied by checking if it's our function
+        if mpath.Path.__deepcopy__ is _patched_path_deepcopy:
+            logging.info("Successfully applied matplotlib Path.__deepcopy__ patch to prevent recursion")
+            # Test the patch works by trying to deepcopy a simple path
+            try:
+                import copy as copy_module
+                test_path = mpath.Path([[0, 0], [1, 1]])
+                test_copy = copy_module.deepcopy(test_path)
+                logging.debug("Path deepcopy patch verified - test deepcopy succeeded")
+            except RecursionError:
+                logging.warning("Path deepcopy patch may not be working - test deepcopy failed with RecursionError")
+            except Exception as e:
+                logging.debug(f"Path deepcopy patch test: {type(e).__name__} (may be expected)")
+        else:
+            logging.warning("Failed to apply Path.__deepcopy__ patch - method was not replaced")
+    else:
+        logging.debug("matplotlib.Path.__deepcopy__ not found, skipping patch")
+except (ImportError, AttributeError, Exception) as e:
+    # If patching fails, continue without it (non-critical)
+    logging.warning(f"Could not patch matplotlib Path.__deepcopy__: {type(e).__name__}: {e}")
+    pass
+
+
+@contextmanager
+def increased_recursion_limit(limit=5000):
+    """
+    Temporarily increase recursion limit to handle matplotlib deepcopy issues with 3D plots.
+    This is a workaround for matplotlib's Path.__deepcopy__ recursion bug.
+    """
+    old_limit = sys.getrecursionlimit()
+    try:
+        sys.setrecursionlimit(limit)
+        yield
+    finally:
+        sys.setrecursionlimit(old_limit)
+
+
+def _save_figure_safe(fig, save_path: str, has_3d: bool = False) -> bool:
+    """
+    Safely save a matplotlib figure, handling recursion errors for 3D plots.
+    For 3D plots, the recursion happens in matplotlib's Path.__deepcopy__ method
+    which has a circular reference bug. We use multiple strategies to work around this.
+    Returns True if successful, False otherwise.
+    """
+    if not has_3d:
+        # For 2D plots, use tight bbox normally
+        try:
+            fig.savefig(save_path, dpi=150, bbox_inches='tight')
+            return True
+        except RecursionError:
+            # Fallback without tight bbox
+            fig.savefig(save_path, dpi=150)
+            return True
+    
+    # For 3D plots: The recursion is in Path.__deepcopy__ which matplotlib calls
+    # during save operations. The issue is that matplotlib's Path objects have
+    # circular references in their deepcopy implementation.
+    
+    # Strategy 1: Try with the patched deepcopy (should work now)
+    try:
+        fig.savefig(save_path, dpi=150, format='png')
+        return True
+    except RecursionError:
+        pass
+    except Exception as e:
+        logging.debug(f"Strategy 1 failed: {type(e).__name__}")
+        pass
+    
+    # Strategy 2: Try with increased recursion limit (in case patch didn't fully work)
+    try:
+        with increased_recursion_limit(10000):
+            fig.savefig(save_path, dpi=150, format='png')
+        return True
+    except RecursionError:
+        pass
+    except Exception as e:
+        logging.debug(f"Strategy 2 failed: {type(e).__name__}")
+        pass
+    
+    # Strategy 3: Try direct canvas print_png (lowest level, might bypass deepcopy)
+    try:
+        if hasattr(fig.canvas, 'print_png'):
+            with increased_recursion_limit(10000):
+                fig.canvas.print_png(save_path, dpi=150)
+            return True
+    except (RecursionError, AttributeError, RuntimeError) as e:
+        logging.debug(f"Strategy 3 failed: {type(e).__name__}")
+        pass
+    
+    # All strategies failed - this is a known matplotlib bug we cannot fully fix
+    # The Path.__deepcopy__ has a circular reference that causes infinite recursion
+    # Even with the patch and workarounds, matplotlib's internal save operations may still trigger it
+    logging.warning("All save strategies failed for 3D plot - matplotlib Path deepcopy bug persists")
+    logging.warning("This is a known matplotlib limitation - visualization will be skipped (non-critical)")
+    return False
 
 
 def visualize_sample_diagrams(
@@ -34,6 +206,9 @@ def visualize_sample_diagrams(
     rows = num_classes * max(1, n_samples_per_class)
     cols = 1 + (maxdim + 1)
     fig, _ = new_figure(kind="custom", figsize=(4 * cols, 3 * rows))
+    
+    # Track if we have any 3D plots (which can cause recursion issues with bbox_inches='tight')
+    has_3d_plots = False
 
     def _name_for(c):
         key = None
@@ -69,6 +244,7 @@ def visualize_sample_diagrams(
                 ax.scatter(pc[:, 0], pc[:, 1], pc[:, 2], s=2, alpha=0.7)
                 ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
                 ax.view_init(elev=20, azim=45)
+                has_3d_plots = True
             elif D == 2:
                 ax = fig.add_subplot(rows, cols, row * cols + 1)
                 ax.scatter(pc[:, 0], pc[:, 1], s=4, alpha=0.8)
@@ -95,14 +271,43 @@ def visualize_sample_diagrams(
                     ax.set_title(f'H{kdim}', fontsize=10)
                 ax.grid(True, alpha=0.3)
 
-    plt.tight_layout()
+    # tight_layout can be problematic with 3D plots, so wrap in try-except
+    try:
+        plt.tight_layout()
+    except (RecursionError, Exception):
+        # If tight_layout fails (e.g., with 3D plots), continue without it
+        pass
+    
     if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"Saved persistence diagrams to '{save_path}'")
-    if show:
-        plt.show()
-    else:
-        plt.close(fig)
+        # Use safe save function that handles recursion errors
+        # Wrap in additional try-except to catch any recursion errors that slip through
+        try:
+            success = _save_figure_safe(fig, save_path, has_3d=has_3d_plots)
+            if success:
+                print(f"Saved persistence diagrams to '{save_path}'")
+            else:
+                print(f"Could not save persistence diagrams")
+                logging.warning(f"Failed to save persistence_diagrams_by_class.png")
+        except RecursionError as e:
+            # Catch any recursion errors that weren't caught by _save_figure_safe
+            # This is critical - ensures pipeline continues even if recursion occurs
+            logging.warning(f"RecursionError caught during figure save - skipping visualization (non-critical): {type(e).__name__}")
+            print(f"Could not save persistence diagrams (matplotlib recursion bug - non-critical, pipeline continues)")
+        except Exception as e:
+            # Catch any other unexpected errors
+            logging.warning(f"Error during figure save (non-critical, pipeline continues): {type(e).__name__}: {e}")
+            print(f"Could not save persistence diagrams (non-critical)")
+    
+    # Always close the figure to free memory, even if save failed
+    try:
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
+    except Exception:
+        # Even closing might fail in extreme cases, but we continue
+        pass
+    
     return fig
 
 

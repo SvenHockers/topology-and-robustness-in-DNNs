@@ -2052,7 +2052,8 @@ def save_attack_success_rate(
     ax.set_yticks(y_pos)
     ax.set_yticklabels([at.upper() for at in attacks])
     ax.set_xlabel(f"Success Rate (%)", fontsize=12)
-    ax.set_title(f"Attack Success Rate ({norm_label}, ε_max={eps_max})\n" +
+    epsmax_text = rf"$\epsilon_{{\max}}={eps_max}$"
+    ax.set_title(f"Attack Success Rate ({norm_label}, {epsmax_text})\n" +
                  "Percentage of samples where attack finds adversarial example",
                  fontsize=13, pad=10)
     ax.set_xlim(0, 105)
@@ -2139,7 +2140,7 @@ def save_attack_agreement_matrix(
     
     norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
     ax.set_title(f"Attack Agreement Matrix ({norm_label})\n" +
-                 "Correlation of ε* values - High correlation = attacks find similar vulnerabilities",
+                 r"Correlation of $\epsilon^\*$ values - High correlation = attacks find similar vulnerabilities",
                  fontsize=13, pad=10)
     
     plt.tight_layout()

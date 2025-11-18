@@ -944,7 +944,7 @@ def save_norm_comparison_bars(
     sample_records: List[SampleRecord],
     path: str,
 ) -> None:
-    """Compare L∞ vs L2 eps* side-by-side for easy comparison."""
+    """Compare L_inf vs L2 eps* side-by-side for easy comparison."""
     class_names = {0: "Circle", 1: "Sphere", 2: "Torus"}
     
     # Aggregate by class
@@ -977,7 +977,7 @@ def save_norm_comparison_bars(
     
     ax.set_xlabel("Class")
     ax.set_ylabel(r"Mean $\epsilon^\star$")
-    ax.set_title("Robustness Comparison: L∞ vs L2")
+    ax.set_title(r"Robustness Comparison: $\ell_\infty$ vs $\ell_2$")
     ax.set_xticks(x)
     ax.set_xticklabels(class_labels)
     ax.legend()
@@ -2052,7 +2052,8 @@ def save_attack_success_rate(
     ax.set_yticks(y_pos)
     ax.set_yticklabels([at.upper() for at in attacks])
     ax.set_xlabel(f"Success Rate (%)", fontsize=12)
-    ax.set_title(f"Attack Success Rate ({norm_label}, ε_max={eps_max})\n" +
+    epsmax_text = rf"$\epsilon_{{\max}}={eps_max}$"
+    ax.set_title(f"Attack Success Rate ({norm_label}, {epsmax_text})\n" +
                  "Percentage of samples where attack finds adversarial example",
                  fontsize=13, pad=10)
     ax.set_xlim(0, 105)
@@ -2119,6 +2120,11 @@ def save_attack_agreement_matrix(
     
     fig, ax = new_figure(kind="custom", figsize=(8, 7))
     ax = cast(Axes, ax)
+    # Set layout engine before creating colorbar to avoid engine-switch errors
+    try:
+        cast(plt.Figure, fig).set_layout_engine("constrained")
+    except Exception:
+        pass
     
     # Use seaborn if available, otherwise matplotlib
     try:
@@ -2139,10 +2145,9 @@ def save_attack_agreement_matrix(
     
     norm_label = r"$\ell_\infty$" if norm == "linf" else r"$\ell_2$"
     ax.set_title(f"Attack Agreement Matrix ({norm_label})\n" +
-                 "Correlation of ε* values - High correlation = attacks find similar vulnerabilities",
+                 r"Correlation of $\epsilon^{*}$ values - High correlation = attacks find similar vulnerabilities",
                  fontsize=13, pad=10)
     
-    plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt_close(fig)
 
@@ -2277,6 +2282,12 @@ def save_topology_disruption_ranking(
     fig, ax = new_figure(kind="custom", figsize=(max(8, len(all_layers) * 0.8), max(6, len(attacks) * 0.6)))
     ax = cast(Axes, ax)
     
+    # Set layout engine before creating colorbar to avoid engine-switch errors
+    try:
+        cast(plt.Figure, fig).set_layout_engine("constrained")
+    except Exception:
+        pass
+    
     # Create heatmap
     try:
         import seaborn as sns
@@ -2303,7 +2314,6 @@ def save_topology_disruption_ranking(
                  f"{metric.capitalize()} Distance H{H} - Darker = more disruption",
                  fontsize=13, pad=10)
     
-    plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt_close(fig)
 
@@ -2674,7 +2684,7 @@ Most Sensitive Layer: {most_sensitive}
 Correlation with Adversarial Robustness: r = {corr_linf:.2f} (if available)
 
 Permutation-Invariant: {perm_invariant}
-  (Threshold: ≥95% accuracy)
+  (Threshold: >= 95% accuracy)
 
 {'='*40}
 """

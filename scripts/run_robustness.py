@@ -7,6 +7,7 @@ import shutil
 from datetime import datetime
 import logging
 import warnings
+import time
 
 from src.config import RobustnessConfig
 from src.plot_style import use_paper_style, use_default_style, use_exploratory_style
@@ -98,12 +99,48 @@ def main():
 
     from src.robustness.pipeline import RobustnessPipeline
 
+    start_time = time.time()
+    logging.info("=" * 80)
+    logging.info("Starting robustness pipeline")
+    logging.info("=" * 80)
+    
     pipeline = RobustnessPipeline(cfg, out_dir)
+    
+    # Prepare data
+    step_start = time.time()
+    logging.info("\n[Step 1/4] Preparing data...")
     pipeline.prepare_data()
+    step_time = time.time() - step_start
+    logging.info(f"[Step 1/4] Data preparation completed in {step_time:.2f}s")
+    
+    # Prepare model
+    step_start = time.time()
+    logging.info("\n[Step 2/4] Preparing model...")
     pipeline.prepare_model()
+    step_time = time.time() - step_start
+    logging.info(f"[Step 2/4] Model preparation completed in {step_time:.2f}s")
+    
+    # Run probes (this is the longest step)
+    step_start = time.time()
+    logging.info("\n[Step 3/4] Running probes (this may take a while)...")
     summary = pipeline.run_probes()
+    step_time = time.time() - step_start
+    logging.info(f"[Step 3/4] Probes completed in {step_time:.2f}s ({step_time/60:.1f} minutes)")
+    
+    # Aggregate and report
+    step_start = time.time()
+    logging.info("\n[Step 4/4] Aggregating results and generating reports...")
     pipeline.aggregate_and_report(summary)
-    print(f"Robustness results written to: {out_dir}")
+    step_time = time.time() - step_start
+    logging.info(f"[Step 4/4] Reporting completed in {step_time:.2f}s")
+    
+    total_time = time.time() - start_time
+    logging.info("=" * 80)
+    logging.info(f"Pipeline completed successfully!")
+    logging.info(f"Total time: {total_time:.2f}s ({total_time/60:.1f} minutes)")
+    logging.info("=" * 80)
+    print(f"\nRobustness results written to: {out_dir}")
+    print(f"Total execution time: {total_time/60:.1f} minutes")
 
 
 if __name__ == "__main__":

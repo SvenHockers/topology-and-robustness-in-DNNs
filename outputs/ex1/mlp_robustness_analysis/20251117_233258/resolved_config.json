@@ -1,0 +1,204 @@
+{
+  "general": {
+    "seed": 10,
+    "exp_name": "mlp_robustness_analysis",
+    "device": "cpu",
+    "output_dir": "outputs/ex1/mlp_robustness_analysis",
+    "sample_limit": 80,
+    "style": "paper"
+  },
+  "data": {
+    "n_samples_per_shape": 200,
+    "n_points": 20,
+    "noise": 0.1,
+    "val_split": 0.2,
+    "batch_size": 16
+  },
+  "model": {
+    "arch": "MLP",
+    "train": true,
+    "epochs": 30,
+    "lr": 0.001,
+    "checkpoint": null
+  },
+  "probes": {
+    "adversarial": {
+      "enabled": true,
+      "norms": [
+        "linf",
+        "l2"
+      ],
+      "attack_types": [
+        "pgd",
+        "fgsm",
+        "cw"
+      ],
+      "eps_max": 1.0,
+      "steps": 30,
+      "tol": 0.001,
+      "outer_bisect": true,
+      "eps_grid": [
+        0.0,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.5,
+        1.0
+      ],
+      "compare_attacks": true,
+      "attack_comparison_metrics": [
+        "eps_star",
+        "topology_distance",
+        "perturbation_magnitude"
+      ],
+      "fgsm": {
+        "enabled": true,
+        "eps": null
+      },
+      "cw": {
+        "enabled": true,
+        "c_init": 0.001,
+        "c_max": 10.0,
+        "binary_search_steps": 7,
+        "max_iterations": 500,
+        "learning_rate": 0.01,
+        "confidence": 0.0
+      },
+      "l0": {
+        "enabled": false,
+        "max_perturbed_elements": 10,
+        "strategy": "gradient_based",
+        "max_iterations": 50,
+        "eps_per_element": 0.1
+      },
+      "uap": {
+        "enabled": false,
+        "max_iterations": 500,
+        "delta_init": 0.01,
+        "xi": 10.0
+      },
+      "boundary": {
+        "enabled": false,
+        "max_iterations": 500,
+        "spherical_step_size": 0.01,
+        "source_step_size": 0.01
+      }
+    },
+    "geometric": {
+      "enabled": true,
+      "tol": 0.001,
+      "rotation": {
+        "axes": [
+          "z"
+        ],
+        "deg_range": [
+          -45,
+          45
+        ]
+      },
+      "translation": {
+        "axes": [
+          "x",
+          "y",
+          "z"
+        ],
+        "range": [
+          -0.2,
+          0.2
+        ]
+      },
+      "jitter": {
+        "std_range": [
+          0.0,
+          0.2
+        ],
+        "clip": 0.5
+      },
+      "dropout": {
+        "ratio_range": [
+          0.0,
+          0.5
+        ]
+      }
+    },
+    "interpolation": {
+      "enabled": true,
+      "pairs_per_class": 15,
+      "match": "index",
+      "steps": 40,
+      "cross_class": false
+    },
+    "permutation": {
+      "enabled": true,
+      "n_permutations": 30,
+      "compute_topology": true,
+      "layers": [
+        "fc1",
+        "fc2",
+        "fc3",
+        "pooled"
+      ],
+      "distances": [
+        "wasserstein"
+      ]
+    },
+    "topology": {
+      "enabled": true,
+      "compute_dgm": true,
+      "maxdim": 1,
+      "sample_size": 150,
+      "normalize": "zscore",
+      "pca_dim": 16,
+      "batches_for_topology": 1,
+      "bootstrap_repeats": 1
+    },
+    "layerwise_topology": {
+      "enabled": true,
+      "layers": [
+        "input",
+        "fc1",
+        "fc2",
+        "fc3",
+        "pooled"
+      ],
+      "distances": [
+        "wasserstein"
+      ],
+      "maxdim": 1,
+      "sample_size": 150,
+      "conditions": {
+        "adv_linf_eps": [
+          0.1,
+          0.2,
+          0.3
+        ],
+        "adv_l2_eps": [
+          0.2,
+          0.4
+        ],
+        "rotation_deg": [
+          15.0,
+          30.0
+        ],
+        "jitter_std": [
+          0.05,
+          0.1
+        ]
+      }
+    }
+  },
+  "reporting": {
+    "save_csv": true,
+    "save_plots": true,
+    "save_artifacts": false,
+    "sample_visualizations_per_class": 3,
+    "save_adversarial_visualizations": true,
+    "n_adversarial_visualizations": 8,
+    "visualization_selection": "diverse",
+    "save_per_class_plots": true,
+    "save_statistical_plots": true,
+    "save_layer_transformations": true,
+    "n_layer_transformation_samples": 3
+  }
+}

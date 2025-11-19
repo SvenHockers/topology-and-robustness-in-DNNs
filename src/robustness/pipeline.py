@@ -301,10 +301,52 @@ class RobustnessPipeline:
         if m.train:
             optimizer = torch.optim.Adam(self._model.parameters(), lr=m.lr)
             criterion = nn.CrossEntropyLoss()
+            
+            # Prepare adversarial training config if enabled
+            adv_config = None
+            if m.adv_training:
+                adv_config = {
+                    "enabled": True,
+                    "epsilon": m.adv_epsilon,
+                    "adv_steps": m.adv_steps,
+                    "adv_step_size": m.adv_step_size,
+                    "lambda_adv": m.lambda_adv,
+                    "lambda_feat_fc3": m.lambda_feat_fc3,
+                    "lambda_feat_pooled": m.lambda_feat_pooled,
+                    "lambda_logit": m.lambda_logit,
+                    "attack_type": m.adv_attack_type,
+                    "norm": m.adv_norm,
+                    # Legacy fields for backwards compatibility
+                    "pgd_steps": getattr(m, 'adv_pgd_steps', m.adv_steps),
+                    "lambda_rep": getattr(m, 'lambda_rep', m.lambda_feat_pooled),
+                    "rep_layer": getattr(m, 'rep_layer', 'pooled'),
+                }
+                logging.info(f"Adversarial training ENABLED (extended version):")
+                logging.info(f"  - epsilon={m.adv_epsilon}, attack={m.adv_attack_type}, norm={m.adv_norm}")
+                logging.info(f"  - adv_steps={m.adv_steps}, step_size={m.adv_step_size if m.adv_step_size else 'auto'}")
+                logging.info(f"  - lambda_adv={m.lambda_adv}")
+                logging.info(f"  - lambda_feat_fc3={m.lambda_feat_fc3}, lambda_feat_pooled={m.lambda_feat_pooled}")
+                logging.info(f"  - lambda_logit={m.lambda_logit}")
+            else:
+                logging.info("Adversarial training DISABLED (standard clean-only training)")
+            
             logging.info(f"Training model for {m.epochs} epochs...")
             train_start = time.time()
             for epoch in tqdm(range(1, m.epochs + 1), desc="Training epochs", unit="epoch"):
-                train_one_epoch(self._model, self._train_loader, optimizer, criterion, self.device)
+                result = train_one_epoch(
+                    self._model, self._train_loader, optimizer, criterion, self.device, adv_config
+                )
+                # Log detailed stats if adversarial training is enabled
+                if m.adv_training and isinstance(result, dict):
+                    if epoch % max(1, m.epochs // 5) == 0 or epoch == 1:  # Log every ~20% of epochs
+                        logging.info(
+                            f"Epoch {epoch}: loss={result['total_loss']:.4f}, "
+                            f"clean={result['clean_loss']:.4f}, adv={result['adv_loss']:.4f}, "
+                            f"feat_fc3={result['feat_fc3_loss']:.4f}, "
+                            f"feat_pooled={result['feat_pooled_loss']:.4f}, "
+                            f"logit={result['logit_loss']:.4f}, "
+                            f"clean_acc={result['clean_acc']:.3f}, adv_acc={result['adv_acc']:.3f}"
+                        )
             train_time = time.time() - train_start
             logging.info(f"Training completed in {train_time:.2f}s ({train_time/60:.1f} minutes)")
             # quick val to warm-up

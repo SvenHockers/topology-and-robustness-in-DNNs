@@ -34,6 +34,21 @@ class ModelConfig:
     epochs: int = 20
     lr: float = 1e-3
     checkpoint: Optional[str] = None
+    # Adversarial training options (disabled by default for backwards compatibility)
+    adv_training: bool = False  # Enable topology-preserving adversarial training
+    adv_epsilon: float = 0.1  # Perturbation budget for adversarial examples
+    adv_steps: int = 2  # Number of PGD steps for training (default: 2 for fast training)
+    adv_step_size: Optional[float] = None  # Step size for PGD (if None, auto: adv_epsilon / adv_steps)
+    lambda_adv: float = 1.0  # Weight for adversarial loss term
+    lambda_feat_fc3: float = 0.1  # Weight for fc3 feature consistency loss
+    lambda_feat_pooled: float = 0.1  # Weight for pooled feature consistency loss
+    lambda_logit: float = 0.1  # Weight for logit consistency (KL divergence) loss
+    adv_attack_type: str = "pgd"  # "fgsm" or "pgd" (default: "pgd" for multi-step)
+    adv_norm: str = "linf"  # "linf" or "l2"
+    # Legacy fields (kept for backwards compatibility, but prefer new fields above)
+    adv_pgd_steps: int = 7  # Deprecated: use adv_steps instead
+    lambda_rep: float = 0.1  # Deprecated: use lambda_feat_pooled instead
+    rep_layer: str = "pooled"  # Deprecated: now always uses both fc3 and pooled
 
 
 @dataclass
@@ -293,6 +308,12 @@ class RobustnessConfig:
         _ensure_bool(model_src, "train")
         _ensure_int(model_src, "epochs")
         _ensure_float(model_src, "lr")
+        # Adversarial training fields
+        _ensure_bool(model_src, "adv_training")
+        _ensure_float(model_src, "adv_epsilon")
+        _ensure_float(model_src, "lambda_adv")
+        _ensure_float(model_src, "lambda_rep")
+        _ensure_int(model_src, "adv_pgd_steps")
         model = ModelConfig(**model_src)
         # Probes (with type coercion)
         probes_raw = raw.get("probes", {})

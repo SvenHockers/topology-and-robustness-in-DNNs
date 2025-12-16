@@ -122,7 +122,7 @@ Tips for meaningful results:
 - `diagram_distances.csv` includes `noise_floor` to contextualize the effect size; the normalized heatmaps subtract this baseline.
 -->
 
-## How the pipeline works
+## How the pipeline works:
 
 - Flow: Data -> Model -> Probes (adversarial/geometric/interpolation) -> Layerwise TDA -> Reporting.
 - Why:

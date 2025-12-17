@@ -1,139 +1,157 @@
-# topology-and-robustness-in-DNNs
-We quantify how the topology of neural activations evolves across layers and test whether these topological trajectories predict model robustness under structured input perturbations.
+# Graph/Laplacian Manifold Methods for Detecting Off-Manifold Adversarial Examples
 
-## Setup and dependencies
+A research codebase for validating graph and Laplacian-based manifold methods for detecting adversarial examples in deep neural networks.
 
-This project manages its Python environment with a simple helper script and `requirements.txt`.
+## Overview
 
-### Prerequisites
-- Python 3.x installed and available as `python3` (macOS/Linux) or `python` (Windows Git Bash)
-- `bash` shell
+This project implements a modular experimental framework to test the hypothesis that adversarial examples can be detected by measuring their conformity to the data manifold using graph-based and Laplacian-based scores. The experiment is conducted on the two moons dataset with a simple MLP classifier.
 
-### First-time installation
-```bash
-chmod +x manage_dependensies.sh
-./manage_dependensies.sh install
+## Project Structure
+
 ```
-This will:
-- Create a fresh virtual environment in `venv/` (removes an existing one if present)
-- Upgrade `pip`
-- Install packages from `requirements.txt`
-
-Activate the virtual environment after installation:
-- macOS/Linux:
-  ```bash
-  source venv/bin/activate
-  ```
-- Windows (Git Bash):
-  ```bash
-  source venv/Scripts/activate
-  ```
-
-### Update dependencies later
-```bash
-./manage_dependensies.sh update
-```
-This upgrades `pip` and updates packages to the versions specified in `requirements.txt`.
-
-### Help
-```bash
-./manage_dependensies.sh --help
-```
-Also available as `-h` or `help`.
-
-**If you still run into issues contact me (Sven)**
-
-### Notes
-- Dependencies are listed in `requirements.txt`.
-- The `install` command recreates the `venv/` from scratch; use `update` to keep your existing environment and just refresh packages.
-
---------------------
-## Introduction
-
-This repository studies whether changes in topology inside a network’s representations relate to model robustness. Instead of only tracking accuracy under perturbations, we compute topological summaries of activations layer-by-layer (via persistent homology) and quantify how those summaries change when inputs are perturbed (adversarial or geometric). Intuitively:
-
-- If a model is robust, small input perturbations should not drastically alter the “shape” of its internal representations.
-- If a model is brittle, even small perturbations might cause large topological changes at certain layers.
-
-What we measure
-- For selected layers and homology dimensions (H0 components, H1 loops), we compute persistence diagrams on activations for clean and perturbed inputs.
-- We extract stats (counts, total/mean/max persistence, entropy) and distances between diagrams (e.g., Wasserstein). These serve as “topology sensitivity” metrics per layer and condition.
-- We relate these to robustness metrics: robust accuracy (RA@eta) and minimal adversarial radius eta*.
-
-How the pipeline helps a research workflow
-- Repeatable: a YAML-configured pipeline generates data, trains/loads a model, runs probes, and writes standardized metrics/plots for comparisons.
-- Diagnostic: heatmaps and curves show which layers/topological features change most, at which eta and under which perturbations.
-- Comparative: normalized heatmaps subtract a clean–clean “noise floor,” enabling comparisons across layers/models without scale artifacts.
-- Actionable: the outputs highlight layers that could benefit from regularization or architectural changes, and quantify the effect across norms and eta.
-
-Audience
-- The scripts and configs aim to be accessible to master’s students and research engineers. You can run baseline experiments out-of-the-box and then tune knobs (e.g., normalization, PCA, eta grids) as hypotheses evolve.
-
-## Scripts and how to use them
-
-### 1) Config-driven robustness pipeline: `scripts/run_robustness.py`
-
-```bash
-python scripts/run_robustness.py --config configs/robustness/default.yaml
+Graph Manifold/
+├── src/                      # Source code modules
+│   ├── __init__.py
+│   ├── data.py              # Dataset generation & loaders
+│   ├── models.py            # MLP definition and training
+│   ├── adv_attacks.py       # FGSM/PGD implementations
+│   ├── graph_manifold.py    # Graph/Laplacian construction & scores
+│   ├── detectors.py         # Graph-based adversarial detector
+│   ├── evaluation.py        # Evaluation metrics, ROC/AUC, calibration
+│   ├── visualization.py     # Plotting functions
+│   ├── utils.py             # Seeds, config, helpers
+│   └── compute_combined_score.py  # Combined score computation
+├── notebooks/               # Jupyter notebooks
+│   └── 01_graph_manifold_two_moons.ipynb  # Main experiment notebook
+├── requirements.txt         # Python dependencies
+└── README.md               # This file
 ```
 
-CLI arguments:
-- `--config PATH` (required): YAML config (see below).
-- `--output_dir DIR` (optional): override output root in YAML.
-- `--checkpoint PATH` (optional): load an existing model.
-- `--exp_name NAME` (optional): override experiment name.
-- `--sample_limit N` (optional): cap number of validation samples processed.
+## Installation
 
-What it does:
-- Generates a synthetic dataset of point clouds (circles, spheres, tori).
-- Trains the selected model (MLP or CNN) or loads a checkpoint.
-- Runs robustness probes (adversarial, geometric, interpolation).
-- Computes layer-wise topology (persistence diagrams), statistics and distances.
-- Writes metrics and plots to a timestamped folder.
+1. Clone or download this repository.
 
-Outputs (under `outputs/`):
-- `config.yaml`, `resolved_config.json`: config used.
-- `versions.json`: package versions used.
-- `run.log`: logs.
-- `model.pth`: trained weights if training was enabled.
-- `metrics.csv`: per-sample summary.
-- `layerwise_topology.csv`: per-sample stats per layer).
-- `diagram_distances.csv`: per-sample distances per layer and condition, plus `noise_floor` rows.
-- `summary.json`: aggregates and robust accuracy curves.
-- Plots:
-  - Robust accuracy curves: `ra_curve_{linf,l2}.png`
-  - Histograms: `hist_eps_{linf,l2}.png`
-  - Distance bars: `layer_wasserstein_H{0,1}.png`
-  - Heatmaps (raw and normalized by noise floor): `heatmap_wasserstein_H{0,1}.png`, `heatmap_wasserstein_H{0,1}_norm.png`
-  - Sensitivity curves (distance vs eta): `curves_wasserstein_H1_{linf,l2}.png`
-  - Scatter (eta* vs distance) on best layer/H: `scatter_eps_{linf,l2}_vs_dist_H{H}_{layer}.png`
-  - Violin distributions at max eta: `violin_wasserstein_H1_{linf,l2}.png`
-  - Sample diagrams by class: `persistence_diagrams_by_class.png`
+2. Create a virtual environment (recommended):
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-YAML configuration
-- For a fully commented reference of all settings see:
-  - `configs/robustness/annotated_template.yaml`
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-<!-- 
-Tips for meaningful results:
-- Prefer `normalize: zscore` and `pca_dim: 16` to stabilize TDA across layers.
-- Exclude `pooled` for H1 in correlations (loops often vanish after pooling).
-- Use non-trivial eta in `layerwise_topology.conditions` (e.g., `0.2, 0.4`) to reveal structure.
-- `diagram_distances.csv` includes `noise_floor` to contextualize the effect size; the normalized heatmaps subtract this baseline.
--->
+## Usage
 
-## How the pipeline works:
+### Running the Experiment
 
-- Flow: Data -> Model -> Probes (adversarial/geometric/interpolation) -> Layerwise TDA -> Reporting.
-- Why:
-  - TDA on activations (not inputs) captures how the network reshapes geometry under stress.
-  - Normalization/PCA stabilize diagrams across layers; subsample/bootstrap balance cost and variance.
-  - Noise‑floor (clean–clean) distances provide a baseline; normalized heatmaps show true effect sizes.
-- Outputs:
-  - `metrics.csv` (eta*, thresholds), `layerwise_topology.csv` (clean stats), `diagram_distances.csv` (clean->perturbed + noise_floor).
-  - Plots: bars (per‑layer), heatmaps (raw/normalized), distance‑vs‑eta curves (mean±CI), scatter (eta* vs distance), violins (distributions).
-- Key knobs:
-  - `probes.topology.normalize: zscore`, `pca_dim: 16` for stable TDA.
-  - `probes.layerwise_topology.conditions.adv_linf_eps: [0.2, 0.4]` to avoid trivial zeros.
-  - Prefer pre‑pooling layers for H1; H0 often informative across layers.
-  - Increase `sample_size` (e.g., 300) if runtime allows for smoother diagrams.
+The main experiment is orchestrated in the Jupyter notebook:
+
+```bash
+jupyter notebook notebooks/01_graph_manifold_two_moons.ipynb
+```
+
+Or if using JupyterLab:
+
+```bash
+jupyter lab notebooks/01_graph_manifold_two_moons.ipynb
+```
+
+The notebook will:
+1. Generate the two moons dataset
+2. Train an MLP classifier
+3. Generate adversarial examples using FGSM/PGD
+4. Build k-NN graphs on training data
+5. Compute graph-based manifold conformity scores
+6. Train and evaluate a graph-based adversarial detector
+7. Calibrate scores to error probabilities
+8. Visualize results
+
+### Using the Modules Programmatically
+
+You can also use the modules directly in Python:
+
+```python
+from src.data import generate_two_moons
+from src.models import TwoMoonsMLP, train_model
+from src.adv_attacks import generate_adversarial_examples
+from src.graph_manifold import build_knn_graph, compute_graph_scores
+from src.utils import ExperimentConfig
+
+# Set up configuration
+config = ExperimentConfig()
+
+# Generate data
+X_train, y_train, X_val, y_val, X_test, y_test = generate_two_moons(
+    n_samples=1000, noise=0.1, random_state=42
+)
+
+# Train model
+model = TwoMoonsMLP(input_dim=2, hidden_dims=[64, 32], output_dim=2)
+# ... training code ...
+
+# Generate adversarial examples
+X_adv_test = generate_adversarial_examples(
+    model, X_test, y_test, config.attack
+)
+
+# Compute graph scores
+scores = compute_graph_scores(
+    X_test, model, X_train, f_train, config.graph
+)
+```
+
+## Key Features
+
+### Graph-Based Manifold Scores
+
+1. **Degree Score**: Measures connectivity in k-NN graph (higher degree = more on-manifold)
+2. **Laplacian Smoothness Score**: Measures Dirichlet energy increment (higher = less smooth = more suspicious)
+3. **Diffusion Map Distance** (optional): Spectral embedding distance
+
+### Adversarial Attacks
+
+- **FGSM**: Fast Gradient Sign Method
+- **PGD**: Projected Gradient Descent (multi-step)
+
+### Detector Types
+
+- **Score-based**: Uses threshold on graph scores
+- **Supervised**: Trains classifier on score features
+
+### Evaluation Metrics
+
+- ROC curves and AUC for adversarial detection
+- FPR at fixed TPR (e.g., FPR@95%TPR)
+- Error probability calibration (isotonic/logistic regression)
+
+## Configuration
+
+Hyperparameters can be configured through dataclasses in `src/utils.py`:
+
+- `DataConfig`: Dataset parameters (n_samples, noise, split ratios)
+- `ModelConfig`: Model architecture and training (hidden dims, learning rate, epochs)
+- `AttackConfig`: Adversarial attack parameters (epsilon, num_steps)
+- `GraphConfig`: Graph construction (k, sigma, space: input/feature)
+- `DetectorConfig`: Detector type and calibration method
+
+## Extending the Codebase
+
+This codebase is designed for extensibility. You can easily:
+
+- Add new datasets by implementing a data generation function in `data.py`
+- Swap model architectures by modifying `models.py`
+- Implement new graph construction methods in `graph_manifold.py`
+- Add new detector methods in `detectors.py`
+- Compare with other detection baselines
+
+## Citation
+
+If you use this codebase in your research, please cite appropriately.
+
+## License
+
+This codebase is provided as-is for research purposes.
+
+

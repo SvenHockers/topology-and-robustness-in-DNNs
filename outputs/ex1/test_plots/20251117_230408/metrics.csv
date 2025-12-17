@@ -1,7 +1,0 @@
-adv_pred_fgsm_linf,adv_pred_l2,adv_pred_linf,alpha_star,attack_results,chamfer_clean_adv,clean_margin,clean_pred,dropout_star,eps_star_fgsm_linf,eps_star_l2,eps_star_linf,jitter_std_star,mean_permutation_topology_distance,permutation_accuracy,permutation_confidence_drop,permutation_margin_drop,rot_deg_star,sample_id,trans_x_star,trans_y_star,trans_z_star,true_label
-2,,2,,"{'fgsm': {'linf': {'eps_star': 0.0, 'adv_pred': 2, 'metadata': {}}}}",,-0.21052944660186768,2,,0.0,,0.0,,,,,,,0,,,,1
-2,,2,,"{'fgsm': {'linf': {'eps_star': 0.0, 'adv_pred': 2, 'metadata': {}}}}",,-0.21117210388183594,2,,0.0,,0.0,,,,,,,1,,,,1
-2,,2,,"{'fgsm': {'linf': {'eps_star': 0.0, 'adv_pred': 2, 'metadata': {}}}}",,-0.2104075849056244,2,,0.0,,0.0,,,,,,,2,,,,1
-,,,,"{'fgsm': {'linf': {'eps_star': None, 'adv_pred': None, 'metadata': {}}}}",,0.09335589408874512,2,,,,,,,,,,,3,,,,2
-2,,2,,"{'fgsm': {'linf': {'eps_star': 0.0078125, 'adv_pred': 2, 'metadata': {}}}}",,0.0002779066562652588,0,,0.0078125,,0.0078125,,,,,,,4,,,,0
-,,,,"{'fgsm': {'linf': {'eps_star': None, 'adv_pred': None, 'metadata': {}}}}",,0.09232558310031891,2,,,,,,,,,,,5,,,,2

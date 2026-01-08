@@ -1,0 +1,6 @@
+## Base configuration for experiments WITHOUT PCA preprocessing in topology features.
+## This inherits from base.yaml and only changes topo_preprocess.
+
+base: base.yaml
+graph:
+  topo_preprocess: none

@@ -2,6 +2,9 @@
 MLP model definition and training utilities.
 """
 
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -11,13 +14,86 @@ import numpy as np
 from .utils import ModelConfig
 
 
-class TwoMoonsMLP(nn.Module):
+class BaseFeatureModel(nn.Module, ABC):
+    """
+    Base class for models used in this repo's topology/graph detector pipeline.
+
+    Contract:
+    - `forward(x)` returns logits of shape (batch, num_classes)
+    - `extract_features(x, layer='penultimate')` returns a 2D embedding (batch, feat_dim)
+
+    Any model implementing this contract can be used by:
+    - `extract_features_batch(...)`
+    - `src.graph_scoring.compute_graph_scores(..., space='feature')`
+    - topology detector pipeline in `src.detectors.py`
+    """
+
+    @abstractmethod
+    def extract_features(self, x: torch.Tensor, layer: str = "penultimate") -> torch.Tensor:  # pragma: no cover
+        raise NotImplementedError
+
+
+def get_submodule_by_name(model: nn.Module, dotted_name: str) -> nn.Module:
+    """
+    Resolve a dotted module path like 'layer4.1.conv2' or 'features.3'.
+
+    This is useful for hooking arbitrary models to expose `extract_features`.
+    """
+    cur: nn.Module = model
+    for part in str(dotted_name).split("."):
+        if part.isdigit():
+            cur = cur[int(part)]  # type: ignore[index]
+        else:
+            cur = getattr(cur, part)
+    return cur
+
+
+class HookedFeatureModel(BaseFeatureModel):
+    """
+    Wrap an arbitrary `nn.Module` and expose `extract_features()` via a forward hook.
+
+    Typical usage (e.g. torchvision ResNet):
+        base = resnet18(num_classes=10)
+        model = HookedFeatureModel(base, feature_module=get_submodule_by_name(base, "avgpool"))
+
+    The hook output is flattened to (batch, feat_dim) if needed.
+    """
+
+    def __init__(self, base: nn.Module, feature_module: nn.Module):
+        super().__init__()
+        self.base = base
+        self._feat: Optional[torch.Tensor] = None
+
+        def _hook(_m, _inp, out):
+            # Keep the raw tensor; flattening happens in extract_features.
+            if isinstance(out, (tuple, list)):
+                out = out[0]
+            self._feat = out
+
+        self._hook_handle = feature_module.register_forward_hook(_hook)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.base(x)
+
+    def extract_features(self, x: torch.Tensor, layer: str = "penultimate") -> torch.Tensor:
+        if layer != "penultimate":
+            raise ValueError(f"Unknown layer: {layer}")
+        _ = self.base(x)
+        if self._feat is None:
+            raise RuntimeError("Feature hook did not fire; check feature_module selection.")
+        z = self._feat
+        if z.ndim > 2:
+            z = torch.flatten(z, start_dim=1)
+        return z
+
+
+class TwoMoonsMLP(BaseFeatureModel):
     """Simple MLP classifier for two moons dataset."""
     
     def __init__(
         self,
         input_dim: int = 2,
-        hidden_dims: list = None,
+        hidden_dims: Optional[list[int]] = None,
         output_dim: int = 2,
         activation: str = 'relu'
     ):
@@ -92,6 +168,51 @@ class TwoMoonsMLP(nn.Module):
             return out
         else:
             raise ValueError(f"Unknown layer: {layer}")
+
+
+class MiniCNN(BaseFeatureModel):
+    """
+    Small CNN used by the synthetic image notebooks (05/06).
+
+    Important: exposes `extract_features(x, layer='penultimate')` so it works with
+    the repo's shared helpers (e.g., `extract_features_batch`).
+    """
+
+    def __init__(self, num_classes: int = 2, feat_dim: int = 128, in_channels: int = 3):
+        super().__init__()
+        self.feat_dim = int(feat_dim)
+        in_channels = int(in_channels)
+
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+
+        self.proj = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128, self.feat_dim),
+            nn.ReLU(inplace=True),
+        )
+
+        self.classifier = nn.Linear(self.feat_dim, int(num_classes))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        z = self.extract_features(x, layer="penultimate")
+        return self.classifier(z)
+
+    def extract_features(self, x: torch.Tensor, layer: str = "penultimate") -> torch.Tensor:
+        if layer != "penultimate":
+            raise ValueError(f"Unknown layer: {layer}")
+        return self.proj(self.features(x))
 
 
 def train_model(
@@ -250,7 +371,7 @@ def extract_features_batch(
         Feature array of shape (n_samples, feature_dim)
     """
     model.eval()
-    model = model.to(device)
+    model.to(device)
     
     X_tensor = torch.FloatTensor(X).to(device)
     features = []
@@ -258,7 +379,8 @@ def extract_features_batch(
     with torch.no_grad():
         for i in range(0, len(X_tensor), batch_size):
             batch_X = X_tensor[i:i+batch_size]
-            batch_features = model.extract_features(batch_X, layer=layer)
+            # Note: model is expected to implement extract_features (TwoMoonsMLP, MiniCNN, etc.)
+            batch_features = model.extract_features(batch_X, layer=layer)  # type: ignore[attr-defined]
             features.append(batch_features.cpu().numpy())
     
     return np.vstack(features)

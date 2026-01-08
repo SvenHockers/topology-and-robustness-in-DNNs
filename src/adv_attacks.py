@@ -173,6 +173,59 @@ def generate_adversarial_examples(
     return np.vstack(X_adv_list)
 
 
+def generate_adversarial_examples_images(
+    model: nn.Module,
+    X: np.ndarray,
+    y: np.ndarray,
+    *,
+    attack_type: str,
+    epsilon: float,
+    num_steps: int = 10,
+    step_size: float = 0.01,
+    device: str = "cpu",
+    batch_size: int = 32,
+    clip_min: float = 0.0,
+    clip_max: float = 1.0,
+) -> np.ndarray:
+    """
+    Generate adversarial examples for image tensors (N,C,H,W) in numpy.
+
+    This is the shared helper used by notebooks 05/06. It wraps `fgsm_attack` / `pgd_attack`
+    and clamps outputs to a valid pixel range (default: [0,1]).
+    """
+    model.eval()
+    model = model.to(device)
+
+    X_t = torch.as_tensor(X, dtype=torch.float32, device=device)
+    y_t = torch.as_tensor(y, dtype=torch.long, device=device)
+
+    out = []
+    for i in range(0, len(X_t), int(batch_size)):
+        bx = X_t[i:i + int(batch_size)]
+        by = y_t[i:i + int(batch_size)]
+
+        if attack_type == "fgsm":
+            bx_adv = fgsm_attack(model, bx, by, epsilon=float(epsilon), device=device)
+        elif attack_type == "pgd":
+            bx_adv = pgd_attack(
+                model,
+                bx,
+                by,
+                epsilon=float(epsilon),
+                num_steps=int(num_steps),
+                step_size=float(step_size),
+                random_start=True,
+                device=device,
+            )
+        else:
+            raise ValueError(f"Unknown attack_type: {attack_type}")
+
+        bx_adv = torch.clamp(bx_adv, float(clip_min), float(clip_max))
+        out.append(bx_adv.detach().cpu().numpy())
+
+    return np.concatenate(out, axis=0)
+
+
 def compute_attack_success_rate(
     model: nn.Module,
     X_original: np.ndarray,

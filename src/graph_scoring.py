@@ -1,0 +1,482 @@
+"""
+Graph construction and manifold conformity score computation.
+"""
+
+import numpy as np
+import torch
+from scipy.spatial.distance import pdist
+from scipy.sparse.linalg import eigs
+from sklearn.neighbors import NearestNeighbors
+from sklearn.decomposition import PCA
+from typing import Tuple, Optional, Dict
+from .utils import GraphConfig
+from .topology_features import TopologyConfig, local_persistence_features
+
+
+def build_knn_graph(
+    Z_train: np.ndarray,
+    k: int = 10,
+    sigma: Optional[float] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Build k-NN graph with Gaussian edge weights.
+    
+    Args:
+        Z_train: Training points array of shape (n_train, d)
+        k: Number of nearest neighbors
+        sigma: Scale parameter for Gaussian weights. If None, uses median distance heuristic.
+        
+    Returns:
+        Tuple of (W, D, distances) where:
+        - W: Weight matrix (adjacency with weights)
+        - D: Degree matrix (diagonal matrix with row sums)
+        - distances: Pairwise distances for k-NN
+    """
+    n_train = Z_train.shape[0]
+    
+    # Find k nearest neighbors
+    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(Z_train)
+    distances, indices = nbrs.kneighbors(Z_train)
+    
+    # Use median distance as sigma if not provided
+    if sigma is None:
+        sigma = np.median(distances[distances > 0])
+    
+    # Initialize weight matrix
+    W = np.zeros((n_train, n_train))
+    
+    # Fill in weights for k-NN pairs
+    for i in range(n_train):
+        for j_idx, neighbor_idx in enumerate(indices[i]):
+            if neighbor_idx != i:  # Exclude self-connections
+                dist = distances[i, j_idx]
+                weight = np.exp(-dist ** 2 / (2 * sigma ** 2))
+                W[i, neighbor_idx] = weight
+    
+    # Make symmetric (undirected graph)
+    W = (W + W.T) / 2
+    
+    # Compute degree matrix (diagonal matrix with row sums)
+    D = np.diag(W.sum(axis=1))
+    
+    return W, D, distances
+
+
+def compute_degree_score(
+    z: np.ndarray,
+    Z_train: np.ndarray,
+    k: int = 10,
+    sigma: Optional[float] = None
+) -> float:
+    """
+    Compute degree-based manifold conformity score for a new point.
+    
+    Higher degree = more connected = more on-manifold.
+    We return negative degree as score (higher score = more suspicious/off-manifold).
+    
+    Args:
+        z: New point of shape (d,)
+        Z_train: Training points array of shape (n_train, d)
+        k: Number of nearest neighbors
+        sigma: Scale parameter for Gaussian weights
+        
+    Returns:
+        Degree score (negative degree, so higher = more suspicious)
+    """
+    # Find k nearest neighbors
+    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(Z_train)
+    distances, indices = nbrs.kneighbors(z.reshape(1, -1))
+    distances = distances[0]
+    indices = indices[0]
+    
+    # Use median distance as sigma if not provided
+    if sigma is None:
+        # Compute median distance among training points
+        train_distances = pdist(Z_train)
+        sigma = np.median(train_distances)
+    
+    # Compute weights to neighbors
+    weights = np.exp(-distances ** 2 / (2 * sigma ** 2))
+    degree = weights.sum()
+    
+    # Return negative degree (higher score = more suspicious)
+    return -degree
+
+
+def compute_laplacian_smoothness_score(
+    z: np.ndarray,
+    f_z: float,
+    Z_train: np.ndarray,
+    f_train: np.ndarray,
+    k: int = 10,
+    sigma: Optional[float] = None
+) -> float:
+    """
+    Compute Laplacian smoothness / Dirichlet energy increment score.
+    
+    Measures how much adding this point would increase the Dirichlet energy.
+    Higher score = more suspicious (less smooth).
+    
+    Args:
+        z: New point of shape (d,)
+        f_z: Model output (e.g., probability of class 1) for z
+        Z_train: Training points array of shape (n_train, d)
+        f_train: Model outputs for training points, shape (n_train,)
+        k: Number of nearest neighbors
+        sigma: Scale parameter for Gaussian weights
+        
+    Returns:
+        Laplacian smoothness score (higher = more suspicious)
+    """
+    # Find k nearest neighbors
+    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(Z_train)
+    distances, indices = nbrs.kneighbors(z.reshape(1, -1))
+    distances = distances[0]
+    indices = indices[0]
+    
+    # Use median distance as sigma if not provided
+    if sigma is None:
+        train_distances = pdist(Z_train)
+        sigma = np.median(train_distances)
+    
+    # Compute weights to neighbors
+    weights = np.exp(-distances ** 2 / (2 * sigma ** 2))
+    
+    # Compute Dirichlet energy increment
+    delta_E = np.sum(weights * (f_z - f_train[indices]) ** 2)
+    
+    return delta_E
+
+
+def compute_diffusion_embedding(
+    W: np.ndarray,
+    n_components: int = 10,
+    alpha: float = 0.5
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute diffusion map embedding of the training data.
+    
+    Args:
+        W: Weight matrix
+        n_components: Number of diffusion map components
+        alpha: Diffusion parameter (0 = standard, 1 = Laplace-Beltrami)
+        
+    Returns:
+        Tuple of (eigenvalues, eigenvectors)
+    """
+    # Compute degree matrix
+    D = np.diag(W.sum(axis=1))
+    
+    # Normalize weights
+    D_alpha_inv = np.diag(1.0 / (np.diag(D) ** alpha + 1e-10))
+    W_normalized = D_alpha_inv @ W @ D_alpha_inv
+    
+    # Compute transition matrix (row-normalized)
+    D_normalized = np.diag(W_normalized.sum(axis=1))
+    D_normalized_inv = np.diag(1.0 / (np.diag(D_normalized) + 1e-10))
+    P = D_normalized_inv @ W_normalized
+    
+    # Compute eigenvectors of transition matrix
+    # Use largest eigenvalues (excluding the first one which is always 1)
+    eigenvalues, eigenvectors = eigs(P.T, k=n_components + 1, which='LR')
+    eigenvalues = np.real(eigenvalues)
+    eigenvectors = np.real(eigenvectors)
+    
+    # Sort by eigenvalue
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+    
+    # Return eigenvalues and eigenvectors (skip the first trivial one)
+    return eigenvalues[1:n_components+1], eigenvectors[:, 1:n_components+1]
+
+
+def embed_new_point_diffusion(
+    z: np.ndarray,
+    Z_train: np.ndarray,
+    embedding_eigenvectors: np.ndarray,
+    W_train: np.ndarray,
+    k: int = 10,
+    sigma: Optional[float] = None
+) -> np.ndarray:
+    """
+    Embed a new point using Nyström extension for diffusion maps.
+    
+    Args:
+        z: New point to embed
+        Z_train: Training points
+        embedding_eigenvectors: Eigenvectors from diffusion embedding
+        W_train: Training weight matrix
+        k: Number of nearest neighbors for Nyström extension
+        sigma: Scale parameter
+        
+    Returns:
+        Embedded point in diffusion space
+    """
+    # Find k nearest neighbors
+    nbrs = NearestNeighbors(n_neighbors=k, metric='euclidean').fit(Z_train)
+    distances, indices = nbrs.kneighbors(z.reshape(1, -1))
+    distances = distances[0]
+    indices = indices[0]
+    
+    if sigma is None:
+        train_distances = pdist(Z_train)
+        sigma = np.median(train_distances)
+    
+    # Compute weights
+    weights = np.exp(-distances ** 2 / (2 * sigma ** 2))
+    weights = weights / (weights.sum() + 1e-10)
+    
+    # Nyström extension: weighted average of neighbor embeddings
+    z_embedding = weights @ embedding_eigenvectors[indices]
+    
+    return z_embedding
+
+
+def compute_diffusion_distance_score(
+    z: np.ndarray,
+    Z_train: np.ndarray,
+    embedding_eigenvectors: np.ndarray,
+    W_train: np.ndarray,
+    k: int = 10,
+    sigma: Optional[float] = None
+) -> float:
+    """
+    Compute diffusion distance-based score.
+    
+    Args:
+        z: New point
+        Z_train: Training points
+        embedding_eigenvectors: Diffusion map eigenvectors
+        W_train: Training weight matrix
+        k: Number of neighbors
+        sigma: Scale parameter
+        
+    Returns:
+        Minimal diffusion distance to training points
+    """
+    # Embed new point
+    z_embedding = embed_new_point_diffusion(
+        z, Z_train, embedding_eigenvectors, W_train, k, sigma
+    )
+    
+    # Compute distances to all training embeddings
+    distances = np.linalg.norm(
+        embedding_eigenvectors - z_embedding.reshape(1, -1),
+        axis=1
+    )
+    
+    # Return minimum distance (higher = more suspicious)
+    return np.min(distances)
+
+
+def compute_graph_scores(
+    X_points: np.ndarray,
+    model,
+    Z_train: np.ndarray,
+    f_train: np.ndarray,
+    graph_params: GraphConfig,
+    device: str = 'cpu'
+) -> Dict[str, np.ndarray]:
+    """
+    Compute all graph-based manifold conformity scores for a batch of points.
+    
+    Args:
+        X_points: Points to score, shape (n_points, input_dim)
+        model: Trained PyTorch model
+        Z_train: Training representations (in input or feature space)
+        f_train: Training model outputs (probabilities or logits)
+        graph_params: GraphConfig with hyperparameters
+        device: Device for model inference
+        
+    Returns:
+        Dictionary with score arrays:
+        - 'degree': Degree scores
+        - 'laplacian': Laplacian smoothness scores
+        - 'diffusion': Diffusion distance scores (if enabled)
+        - 'combined': Combined score (if requested)
+    """
+    from .models import get_model_logits, extract_features_batch
+    
+    n_points = X_points.shape[0]
+    scores = {}
+    
+    # Extract representations if needed
+    if graph_params.space == 'feature':
+        Z_points = extract_features_batch(
+            model, X_points, layer='penultimate', device=device
+        )
+    else:
+        Z_points = X_points
+    
+    # Get model outputs for points
+    #
+    # For binary classification, we use P(class=1) as the scalar function f(x).
+    # For multi-class, we use max softmax probability as a generic confidence scalar.
+    # This scalar is only used by some graph scores (e.g., Laplacian smoothness);
+    # topology features are computed purely from geometry in Z-space.
+    logits = get_model_logits(model, X_points, device=device)
+    probs = torch.softmax(torch.as_tensor(logits, dtype=torch.float32), dim=1).cpu().numpy()
+    if probs.ndim != 2 or probs.shape[1] < 2:
+        raise ValueError(f"Expected model outputs to be (N,C) with C>=2; got probs shape={probs.shape}")
+    if probs.shape[1] == 2:
+        f_points = probs[:, 1]  # Probability of class 1
+    else:
+        f_points = probs.max(axis=1)  # Confidence proxy
+    
+    # Compute degree scores
+    degree_scores = np.zeros(n_points)
+    for i in range(n_points):
+        degree_scores[i] = compute_degree_score(
+            Z_points[i], Z_train, k=graph_params.k, sigma=graph_params.sigma
+        )
+    scores['degree'] = degree_scores
+    
+    # Compute Laplacian smoothness scores
+    laplacian_scores = np.zeros(n_points)
+    for i in range(n_points):
+        laplacian_scores[i] = compute_laplacian_smoothness_score(
+            Z_points[i], f_points[i], Z_train, f_train,
+            k=graph_params.k, sigma=graph_params.sigma
+        )
+    scores['laplacian'] = laplacian_scores
+
+    # Local tangent-space residual score (manifold membership test)
+    # Intuition: if clean data lies on/near a low-dim manifold in Z-space, then
+    # projecting onto the local tangent space should have small residual norm.
+    # Backward-compatible defaults: if older GraphConfig objects are in memory (e.g. notebook
+    # kernel not restarted), these attributes may be missing. We default to computing
+    # tangent-based scores in that case.
+    if getattr(graph_params, 'use_tangent', True):
+        tangent_scores = np.zeros(n_points)
+        tangent_z_scores = np.zeros(n_points)
+        tangent_k = int(getattr(graph_params, 'tangent_k', 20))
+        nbrs_tangent = NearestNeighbors(
+            n_neighbors=min(tangent_k, len(Z_train)),
+            metric='euclidean'
+        ).fit(Z_train)
+
+        # If tangent_dim is not provided, pick it adaptively from local PCA explained variance.
+        # This is important in feature space where the manifold may not be 2D after embedding.
+        tangent_dim = getattr(graph_params, 'tangent_dim', None)
+        var_thr = float(getattr(graph_params, 'tangent_var_threshold', 0.9))
+        dim_min = int(getattr(graph_params, 'tangent_dim_min', 2))
+        dim_max = getattr(graph_params, 'tangent_dim_max', None)
+
+        for i in range(n_points):
+            _, idx = nbrs_tangent.kneighbors(Z_points[i].reshape(1, -1))
+            neighborhood = Z_train[idx[0]]
+            center = neighborhood.mean(axis=0, keepdims=True)
+            Xc = neighborhood - center
+
+            # Fit PCA on neighborhood
+            # max components is limited by rank: min(n-1, d)
+            max_components = max(1, min(Xc.shape[0] - 1, Xc.shape[1]))
+            if tangent_dim is None:
+                pca = PCA(n_components=max_components)
+                pca.fit(Xc)
+                cum = np.cumsum(pca.explained_variance_ratio_)
+                r = int(np.searchsorted(cum, var_thr) + 1)
+                r = max(dim_min, min(r, max_components))
+                if dim_max is not None:
+                    r = min(int(dim_max), r)
+            else:
+                r = max(1, min(int(tangent_dim), max_components))
+                pca = PCA(n_components=r)
+                pca.fit(Xc)
+
+            # Use the first r components as the local tangent basis (rows)
+            V = pca.components_[:r]  # (r, d)
+            zc = (Z_points[i].reshape(1, -1) - center)
+            z_proj = (zc @ V.T) @ V
+            resid = zc - z_proj
+            resid2 = float(np.sum(resid ** 2))
+            tangent_scores[i] = resid2
+
+            # Local normalization: z-score relative to neighborhood residual distribution.
+            # This helps for small eps where absolute residuals can be tiny but still
+            # atypical compared to local clean variation.
+            Xc_proj = (Xc @ V.T) @ V
+            Xc_resid = Xc - Xc_proj
+            neigh_resid2 = np.sum(Xc_resid ** 2, axis=1)
+            mu = float(neigh_resid2.mean())
+            sigma = float(neigh_resid2.std() + 1e-12)
+            tangent_z_scores[i] = (resid2 - mu) / sigma
+
+        scores['tangent_residual'] = tangent_scores
+        scores['tangent_residual_z'] = tangent_z_scores
+
+        # Also provide a simple kNN radius score (density proxy)
+        # Higher mean neighbor distance => lower local density => more suspicious.
+        radius_scores = np.zeros(n_points)
+        nbrs_radius = NearestNeighbors(
+            n_neighbors=min(graph_params.k, len(Z_train)),
+            metric='euclidean'
+        ).fit(Z_train)
+        dists, _ = nbrs_radius.kneighbors(Z_points)
+        # exclude the first distance if it is 0 due to self-match (shouldn't happen for new points,
+        # but keep robust)
+        radius_scores = dists[:, 1:].mean(axis=1) if dists.shape[1] > 1 else dists[:, 0]
+        scores['knn_radius'] = radius_scores
+
+    # --- Topology features (persistent homology on local neighborhoods) ---
+    if getattr(graph_params, 'use_topology', False):
+        topo_k = int(getattr(graph_params, 'topo_k', 50))
+        topo_cfg = TopologyConfig(
+            neighborhood_k=topo_k,
+            maxdim=int(getattr(graph_params, 'topo_maxdim', 1)),
+            metric=str(getattr(graph_params, 'topo_metric', 'euclidean')),
+            thresh=getattr(graph_params, 'topo_thresh', None),
+            min_persistence=float(getattr(graph_params, 'topo_min_persistence', 1e-6)),
+            preprocess=str(getattr(graph_params, 'topo_preprocess', 'none')),
+            pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
+        )
+
+        # Build a neighbor index for local neighborhoods in the scoring space.
+        nbrs_topo = NearestNeighbors(
+            n_neighbors=min(topo_k, len(Z_train)),
+            metric=topo_cfg.metric,
+        ).fit(Z_train)
+
+        # Compute PH features for each query point's neighborhood cloud.
+        # Note: neighborhood selection uses metric geometry only to define the local patch;
+        # the detection statistic itself is topology-derived (PH summaries).
+        topo_feat_dicts = []
+        for i in range(n_points):
+            _, idx = nbrs_topo.kneighbors(Z_points[i].reshape(1, -1))
+            neighborhood = Z_train[idx[0]]
+            # Ensure the query point participates in the complex (stability wrt insertion).
+            cloud = np.vstack([Z_points[i].reshape(1, -1), neighborhood])
+            feats_i = local_persistence_features(cloud, topo_cfg)
+            topo_feat_dicts.append(feats_i)
+
+        # Materialize into score arrays with stable keys.
+        all_keys = sorted({k for d in topo_feat_dicts for k in d.keys()})
+        for k in all_keys:
+            scores[k] = np.array([d.get(k, 0.0) for d in topo_feat_dicts], dtype=float)
+    
+    # Optional: diffusion scores
+    if graph_params.use_diffusion:
+        # Build training graph
+        W_train, _, _ = build_knn_graph(
+            Z_train, k=graph_params.k, sigma=graph_params.sigma
+        )
+        
+        # Compute diffusion embedding
+        _, eigenvectors = compute_diffusion_embedding(
+            W_train, n_components=graph_params.diffusion_components
+        )
+        
+        # Compute diffusion distance scores
+        diffusion_scores = np.zeros(n_points)
+        for i in range(n_points):
+            diffusion_scores[i] = compute_diffusion_distance_score(
+                Z_points[i], Z_train, eigenvectors, W_train,
+                k=graph_params.k, sigma=graph_params.sigma
+            )
+        scores['diffusion'] = diffusion_scores
+    
+    # Combined score is computed separately if needed (see detectors.py)
+    
+    return scores
+

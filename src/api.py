@@ -1,0 +1,651 @@
+"""
+Public, stable API for this repository.
+
+Goal: expose a small set of functions/classes so users can run experiments without
+copying notebook glue code, while keeping the underlying implementations unchanged.
+"""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple, cast
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+from .adv_attacks import (
+    generate_adversarial_examples,
+    generate_adversarial_examples_images,
+)
+from .data import DATASET_REGISTRY, DatasetBundle, create_data_loaders
+from .detectors import TopologyScoreDetector, predict_graph_detector, train_graph_detector
+from .evaluation import evaluate_detector
+from .graph_scoring import compute_graph_scores
+from .models import (
+    HookedFeatureModel,
+    MiniCNN,
+    TwoMoonsMLP,
+    extract_features_batch,
+    get_model_logits,
+    get_model_predictions,
+    get_submodule_by_name,
+    train_model,
+)
+from .utils import ExperimentConfig
+from .types import AttackResult, DetectorEvalResult, RunResult
+
+
+# ---------------------------------------------------------------------
+# Config API
+# ---------------------------------------------------------------------
+
+
+def load_config(
+    name_or_path: str,
+    *,
+    config_dir: str | Path = "config",
+) -> ExperimentConfig:
+    """
+    Load an ExperimentConfig from a YAML file.
+
+    Convenience wrapper around `ExperimentConfig.from_yaml` that defaults to the repo's
+    `config/` directory.
+
+    Args:
+        name_or_path:
+            - A filename inside `config/` (e.g. 'base.yaml', 'pgd_eps0p05_pca10.yaml')
+            - Or a bare name without suffix (e.g. 'base' -> 'config/base.yaml')
+            - Or an explicit path to a YAML file.
+        config_dir: Directory containing config files (default: 'config').
+
+    Returns:
+        ExperimentConfig
+    """
+    def _find_repo_root() -> Path:
+        """
+        Best-effort repo root discovery.
+
+        We prefer a directory that contains both `src/` and the requested `config_dir/`,
+        and we search upwards from the current working directory first (so notebooks
+        can run from `experiments/`), then fall back to the package location.
+        """
+        cfg_dirname = Path(config_dir).name
+
+        # 1) Search upwards from CWD
+        for base in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+            if (base / "src").is_dir() and (base / cfg_dirname).is_dir():
+                return base
+
+        # 2) Fall back to where this file lives: <repo>/src/api.py -> <repo>
+        return Path(__file__).resolve().parents[1]
+
+    p = Path(str(name_or_path))
+    if p.suffix == "":
+        p = p.with_suffix(".yaml")
+
+    if not p.is_absolute() and not p.exists():
+        root = _find_repo_root()
+        p = (root / Path(config_dir) / p).resolve()
+
+    return ExperimentConfig.from_yaml(p)
+
+
+# ---------------------------------------------------------------------
+# Dataset API
+# ---------------------------------------------------------------------
+
+
+def list_datasets() -> list[str]:
+    """Return available dataset names from the built-in dataset registry."""
+    return sorted(DATASET_REGISTRY.keys())
+
+
+def get_dataset(
+    name: str,
+    cfg: Optional[ExperimentConfig] = None,
+    **overrides: Any,
+) -> DatasetBundle:
+    """
+    Load a dataset bundle by name.
+
+    Args:
+        name: Dataset registry key (see `list_datasets()`).
+        cfg: ExperimentConfig (optional). If omitted, a default config is used.
+        **overrides: Optional overrides for `cfg.data` (e.g. n_samples, noise, root, download).
+
+    Returns:
+        DatasetBundle (numpy arrays + meta).
+    """
+    if cfg is None:
+        cfg = ExperimentConfig()
+
+    if name not in DATASET_REGISTRY:
+        raise KeyError(f"Unknown dataset {name!r}. Available: {list_datasets()}")
+
+    if overrides:
+        # Backwards/ergonomic compatibility:
+        # - allow `get_dataset(..., overrides={...})` (older notebooks)
+        # - allow common uppercase aliases used in notebooks/docs (DOWNLOAD, DATA_ROOT)
+        nested = overrides.pop("overrides", None)
+        if nested is not None:
+            if not isinstance(nested, dict):
+                raise TypeError(
+                    f"`overrides` must be a dict when provided; got {type(nested)!r}"
+                )
+            merged = dict(nested)
+            merged.update(overrides)  # explicit kwargs win
+            overrides = merged
+
+        normalized: Dict[str, Any] = {}
+        for k, v in overrides.items():
+            ks = str(k)
+            ku = ks.upper()
+            kl = ks.lower()
+            if ku == "DOWNLOAD" or kl == "download":
+                normalized["download"] = v
+            elif ku in {"DATA_ROOT", "ROOT"} or kl in {"data_root", "root"}:
+                normalized["root"] = v
+            else:
+                normalized[k] = v
+
+        # Avoid mutating caller-owned config; keep it simple and deterministic.
+        # NOTE: ExperimentConfig.__post_init__ sets seeds; we preserve cfg.seed.
+        data_dict = dict(cfg.data.__dict__)
+        data_dict.update(normalized)
+        cfg = replace(cfg, data=type(cfg.data)(**data_dict))
+
+    return DATASET_REGISTRY[name].load(cfg)
+
+
+# ---------------------------------------------------------------------
+# Model API
+# ---------------------------------------------------------------------
+
+
+def list_models() -> list[str]:
+    """Return built-in model factory names."""
+    return sorted(["two_moons_mlp", "minicnn"])
+
+
+def get_model(
+    name: str,
+    cfg: Optional[ExperimentConfig] = None,
+    **kwargs: Any,
+) -> nn.Module:
+    """
+    Construct a model by name.
+
+    Built-ins:
+      - 'two_moons_mlp' -> TwoMoonsMLP
+      - 'minicnn' -> MiniCNN
+
+    Args:
+        name: Model key (see `list_models()`).
+        cfg: ExperimentConfig (optional).
+        **kwargs: Model constructor kwargs (e.g. input_dim/output_dim, num_classes, feat_dim, in_channels).
+    """
+    if cfg is None:
+        cfg = ExperimentConfig()
+
+    name = str(name).lower()
+    if name == "two_moons_mlp":
+        mc = cast(Any, cfg.model)
+        return TwoMoonsMLP(
+            input_dim=int(kwargs.get("input_dim", mc.input_dim)),
+            hidden_dims=list(kwargs.get("hidden_dims", mc.hidden_dims or [64, 32])),
+            output_dim=int(kwargs.get("output_dim", mc.output_dim)),
+            activation=str(kwargs.get("activation", mc.activation)),
+        )
+    if name == "minicnn":
+        # CNN config is intentionally lightweight; most training hyperparams come from cfg.model.
+        mc = cast(Any, cfg.model)
+        num_classes = int(kwargs.get("num_classes", mc.output_dim))
+        feat_dim = int(kwargs.get("feat_dim", 128))
+        in_channels = int(kwargs.get("in_channels", 3))
+        return MiniCNN(num_classes=num_classes, feat_dim=feat_dim, in_channels=in_channels)
+
+    raise KeyError(f"Unknown model {name!r}. Available: {list_models()}")
+
+
+def wrap_feature_model(model: nn.Module, feature_module: str | nn.Module) -> HookedFeatureModel:
+    """
+    Wrap an arbitrary nn.Module and expose `extract_features()` via a forward hook.
+
+    Args:
+        model: Base model.
+        feature_module: Module (or dotted path inside `model`) whose output should be treated as features.
+    """
+    if isinstance(feature_module, str):
+        fm = get_submodule_by_name(model, feature_module)
+    else:
+        fm = feature_module
+    return HookedFeatureModel(model, feature_module=fm)
+
+
+# ---------------------------------------------------------------------
+# Training / inference API
+# ---------------------------------------------------------------------
+
+
+def train(
+    model: nn.Module,
+    bundle: DatasetBundle,
+    cfg: ExperimentConfig,
+    *,
+    device: Optional[str] = None,
+    verbose: bool = True,
+    return_history: bool = False,
+):
+    """
+    Train a model using the repo's existing training utilities.
+
+    Returns:
+        model (and optionally history if return_history=True).
+    """
+    dev = str(device or cfg.device)
+    mc = cast(Any, cfg.model)
+    train_loader, val_loader, _test_loader = create_data_loaders(
+        bundle.X_train,
+        bundle.y_train,
+        bundle.X_val,
+        bundle.y_val,
+        bundle.X_test,
+        bundle.y_test,
+        batch_size=int(mc.batch_size),
+        shuffle_train=True,
+    )
+    history = train_model(model, train_loader, val_loader, cast(Any, cfg.model), device=dev, verbose=bool(verbose))
+    return (model, history) if return_history else model
+
+
+def predict(
+    model: nn.Module,
+    X: np.ndarray,
+    *,
+    device: Optional[str] = None,
+    return_probs: bool = False,
+) -> np.ndarray:
+    """Get model predictions (or probabilities) for inputs using existing helpers."""
+    return get_model_predictions(model, X, device=str(device or "cpu"), return_probs=bool(return_probs))
+
+
+# ---------------------------------------------------------------------
+# Attack API
+# ---------------------------------------------------------------------
+
+
+def generate_adversarial(
+    model: nn.Module,
+    X: np.ndarray,
+    y: np.ndarray,
+    cfg: ExperimentConfig,
+    *,
+    clip: Optional[Tuple[float, float]] = None,
+    batch_size: Optional[int] = None,
+) -> np.ndarray:
+    """
+    Generate adversarial examples for either vectors (N,D) or images (N,C,H,W).
+
+    Vector inputs call `generate_adversarial_examples`.
+    Image inputs call `generate_adversarial_examples_images` and clamp to a valid range.
+    """
+    mc = cast(Any, cfg.model)
+    ac = cast(Any, cfg.attack)
+    bs = int(batch_size or mc.batch_size)
+    X = np.asarray(X)
+    y = np.asarray(y)
+
+    if X.ndim == 2:
+        return generate_adversarial_examples(model, X, y, ac, device=str(cfg.device), batch_size=bs)
+
+    if X.ndim == 4:
+        if clip is None:
+            # Default image range used across notebooks.
+            clip = (0.0, 1.0)
+        clip_min, clip_max = float(clip[0]), float(clip[1])
+        return generate_adversarial_examples_images(
+            model,
+            X,
+            y,
+            attack_type=str(ac.attack_type),
+            epsilon=float(ac.epsilon),
+            num_steps=int(ac.num_steps),
+            step_size=float(ac.step_size),
+            device=str(cfg.device),
+            batch_size=bs,
+            clip_min=clip_min,
+            clip_max=clip_max,
+        )
+
+    raise ValueError(f"Unsupported input rank X.ndim={X.ndim}. Expected 2 (vector) or 4 (image).")
+
+
+# ---------------------------------------------------------------------
+# Scoring / detector API
+# ---------------------------------------------------------------------
+
+
+def _softmax_probs(logits: np.ndarray) -> np.ndarray:
+    t = torch.as_tensor(logits, dtype=torch.float32)
+    return torch.softmax(t, dim=1).cpu().numpy()
+
+
+def _scalar_f_from_probs(probs: np.ndarray) -> np.ndarray:
+    if probs.ndim != 2 or probs.shape[1] < 2:
+        raise ValueError(f"Expected probs shape (N,C) with C>=2; got {probs.shape}")
+    return probs[:, 1] if probs.shape[1] == 2 else probs.max(axis=1)
+
+
+def compute_scores(
+    X_points: np.ndarray,
+    model: nn.Module,
+    *,
+    bundle: DatasetBundle,
+    cfg: ExperimentConfig,
+) -> Dict[str, np.ndarray]:
+    """
+    Compute graph/topology scores for X_points using the training reference set from `bundle`.
+
+    This follows the same logic as notebooks:
+      - Z_train is either X_train (input space) or penultimate features (feature space)
+      - f_train is a scalar confidence/function derived from model outputs on X_train
+    """
+    gc = cast(Any, cfg.graph)
+    if gc.space == "feature":
+        Z_train = extract_features_batch(model, bundle.X_train, layer="penultimate", device=str(cfg.device))
+    else:
+        Z_train = bundle.X_train
+
+    logits_train = get_model_logits(model, bundle.X_train, device=str(cfg.device))
+    probs_train = _softmax_probs(logits_train)
+    f_train = _scalar_f_from_probs(probs_train)
+
+    return compute_graph_scores(
+        X_points=np.asarray(X_points),
+        model=model,
+        Z_train=np.asarray(Z_train),
+        f_train=np.asarray(f_train),
+        graph_params=gc,
+        device=str(cfg.device),
+    )
+
+
+def fit_detector(
+    scores: Dict[str, np.ndarray],
+    labels: np.ndarray,
+    cfg: ExperimentConfig,
+) -> TopologyScoreDetector:
+    """Fit/calibrate the detector on (scores, labels) using existing detector training."""
+    det = train_graph_detector(scores, np.asarray(labels, dtype=int), cast(Any, cfg.detector))
+    if not isinstance(det, TopologyScoreDetector):
+        # In this repo, `train_graph_detector` standardizes to TopologyScoreDetector.
+        raise TypeError(f"Unexpected detector type: {type(det)}")
+    return det
+
+
+def detect(
+    detector: Any,
+    scores: Dict[str, np.ndarray],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Return (predictions, probability_proxy) using the existing detector inference helper."""
+    return predict_graph_detector(detector, scores)
+
+
+def evaluate_detection(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    *,
+    threshold: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Evaluate detection performance (AUROC/AUPRC/FPR@95TPR, etc.)."""
+    return evaluate_detector(np.asarray(y_true, dtype=int), np.asarray(y_score, dtype=float), threshold=threshold)
+
+
+# ---------------------------------------------------------------------
+# Orchestration helpers (optional convenience; no new algorithms)
+# ---------------------------------------------------------------------
+
+
+def concat_scores(scores_a: Dict[str, np.ndarray], scores_b: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+    """Concatenate two score dicts key-wise, filling missing keys with zeros."""
+    keys = sorted(set(scores_a.keys()) | set(scores_b.keys()))
+    if len(keys) == 0:
+        return {}
+
+    # Choose lengths for zero fill
+    any_a = next(iter(scores_a.values())) if scores_a else None
+    any_b = next(iter(scores_b.values())) if scores_b else None
+    n_a = int(len(any_a)) if any_a is not None else 0
+    n_b = int(len(any_b)) if any_b is not None else 0
+
+    out: Dict[str, np.ndarray] = {}
+    for k in keys:
+        a = scores_a.get(k)
+        b = scores_b.get(k)
+        if a is None:
+            a = np.zeros((n_a,), dtype=float)
+        if b is None:
+            b = np.zeros((n_b,), dtype=float)
+        out[k] = np.concatenate([np.asarray(a, dtype=float), np.asarray(b, dtype=float)], axis=0)
+    return out
+
+
+def subsample_masked(
+    X: np.ndarray,
+    y: np.ndarray,
+    mask: np.ndarray,
+    n_max: int,
+    *,
+    seed: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(int(seed))
+    idx = np.where(np.asarray(mask, dtype=bool))[0]
+    if len(idx) == 0:
+        return X[:0], y[:0]
+    if len(idx) > int(n_max):
+        idx = rng.choice(idx, size=int(n_max), replace=False)
+    return np.asarray(X)[idx], np.asarray(y)[idx]
+
+
+def attack_success_mask(
+    model: nn.Module,
+    X_clean: np.ndarray,
+    X_adv: np.ndarray,
+    y_true: np.ndarray,
+    *,
+    device: str,
+) -> np.ndarray:
+    """
+    Boolean mask for successful attacks:
+      model(X_clean) correct AND model(X_adv) incorrect (wrt y_true).
+    """
+    pred_clean = get_model_predictions(model, X_clean, device=device, return_probs=False)
+    pred_adv = get_model_predictions(model, X_adv, device=device, return_probs=False)
+    y_true = np.asarray(y_true, dtype=int)
+    return (pred_clean == y_true) & (pred_adv != y_true)
+
+
+def run_pipeline(
+    dataset_name: str,
+    model_name: str,
+    cfg: Optional[ExperimentConfig] = None,
+    *,
+    dataset_overrides: Optional[Dict[str, Any]] = None,
+    model_kwargs: Optional[Dict[str, Any]] = None,
+    filter_clean_to_correct: bool = False,
+    eval_only_successful_attacks: bool = False,
+    max_points_for_scoring: Optional[int] = None,
+    seed: Optional[int] = None,
+) -> RunResult:
+    """
+    Run an end-to-end experiment:
+      dataset -> train model -> generate attacks -> compute scores -> fit detector -> evaluate.
+
+    This is a convenience wrapper around the API functions above. It does not change
+    algorithms; it packages common notebook wiring into one call.
+    """
+    if cfg is None:
+        cfg = ExperimentConfig()
+    if dataset_overrides:
+        bundle = get_dataset(dataset_name, cfg, **dataset_overrides)
+    else:
+        bundle = get_dataset(dataset_name, cfg)
+
+    mk = dict(model_kwargs or {})
+    # Default num_classes inference from dataset meta when available.
+    mc = cast(Any, cfg.model)
+    num_classes = int(bundle.meta.get("num_classes", mc.output_dim))
+    mk.setdefault("num_classes", num_classes)
+    mk.setdefault("output_dim", num_classes)  # for MLP factory
+    model = get_model(model_name, cfg, **mk)
+
+    trained = cast(nn.Module, train(model, bundle, cfg, device=str(cfg.device), verbose=True, return_history=False))
+
+    clip = bundle.meta.get("clip", None)
+    X_adv_val = generate_adversarial(trained, bundle.X_val, bundle.y_val, cfg, clip=clip)
+    X_adv_test = generate_adversarial(trained, bundle.X_test, bundle.y_test, cfg, clip=clip)
+
+    # Optional filtering/subsampling logic, mirroring notebook toggles.
+    s = int(seed if seed is not None else cfg.seed)
+
+    clean_mask_val = np.ones(len(bundle.X_val), dtype=bool)
+    clean_mask_test = np.ones(len(bundle.X_test), dtype=bool)
+    if filter_clean_to_correct:
+        pred_val = get_model_predictions(trained, bundle.X_val, device=str(cfg.device), return_probs=False)
+        pred_test = get_model_predictions(trained, bundle.X_test, device=str(cfg.device), return_probs=False)
+        clean_mask_val = pred_val == np.asarray(bundle.y_val, dtype=int)
+        clean_mask_test = pred_test == np.asarray(bundle.y_test, dtype=int)
+
+    adv_mask_val = np.ones(len(X_adv_val), dtype=bool)
+    adv_mask_test = np.ones(len(X_adv_test), dtype=bool)
+    if eval_only_successful_attacks:
+        adv_mask_val = attack_success_mask(
+            trained, bundle.X_val, X_adv_val, bundle.y_val, device=str(cfg.device)
+        )
+        adv_mask_test = attack_success_mask(
+            trained, bundle.X_test, X_adv_test, bundle.y_test, device=str(cfg.device)
+        )
+
+    X_val_clean_used, y_val_clean_used = bundle.X_val, bundle.y_val
+    X_test_clean_used, y_test_clean_used = bundle.X_test, bundle.y_test
+    X_val_adv_used, y_val_adv_used = X_adv_val, bundle.y_val
+    X_test_adv_used, y_test_adv_used = X_adv_test, bundle.y_test
+
+    if max_points_for_scoring is not None:
+        X_val_clean_used, y_val_clean_used = subsample_masked(
+            bundle.X_val, bundle.y_val, clean_mask_val, int(max_points_for_scoring), seed=s
+        )
+        X_test_clean_used, y_test_clean_used = subsample_masked(
+            bundle.X_test, bundle.y_test, clean_mask_test, int(max_points_for_scoring), seed=s + 1
+        )
+        X_val_adv_used, y_val_adv_used = subsample_masked(
+            X_adv_val, bundle.y_val, adv_mask_val, int(max_points_for_scoring), seed=s + 2
+        )
+        X_test_adv_used, y_test_adv_used = subsample_masked(
+            X_adv_test, bundle.y_test, adv_mask_test, int(max_points_for_scoring), seed=s + 3
+        )
+
+    scores_val_clean = compute_scores(X_val_clean_used, trained, bundle=bundle, cfg=cfg)
+    scores_val_adv = compute_scores(X_val_adv_used, trained, bundle=bundle, cfg=cfg)
+    scores_test_clean = compute_scores(X_test_clean_used, trained, bundle=bundle, cfg=cfg)
+    scores_test_adv = compute_scores(X_test_adv_used, trained, bundle=bundle, cfg=cfg)
+
+    scores_val_all = concat_scores(scores_val_clean, scores_val_adv)
+    any_key = next(iter(scores_val_all.keys()))
+    labels_val = np.concatenate(
+        [np.zeros(len(scores_val_clean[any_key]), dtype=int), np.ones(len(scores_val_adv[any_key]), dtype=int)]
+    )
+
+    detector = fit_detector(scores_val_all, labels_val, cfg)
+
+    scores_test_all = concat_scores(scores_test_clean, scores_test_adv)
+    any_key_t = next(iter(scores_test_all.keys()))
+    labels_test = np.concatenate(
+        [np.zeros(len(scores_test_clean[any_key_t]), dtype=int), np.ones(len(scores_test_adv[any_key_t]), dtype=int)]
+    )
+
+    raw_scores_test = np.asarray(detector.score(scores_test_all), dtype=float)
+    # Include threshold-based binary metrics as well (confusion matrix, etc.).
+    thr_val = getattr(detector, "threshold", None)
+    if thr_val is None:
+        thr_val = detector.threshold
+    if thr_val is None:
+        raise ValueError("Detector has no calibrated threshold; fit must set detector.threshold.")
+    threshold = float(thr_val)
+    metrics = evaluate_detector(labels_test, raw_scores_test, threshold=threshold)
+
+    # Optional plots (no display by default; notebook can display returned figures).
+    plots: Dict[str, Any] = {}
+    try:
+        from .visualization import (
+            plot_confusion_matrix,
+            plot_roc_from_metrics,
+            plot_score_distributions_figure,
+        )
+
+        roc_fig, roc_ax = plot_roc_from_metrics(metrics, title="ROC curve", show=False, interpolate=True)
+        plots["roc_fig"] = roc_fig
+        plots["roc_ax"] = roc_ax
+
+        y_pred_test = np.asarray(detector.predict(scores_test_all), dtype=int)
+        cm_out = plot_confusion_matrix(labels_test, y_pred=y_pred_test, show=False)
+        plots["confusion"] = cm_out
+        plots["confusion_fig"] = cm_out.get("fig")
+        plots["confusion_axes"] = cm_out.get("axes")
+
+        # Score distributions (clean vs adversarial) using the detector's raw score.
+        s_clean = np.asarray(detector.score(scores_test_clean), dtype=float)
+        s_adv = np.asarray(detector.score(scores_test_adv), dtype=float)
+        dist_fig, dist_ax = plot_score_distributions_figure(
+            s_clean,
+            s_adv,
+            score_name="Detector score",
+            title="Detector score distributions (test)",
+            bins=50,
+            threshold=threshold,
+            show=False,
+        )
+        plots["score_dist_fig"] = dist_fig
+        plots["score_dist_ax"] = dist_ax
+    except Exception as e:
+        # Plotting should never break the pipeline; expose the error for debugging.
+        plots["plot_error"] = repr(e)
+
+    attack_val = AttackResult(
+        X_adv=np.asarray(X_adv_val),
+        meta={
+            "adv_mask": np.asarray(adv_mask_val, dtype=bool),
+            "clean_mask": np.asarray(clean_mask_val, dtype=bool),
+            "y_true": np.asarray(bundle.y_val, dtype=int),
+        },
+    )
+    attack_test = AttackResult(
+        X_adv=np.asarray(X_adv_test),
+        meta={
+            "adv_mask": np.asarray(adv_mask_test, dtype=bool),
+            "clean_mask": np.asarray(clean_mask_test, dtype=bool),
+            "y_true": np.asarray(bundle.y_test, dtype=int),
+        },
+    )
+    eval_out = DetectorEvalResult(
+        labels=np.asarray(labels_test, dtype=int),
+        raw_scores=np.asarray(raw_scores_test, dtype=float),
+        metrics=dict(metrics),
+        plots=plots,
+    )
+    return RunResult(
+        cfg=cfg,
+        bundle=bundle,
+        model=trained,
+        detector=detector,
+        attack_val=attack_val,
+        attack_test=attack_test,
+        scores_val_clean=scores_val_clean,
+        scores_val_adv=scores_val_adv,
+        scores_test_clean=scores_test_clean,
+        scores_test_adv=scores_test_adv,
+        eval=eval_out,
+    )
+

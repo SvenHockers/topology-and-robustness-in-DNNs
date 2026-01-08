@@ -21,7 +21,7 @@ model:
   output_dim: 2
   activation: relu
   learning_rate: 0.001
-  epochs: 100
+  epochs: 20
   batch_size: 32
   weight_decay: 0.0
   random_state: 42

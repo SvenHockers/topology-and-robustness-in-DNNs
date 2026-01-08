@@ -1,170 +1,135 @@
-"""
-Graph-based adversarial detection methods.
+r"""
+Detectors for adversarial / OOD detection.
+
+This repo's *standard* detector is the **topological (persistent homology) scoring
+detector** described in `theory.md`.
+
+Conceptual pipeline (see `theory.md`):
+- Represent: \(z=\phi(x)\) (typically a neural embedding; computed upstream)
+- Localize: \(P(z)=\{z\}\cup N_k(z)\) from training representations
+- Topologize: persistent homology on \(P(z)\) (optionally after local PCA)
+- Vectorize: diagram summaries → fixed-length topology feature vector \(v(x)\)
+- Score: suspiciousness score \(s(x)\) = (shrunk) Mahalanobis distance of \(v(x)\)
+         to the clean reference distribution
+- Decide: flag if \(s(x) > \tau\), where \(\tau\) is a clean-quantile threshold
+
+Implementation mapping:
+- Topology feature computation: `src/topology_features.py`
+- Feature emission for model inputs: `src/graph_manifold.py` (keys like `topo_h{0,1}_*`)
+- Scoring detector + thresholding: this file (`TopologyScoreDetector`)
 """
 
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import IsolationForest
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, Any
 from .utils import DetectorConfig
-from .compute_combined_score import compute_combined_score
 
 
-class ScoreBasedDetector:
+class TopologyScoreDetector:
+    r"""
+    Topological (persistent-homology) scoring detector.
+
+    This implements the Part B scoring rule in `theory.md`:
+
+    - **Inputs**: a dict of topology summary arrays (emitted by `compute_graph_scores(...)`)
+      where each key corresponds to one coordinate of the topology feature vector \(v(x)\).
+    - **Calibration on clean data**: estimate \(\mu\) and \(\Sigma\) for \(v(x)\), apply
+      diagonal shrinkage \(\Sigma_\lambda=\Sigma+\lambda I\).
+    - **Score**: suspiciousness \(s(x)=\sqrt{(v(x)-\mu)^\top \Sigma_\lambda^\dagger (v(x)-\mu)}\).
+    - **Threshold**: \(\tau\) is set as a clean quantile (percentile), targeting an
+      approximate false-positive rate under the clean calibration distribution.
     """
-    Simple score-based anomaly detector using graph manifold scores.
-    """
-    
-    def __init__(self, score_type: str = 'combined'):
+
+    def __init__(
+        self,
+        feature_keys: list,
+        cov_shrinkage: float = 1e-3,
+        percentile: float = 95.0,
+    ):
+        self.feature_keys = list(feature_keys)
+        self.cov_shrinkage = float(cov_shrinkage)
+        self.percentile = float(percentile)
+
+        self.mu_: Optional[np.ndarray] = None
+        self.inv_cov_: Optional[np.ndarray] = None
+        self.threshold: Optional[float] = None
+
+    def _feature_matrix(self, scores: Dict[str, np.ndarray]) -> np.ndarray:
+        r"""
+        Construct the topology feature matrix \(V\) by column-stacking selected keys.
+
+        `scores` is expected to include keys like `topo_h0_*`, `topo_h1_*` as produced by
+        `src.graph_scoring.compute_graph_scores(..., use_topology=True)`.
         """
-        Initialize score-based detector.
-        
-        Args:
-            score_type: Which score to use ('degree', 'laplacian', 'diffusion', 'combined',
-                'tangent_residual', 'knn_radius')
+        X = np.column_stack([scores[k] for k in self.feature_keys]).astype(float)
+        # Replace any NaNs/Infs defensively; PH backends can emit edge-case values.
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        return X
+
+    def fit(self, scores: Dict[str, np.ndarray], labels: np.ndarray):
+        r"""
+        Fit the clean reference distribution and calibrate \(\tau\).
+
+        `labels` are used only to select the clean calibration set \(\mathcal{C}\)
+        (i.e., points with label 0). This keeps thresholding tied to the clean
+        distribution rather than a specific threat model.
         """
-        self.score_type = score_type
-        self.threshold = None
-    
-    def fit(self, scores: Dict[str, np.ndarray], labels: np.ndarray, percentile: float = 95):
-        """
-        Fit detector by computing threshold on validation set.
-        
-        Args:
-            scores: Dictionary of score arrays
-            labels: Binary labels (1 = adversarial, 0 = clean)
-            percentile: Percentile of clean scores to use as threshold
-        """
+        if len(self.feature_keys) == 0:
+            raise ValueError("TopologyScoreDetector requires non-empty feature_keys.")
+        for k in self.feature_keys:
+            if k not in scores:
+                raise KeyError(f"Missing topology feature key {k!r} in scores dict.")
+
+        X = self._feature_matrix(scores)
         clean_mask = (labels == 0)
-        clean_scores = scores[self.score_type][clean_mask]
-        
-        # Set threshold at percentile of clean scores
-        self.threshold = np.percentile(clean_scores, percentile)
-    
+        X0 = X[clean_mask]
+        if X0.shape[0] < 5:
+            raise ValueError("Need at least 5 clean samples to fit topology detector.")
+
+        mu = X0.mean(axis=0, keepdims=False)
+        Xc = X0 - mu.reshape(1, -1)
+        cov = (Xc.T @ Xc) / max(1, (Xc.shape[0] - 1))
+        # Diagonal shrinkage for stability in small-sample / correlated-feature regimes.
+        cov = cov + self.cov_shrinkage * np.eye(cov.shape[0], dtype=float)
+        inv_cov = np.linalg.pinv(cov)
+
+        self.mu_ = mu
+        self.inv_cov_ = inv_cov
+
+        clean_scores = self.score(scores)[clean_mask]
+        self.threshold = float(np.percentile(clean_scores, self.percentile))
+        return self
+
+    def score(self, scores: Dict[str, np.ndarray]) -> np.ndarray:
+        r"""Compute the suspiciousness score \(s(x)\) (Mahalanobis distance in feature space)."""
+        if self.mu_ is None or self.inv_cov_ is None:
+            raise ValueError("TopologyScoreDetector must be fitted first.")
+        X = self._feature_matrix(scores)
+        Xc = X - self.mu_.reshape(1, -1)
+        # Squared Mahalanobis distances (monotone in \(s(x)\)).
+        m2 = np.einsum("bi,ij,bj->b", Xc, self.inv_cov_, Xc)
+        m2 = np.maximum(m2, 0.0)
+        return np.sqrt(m2)
+
     def predict(self, scores: Dict[str, np.ndarray]) -> np.ndarray:
-        """
-        Predict whether points are adversarial based on scores.
-        
-        Args:
-            scores: Dictionary of score arrays
-            
-        Returns:
-            Binary predictions (1 = adversarial, 0 = clean)
-        """
+        r"""Apply the calibrated decision rule \(\mathbf{1}\{s(x)>\tau\}\)."""
         if self.threshold is None:
-            raise ValueError("Detector must be fitted first")
-        
-        predictions = (scores[self.score_type] > self.threshold).astype(int)
-        return predictions
-    
+            raise ValueError("TopologyScoreDetector must be fitted first.")
+        s = self.score(scores)
+        return (s > self.threshold).astype(int)
+
     def predict_proba(self, scores: Dict[str, np.ndarray]) -> np.ndarray:
-        """
-        Predict adversarial probabilities (approximated from scores).
-        
-        Args:
-            scores: Dictionary of score arrays
-            
-        Returns:
-            Probability array (probability of being adversarial)
+        r"""
+        Return a **monotone confidence proxy** derived from \(s(x)\).
+
+        Important: this is **not** a calibrated probability. The detector is a
+        *scoring + quantile-thresholding* method (see `theory.md` B8).
         """
         if self.threshold is None:
-            raise ValueError("Detector must be fitted first")
-        
-        # Simple sigmoid-like transformation around threshold
-        score_values = scores[self.score_type]
-        distances = score_values - self.threshold
-        
-        # Normalize to [0, 1] range using softmax-like function
+            raise ValueError("TopologyScoreDetector must be fitted first.")
+        s = self.score(scores)
+        distances = s - self.threshold
         probs = 1.0 / (1.0 + np.exp(-distances))
-        
         return probs
-
-
-class SupervisedGraphDetector:
-    """
-    Supervised detector that learns from graph-based score features.
-    """
-    
-    def __init__(self, detector_type: str = 'logistic'):
-        """
-        Initialize supervised detector.
-        
-        Args:
-            detector_type: Type of classifier ('logistic' or 'isolation_forest')
-        """
-        self.detector_type = detector_type
-        self.detector = None
-    
-    def fit(self, score_features: np.ndarray, labels: np.ndarray):
-        """
-        Train detector on score features.
-        
-        Args:
-            score_features: Feature matrix of shape (n_samples, n_score_types)
-            labels: Binary labels (1 = adversarial, 0 = clean)
-        """
-        if self.detector_type == 'logistic':
-            self.detector = LogisticRegression(random_state=42, max_iter=1000)
-            self.detector.fit(score_features, labels)
-        elif self.detector_type == 'isolation_forest':
-            # For isolation forest, we treat adversarial as anomalies
-            # Invert labels: 1 = anomaly, -1 = normal
-            self.detector = IsolationForest(random_state=42, contamination=0.1)
-            self.detector.fit(score_features)
-            self.is_adversarial = (labels == 1)
-        else:
-            raise ValueError(f"Unknown detector type: {self.detector_type}")
-    
-    def predict(self, score_features: np.ndarray) -> np.ndarray:
-        """
-        Predict whether points are adversarial.
-        
-        Args:
-            score_features: Feature matrix
-            
-        Returns:
-            Binary predictions (1 = adversarial, 0 = clean)
-        """
-        if self.detector is None:
-            raise ValueError("Detector must be fitted first")
-        
-        if self.detector_type == 'logistic':
-            return self.detector.predict(score_features)
-        if self.detector_type == 'isolation_forest':
-            anomaly_pred = self.detector.predict(score_features)
-            # Convert: 1 = normal, -1 = anomaly -> 0 = clean, 1 = adversarial
-            return (anomaly_pred == -1).astype(int)
-        raise ValueError(f"Unknown detector type: {self.detector_type}")
-    
-    def predict_proba(self, score_features: np.ndarray) -> np.ndarray:
-        """
-        Predict adversarial probabilities.
-        
-        Args:
-            score_features: Feature matrix
-            
-        Returns:
-            Probability array (probability of being adversarial)
-        """
-        if self.detector is None:
-            raise ValueError("Detector must be fitted first")
-        
-        if self.detector_type == 'logistic':
-            probs = self.detector.predict_proba(score_features)
-            # Return probability of class 1 (adversarial)
-            if probs.shape[1] == 2:
-                return probs[:, 1]
-            else:
-                return probs[:, 0]
-        elif self.detector_type == 'isolation_forest':
-            # Isolation forest doesn't provide probabilities directly
-            # Use decision function as proxy
-            decision_scores = self.detector.decision_function(score_features)
-            # Normalize to [0, 1]
-            probs = 1.0 / (1.0 + np.exp(-decision_scores))
-            return 1.0 - probs  # Invert: lower decision score = more adversarial
-        else:
-            raise ValueError(f"Unknown detector type: {self.detector_type}")
 
 
 def train_graph_detector(
@@ -172,49 +137,69 @@ def train_graph_detector(
     labels: np.ndarray,
     config: DetectorConfig
 ):
-    """
-    Train a graph-based detector.
+    r"""
+    Train / calibrate the detector.
+
+    In this repository, this function **standardizes** to the topological detector:
+    it selects topology summary keys, fits the clean reference distribution in
+    topology-feature space, and sets a clean-quantile threshold.
     
     Args:
-        scores: Dictionary of score arrays
-        labels: Binary labels (1 = adversarial, 0 = clean)
-        config: DetectorConfig with detector parameters
+        scores: Dict of score arrays, including PH summary keys like `topo_h{0,1}_*`.
+        labels: Binary labels (1 = adversarial, 0 = clean); used only to select clean points.
+        config: DetectorConfig (controls feature selection + shrinkage + percentile).
         
     Returns:
-        Trained detector object
+        Calibrated detector object (TopologyScoreDetector).
     """
-    # Ensure 'combined' score exists if requested
-    if config.score_type == 'combined' and 'combined' not in scores:
-        scores = dict(scores)  # avoid mutating caller
-        scores['combined'] = compute_combined_score(
-            scores,
-            alpha=config.alpha,
-            beta=config.beta,
-            normalize=True,
+    # Standardized in this project: always train the topology-score detector.
+    # This keeps configuration consistent across datasets and notebooks.
+    #
+    # Choose topology feature keys.
+    # Default: use standard PH summary keys if present; else all keys prefixed with "topo_".
+    topo_keys = getattr(config, 'topo_feature_keys', None)
+    if topo_keys is not None:
+        feature_keys = list(topo_keys)
+    else:
+        default_order = [
+            'topo_h0_count',
+            'topo_h0_total_persistence',
+            'topo_h0_entropy',
+            'topo_h1_count',
+            'topo_h1_total_persistence',
+            'topo_h1_max_persistence',
+            'topo_h1_l2_persistence',
+            'topo_h1_entropy',
+        ]
+        feature_keys = [k for k in default_order if k in scores]
+        if len(feature_keys) == 0:
+            feature_keys = sorted([k for k in scores.keys() if str(k).startswith('topo_')])
+
+    if len(feature_keys) == 0:
+        raise ValueError(
+            "No topology features found in scores.\n"
+            "Enable topology feature computation by setting:\n"
+            "  config.graph.use_topology = True\n"
+            "and ensure you have a PH backend installed (e.g., ripser)."
         )
 
-    if config.detector_type == 'score':
-        detector = ScoreBasedDetector(score_type=config.score_type)
-        detector.fit(scores, labels)
-        return detector
-    elif config.detector_type == 'supervised':
-        # Prepare feature matrix
-        score_types = ['degree', 'laplacian']
-        if 'diffusion' in scores:
-            score_types.append('diffusion')
-        
-        feature_matrix = np.column_stack([scores[st] for st in score_types])
-        
-        detector = SupervisedGraphDetector(detector_type='logistic')
-        detector.fit(feature_matrix, labels)
-        return detector
-    else:
-        raise ValueError(f"Unknown detector type: {config.detector_type}")
+    detector = TopologyScoreDetector(
+        feature_keys=feature_keys,
+        cov_shrinkage=float(getattr(config, 'topo_cov_shrinkage', 1e-3)),
+        percentile=float(getattr(config, 'topo_percentile', 95.0)),
+    )
+    detector.fit(scores, labels)
+    return detector
 
 
 def predict_graph_detector(detector, scores: Dict[str, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
-    """
+    r"""
     Make predictions with a trained detector.
+
+    Returns:
+    - `predictions`: binary flags \(\mathbf{1}\{s(x)>\tau\}\)
+    - `probabilities`: a *monotone proxy* derived from the underlying score
+      (not a calibrated probability; see `theory.md` B7.1 / B8).
     
     Args:
         detector: Trained detector object
@@ -223,26 +208,16 @@ def predict_graph_detector(detector, scores: Dict[str, np.ndarray]) -> Tuple[np.
     Returns:
         Tuple of (predictions, probabilities)
     """
-    # Ensure 'combined' score exists if the detector expects it
-    if isinstance(detector, ScoreBasedDetector) and detector.score_type == 'combined' and 'combined' not in scores:
-        scores = dict(scores)  # avoid mutating caller
-        scores['combined'] = compute_combined_score(scores, normalize=True)
-
-    if isinstance(detector, ScoreBasedDetector):
+    if isinstance(detector, TopologyScoreDetector):
         predictions = detector.predict(scores)
         probabilities = detector.predict_proba(scores)
         return predictions, probabilities
-    elif isinstance(detector, SupervisedGraphDetector):
-        # Prepare feature matrix
-        score_types = ['degree', 'laplacian']
-        if 'diffusion' in scores:
-            score_types.append('diffusion')
-        
-        feature_matrix = np.column_stack([scores[st] for st in score_types])
-        
-        predictions = detector.predict(feature_matrix)
-        probabilities = detector.predict_proba(feature_matrix)
-        return predictions, probabilities
+    # Fallback: allow duck-typed detectors used in ad-hoc notebook experiments.
+    # We keep this minimal to avoid maintaining unused detector classes in src/.
+    if hasattr(detector, "predict") and hasattr(detector, "predict_proba"):
+        predictions = detector.predict(scores)  # type: ignore[misc]
+        probabilities = detector.predict_proba(scores)  # type: ignore[misc]
+        return np.asarray(predictions, dtype=int), np.asarray(probabilities, dtype=float)
     else:
         raise ValueError(f"Unknown detector type: {type(detector)}")
 

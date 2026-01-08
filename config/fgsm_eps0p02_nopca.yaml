@@ -1,0 +1,4 @@
+base: base_no_pca.yaml
+attack:
+  attack_type: fgsm
+  epsilon: 0.02

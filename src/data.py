@@ -250,6 +250,50 @@ class TwoMoonsDatasetSpec(BaseDataset):
         )
 
 
+class GeometricalPointCloudDatasetSpec(BaseDataset):
+    name = "geometrical_pointclouds"
+
+    def load(self, cfg: Any) -> DatasetBundle:
+        # Duck-typed config access (same pattern as TwoMoons)
+        data = getattr(cfg, "data", cfg)
+
+        dataset_type = getattr(data, "dataset_type", "torus_one_hole")
+        noise = float(getattr(data, "noise", 0.1))
+        n_points = getattr(data, "n_points", None)
+
+        seed = int(getattr(data, "random_state", getattr(cfg, "seed", 42)))
+        train_ratio = float(getattr(data, "train_ratio", 0.6))
+        val_ratio = float(getattr(data, "val_ratio", 0.2))
+        test_ratio = float(getattr(data, "test_ratio", 0.2))
+
+        # Core generation call (your abstraction)
+        X_train, y_train, X_val, y_val, X_test, y_test = generate_geometrical_dataset(
+            dataset_type=dataset_type,
+            n_points=n_points,
+            noise=noise,
+            random_state=seed,
+            train_ratio=train_ratio,
+            val_ratio=val_ratio,
+            test_ratio=test_ratio,
+        )
+
+        # Metadata describing the dataset (important for downstream logic)
+        meta = {
+            "input_kind": "pointcloud",
+            "input_dim": 3,
+            "dataset_type": dataset_type,
+            "noise": noise,
+            "num_classes": _infer_num_classes(y_train),
+            "clip": None,
+        }
+
+        return DatasetBundle(
+            _as_float32(X_train), _as_int64(y_train),
+            _as_float32(X_val), _as_int64(y_val),
+            _as_float32(X_test), _as_int64(y_test),
+            meta=meta,
+        )
+
 class BreastCancerTabularDatasetSpec(BaseDataset):
     name = "breast_cancer_tabular"
 
@@ -456,6 +500,7 @@ DATASET_REGISTRY: Dict[str, BaseDataset] = {
     "fashion_mnist": TorchvisionDatasetSpec(name="fashion_mnist", dataset="FashionMNIST", num_classes=10),
     "cifar10": TorchvisionDatasetSpec(name="cifar10", dataset="CIFAR10", num_classes=10),
     "cifar100": TorchvisionDatasetSpec(name="cifar100", dataset="CIFAR100", num_classes=100),
+    "geometrical-shapes":GeometricalPointCloudDatasetSpec()
 }
 
 # ---------------------------------------------------------------------
@@ -706,4 +751,211 @@ def load_synthetic_shapes_3class(
     X_test, y_test = _make_split(int(n_test), 3)
     return X_train, y_train, X_val, y_val, X_test, y_test
 
+
+
+# ---------------------------------------------------------------------
+# Synthetic "Point Cloud"  datasets Doubletorus ,nested spheres and blobs within sphere
+# ---------------------------------------------------------------------
+
+
+def generate_geometrical_dataset(dataset_type, n_points=None, noise=0.1, random_state=42):
+    np.random.seed(random_state)
+    
+    if dataset_type == 'torus_one_hole':
+        # Your first torus code here
+        points, labels = gen_torus_one_hole(noise)
+        
+    elif dataset_type == 'torus_two_holes':
+        # Your second torus code here
+        points, labels = gen_torus_two_holes(noise)
+        
+    elif dataset_type == 'nested_spheres':
+        # Your sphere code here
+        if n_points is None:
+            n_points = 6000
+        points, labels = gen_nested_spheres(n_points, noise)
+
+    elif dataset_type == 'Blobs':
+        # Your sphere code here
+        if n_points is None:
+            n_points = 6000
+        points, labels = Blobs(n_points, noise)
+    
+    else:
+        raise ValueError(f"Unknown dataset_type: {dataset_type}")
+    
+    X_train, X_t, y_train, y_t = train_test_split(
+        points, labels, 
+        test_size=0.3, 
+        stratify=labels,  
+        random_state=42
+    )
+
+    print(X_train.shape)
+    print(X_t.shape)
+    print(y_train.shape)
+    print(y_t.shape)
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_t, y_t, 
+        test_size=0.5,  
+        stratify=y_t, 
+        random_state=42
+    )
+    return X_train, y_train, X_val, y_val, X_test, y_test
+
+def gen_torus_one_hole(noise=0.1):
+    """Generate double torus + torus through one hole."""
+    R = 4
+    r = 1
+    u = np.linspace(0, 2*np.pi, 40)
+    v = np.linspace(0, 2*np.pi, 40)
+    u, v = np.meshgrid(u, v)
+    
+    #Double torus
+    x=(R+r*np.cos(v))*np.cos(u)-2.8
+    y=(R+r*np.cos(v))*np.sin(u)-2.8
+    z=r*np.sin(v)
+
+    noise_x = noise * np.random.randn(*x.shape)
+    noise_y = noise * np.random.randn(*y.shape)
+    noise_z = noise * np.random.randn(*z.shape)
+    
+    # Double torus (class 0)
+    x1 = (R + r*np.cos(v)) * np.cos(u) - 2.8 + noise_x
+    y1 = (R + r*np.cos(v)) * np.sin(u) - 2.8 + noise_y
+    z1 = r*np.sin(v) + noise_z
+    
+    x2 = (R + r*np.cos(v)) * np.cos(u) + 2.8 + noise_x
+    y2 = (R + r*np.cos(v)) * np.sin(u) + 2.8 + noise_y
+    z2 = r*np.sin(v) + noise_z
+    
+    points1 = np.column_stack([x1.ravel(), y1.ravel(), z1.ravel()])
+    points2 = np.column_stack([x2.ravel(), y2.ravel(), z2.ravel()])
+    
+    # Single torus (class 1) 
+    x3 = r*np.sin(v) + noise_x -4
+    y3 = (R + r*np.cos(v)) * np.cos(u) + noise_y -6
+    z3 = (R + r*np.cos(v)) * np.sin(u) + noise_z
+    points3 = np.column_stack([x3.ravel(), y3.ravel(), z3.ravel()])
+    
+    
+    # Combine
+    all_points = np.vstack([points1, points2, points3])
+    labels = np.concatenate([
+        np.zeros(len(points1)),
+        np.zeros(len(points2)),
+        np.ones(len(points3))
+    ]).astype(int)
+    
+    return all_points, labels
+
+def gen_torus_two_holes(noise=0.1):
+    """Generate double torus + torus through both holes."""
+    R = 4
+    r = 1
+    u = np.linspace(0, 2*np.pi, 40)
+    v = np.linspace(0, 2*np.pi, 40)
+    u, v = np.meshgrid(u, v)
+    
+    #Double torus
+    x=(R+r*np.cos(v))*np.cos(u)-2.8
+    y=(R+r*np.cos(v))*np.sin(u)-2.8
+    z=r*np.sin(v)
+
+    noise_x = noise * np.random.randn(*x.shape)
+    noise_y = noise * np.random.randn(*y.shape)
+    noise_z = noise * np.random.randn(*z.shape)
+    
+    # Double torus (class 0)
+    x1 = (R + r*np.cos(v)) * np.cos(u) - 2.8 + noise_x
+    y1 = (R + r*np.cos(v)) * np.sin(u) - 2.8 + noise_y
+    z1 = r*np.sin(v) + noise_z
+    
+    x2 = (R + r*np.cos(v)) * np.cos(u) + 2.8 + noise_x
+    y2 = (R + r*np.cos(v)) * np.sin(u) + 2.8 + noise_y
+    z2 = r*np.sin(v) + noise_z
+    
+    points1 = np.column_stack([x1.ravel(), y1.ravel(), z1.ravel()])
+    points2 = np.column_stack([x2.ravel(), y2.ravel(), z2.ravel()])
+    
+    # Single torus (class 1) - rotated
+    x3 = r*np.sin(v) + noise_x
+    y3 = (R + r*np.cos(v)) * np.cos(u) + noise_y
+    z3 = (R + r*np.cos(v)) * np.sin(u) + noise_z
+    points3 = np.column_stack([x3.ravel(), y3.ravel(), z3.ravel()])
+    
+    # Rotate
+    theta = np.pi/2 + np.pi/3
+    Z = np.array([
+        [np.cos(theta), -np.sin(theta), 0],
+        [np.sin(theta), np.cos(theta), 0],
+        [0, 0, 1]
+    ])
+    points3 = points3 @ Z.T
+    
+    # Combine
+    all_points = np.vstack([points1, points2, points3])
+    labels = np.concatenate([
+        np.zeros(len(points1)),
+        np.zeros(len(points2)),
+        np.ones(len(points3))
+    ]).astype(int)
+    
+    return all_points, labels
+
+def gen_nested_spheres(n_points=6000, noise=0.1, R=4):
+    # Sample sphere
+    points = np.random.randn(n_points, 3)
+    norms = np.linalg.norm(points, axis=1, keepdims=True)
+    points = points / norms
+    radii = R * np.random.rand(n_points)**(1/3)
+    points = points * radii[:, np.newaxis]
+    
+    # Add noise
+    noise_array = noise * np.random.randn(*points.shape)
+    points = points + noise_array
+    
+    # Define inclusions
+    center1 = np.array([0.0, 0.0, 0.0])
+
+    r_class2 = 3
+    r_class1 = 1
+    
+    distances_to_center1 = np.linalg.norm(points - center1, axis=1)
+    
+    
+    # Classify
+    labels = np.ones(len(points), dtype=int)
+    labels[(distances_to_center1 < r_class2) ]=0
+    labels[distances_to_center1 < r_class1] = 1
+    
+    return points, labels
+
+def Blobs(n_points=6000, noise=0.1, R=4):
+    # Sample sphere
+    points = np.random.randn(n_points, 3)
+    norms = np.linalg.norm(points, axis=1, keepdims=True)
+    points = points / norms
+    radii = R * np.random.rand(n_points)**(1/3)
+    points = points * radii[:, np.newaxis]
+    
+    # Add noise
+    noise_array = noise * np.random.randn(*points.shape)
+    points = points + noise_array
+    
+    # Define inclusions
+    center1 = np.array([2.0, 0.0, 0.0])
+    center2 = np.array([-2.0, 1.0, 0.0])
+    r_class2 = 1.5
+    
+    distances_to_center1 = np.linalg.norm(points - center1, axis=1)
+    distances_to_center2 = np.linalg.norm(points - center2, axis=1)
+    
+    # Classify
+    labels = np.ones(len(points), dtype=int)
+    labels[(distances_to_center1 < r_class2) | (distances_to_center2 < r_class2)] = 0
+
+    
+    return points, labels
 

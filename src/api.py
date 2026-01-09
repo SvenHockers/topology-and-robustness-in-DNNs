@@ -8,8 +8,11 @@ copying notebook glue code, while keeping the underlying implementations unchang
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Dict, Iterable, Optional, Tuple, cast
+import json
+import shutil
 
 import numpy as np
 import torch
@@ -648,4 +651,225 @@ def run_pipeline(
         scores_test_adv=scores_test_adv,
         eval=eval_out,
     )
+
+
+# ---------------------------------------------------------------------
+# Batch experiment runner (configs -> outputs)
+# ---------------------------------------------------------------------
+
+
+def run_experiment(
+    *,
+    dataset_name: str,
+    model_name: str,
+    config_dir: str | Path = "config",
+    output_root: str | Path = "outputs",
+    config_glob: str = "*.yaml",
+    exclude_prefixes: Iterable[str] = ("base",),
+    run_name: Optional[str] = None,
+    # Forwarded to `run_pipeline()`
+    dataset_overrides: Optional[Dict[str, Any]] = None,
+    model_kwargs: Optional[Dict[str, Any]] = None,
+    filter_clean_to_correct: bool = False,
+    eval_only_successful_attacks: bool = False,
+    max_points_for_scoring: Optional[int] = None,
+    seed: Optional[int] = None,
+    # What to write
+    save_npz: bool = True,
+    save_metrics_json: bool = True,
+    copy_config_yaml: bool = True,
+) -> Dict[str, Any]:
+    """
+    Run `run_pipeline()` for *all* YAML configs in `config_dir`, excluding `base*`,
+    and write results into a newly-created output folder.
+
+    Output structure:
+
+      <output_root>/<run_name-or-timestamp>/
+        summary.json
+        summary.csv
+        <config_stem>/
+          config.yaml                (copy of the YAML used)
+          metrics.json               (JSON-serializable summary)
+          eval.npz                   (labels + raw_scores)
+          scores_*.npz               (score dicts; key-wise arrays)
+
+    Returns:
+        dict with keys:
+          - run_dir: Path (string)
+          - results: list of per-config summaries (dict)
+    """
+
+    def _find_repo_root() -> Path:
+        cfg_dirname = Path(config_dir).name
+        out_dirname = Path(output_root).name
+        for base in [Path.cwd().resolve(), *Path.cwd().resolve().parents]:
+            if (base / "src").is_dir() and (base / cfg_dirname).is_dir():
+                return base
+            if (base / "src").is_dir() and (base / out_dirname).is_dir():
+                return base
+        return Path(__file__).resolve().parents[1]
+
+    def _resolve_under_root(p: str | Path, *, root: Path) -> Path:
+        pp = Path(p)
+        if pp.is_absolute():
+            return pp
+        return (root / pp).resolve()
+
+    def _make_run_dir(base: Path, name: str) -> Path:
+        base.mkdir(parents=True, exist_ok=True)
+        run_dir = base / name
+        if not run_dir.exists():
+            run_dir.mkdir(parents=False, exist_ok=False)
+            return run_dir
+        # Avoid collisions by suffixing.
+        for i in range(1, 10_000):
+            cand = base / f"{name}_{i:04d}"
+            if not cand.exists():
+                cand.mkdir(parents=False, exist_ok=False)
+                return cand
+        raise RuntimeError("Could not create a unique run directory name.")
+
+    def _json_safe(x: Any) -> Any:
+        # Basic types
+        if x is None or isinstance(x, (bool, int, float, str)):
+            return x
+        # numpy scalars
+        if isinstance(x, (np.generic,)):
+            return x.item()
+        # numpy arrays
+        if isinstance(x, np.ndarray):
+            return x.tolist()
+        # torch tensors
+        if torch.is_tensor(x):
+            return x.detach().cpu().numpy().tolist()
+        # mappings / sequences
+        if isinstance(x, dict):
+            return {str(k): _json_safe(v) for k, v in x.items()}
+        if isinstance(x, (list, tuple)):
+            return [_json_safe(v) for v in x]
+        # fallback
+        return repr(x)
+
+    def _save_score_dict_npz(path: Path, scores: Dict[str, np.ndarray]) -> None:
+        arrs = {str(k): np.asarray(v) for k, v in (scores or {}).items()}
+        np.savez_compressed(path, **arrs)
+
+    root = _find_repo_root()
+    cfg_dir = _resolve_under_root(config_dir, root=root)
+    out_root = _resolve_under_root(output_root, root=root)
+
+    if not cfg_dir.is_dir():
+        raise FileNotFoundError(f"Config directory not found: {cfg_dir}")
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dirname = str(run_name or f"run_{ts}")
+    run_dir = _make_run_dir(out_root, run_dirname)
+
+    # Discover configs
+    exclude_prefixes = tuple(str(p) for p in exclude_prefixes or ())
+    cfg_paths = sorted(cfg_dir.glob(str(config_glob)))
+    cfg_paths = [
+        p
+        for p in cfg_paths
+        if p.is_file() and not any(p.stem.startswith(pref) for pref in exclude_prefixes)
+    ]
+
+    results: list[Dict[str, Any]] = []
+
+    for cfg_path in cfg_paths:
+        cfg_name = cfg_path.stem
+        exp_dir = run_dir / cfg_name
+        exp_dir.mkdir(parents=False, exist_ok=False)
+
+        cfg = ExperimentConfig.from_yaml(cfg_path)
+        res = run_pipeline(
+            dataset_name=dataset_name,
+            model_name=model_name,
+            cfg=cfg,
+            dataset_overrides=dataset_overrides,
+            model_kwargs=model_kwargs,
+            filter_clean_to_correct=filter_clean_to_correct,
+            eval_only_successful_attacks=eval_only_successful_attacks,
+            max_points_for_scoring=max_points_for_scoring,
+            seed=seed,
+        )
+
+        # Copy YAML used (helps reproducibility even if inheritance/base is used).
+        if copy_config_yaml:
+            shutil.copy2(cfg_path, exp_dir / "config.yaml")
+
+        # Save compact, JSON-safe summary.
+        # We intentionally do NOT serialize `res.eval.plots` (matplotlib objects).
+        threshold_val = getattr(res.detector, "threshold", None)
+        summary = {
+            "config_name": cfg_name,
+            "config_path": str(cfg_path),
+            "dataset_name": str(dataset_name),
+            "model_name": str(model_name),
+            "seed": int(seed if seed is not None else cfg.seed),
+            "threshold": None if threshold_val is None else float(threshold_val),
+            "metrics": _json_safe(res.eval.metrics),
+            "cfg": _json_safe(cfg.to_dict()) if hasattr(cfg, "to_dict") else _json_safe(cfg),
+        }
+        results.append(summary)
+
+        if save_metrics_json:
+            with (exp_dir / "metrics.json").open("w", encoding="utf-8") as f:
+                json.dump(summary, f, indent=2, sort_keys=True)
+
+        if save_npz:
+            np.savez_compressed(
+                exp_dir / "eval.npz",
+                labels=np.asarray(res.eval.labels),
+                raw_scores=np.asarray(res.eval.raw_scores),
+            )
+            _save_score_dict_npz(exp_dir / "scores_val_clean.npz", res.scores_val_clean)
+            _save_score_dict_npz(exp_dir / "scores_val_adv.npz", res.scores_val_adv)
+            _save_score_dict_npz(exp_dir / "scores_test_clean.npz", res.scores_test_clean)
+            _save_score_dict_npz(exp_dir / "scores_test_adv.npz", res.scores_test_adv)
+
+    # Write run-level summaries
+    with (run_dir / "summary.json").open("w", encoding="utf-8") as f:
+        json.dump({"run_dir": str(run_dir), "results": results}, f, indent=2, sort_keys=True)
+
+    # Also emit a small CSV for quick comparison.
+    # We pick a few common keys when present.
+    try:
+        import csv
+
+        fieldnames = [
+            "config_name",
+            "roc_auc",
+            "pr_auc",
+            "fpr_at_tpr95",
+            "accuracy",
+            "precision",
+            "recall",
+            "f1",
+            "threshold",
+        ]
+        with (run_dir / "summary.csv").open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            for s in results:
+                m = s.get("metrics") or {}
+                w.writerow(
+                    {
+                        "config_name": s.get("config_name"),
+                        "roc_auc": m.get("roc_auc"),
+                        "pr_auc": m.get("pr_auc"),
+                        "fpr_at_tpr95": m.get("fpr_at_tpr95"),
+                        "accuracy": m.get("accuracy"),
+                        "precision": m.get("precision"),
+                        "recall": m.get("recall"),
+                        "f1": m.get("f1"),
+                        "threshold": s.get("threshold"),
+                    }
+                )
+    except Exception:
+        # CSV is a convenience; never fail the whole run for it.
+        pass
+
+    return {"run_dir": str(run_dir), "results": results}
 

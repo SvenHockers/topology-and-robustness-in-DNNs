@@ -169,7 +169,7 @@ def get_dataset(
 
 def list_models() -> list[str]:
     """Return built-in model factory names."""
-    return sorted(["two_moons_mlp", "minicnn"])
+    return sorted(["two_moons_mlp", "minicnn, minicnn_mnist"])
 
 
 def get_model(
@@ -208,6 +208,14 @@ def get_model(
         feat_dim = int(kwargs.get("feat_dim", 128))
         in_channels = int(kwargs.get("in_channels", 3))
         return MiniCNN(num_classes=num_classes, feat_dim=feat_dim, in_channels=in_channels)
+    
+    if name == "minicnn_mnist":
+        mc = cast(Any, cfg.model)
+        num_classes = int(kwargs.get("num_classes", 10))   # MNIST fixed
+        feat_dim = int(kwargs.get("feat_dim", 64))         # smaller = faster
+        in_channels = int(kwargs.get("in_channels", 1))    # MNIST fixed
+        return MiniCNN(num_classes=num_classes, feat_dim=feat_dim, in_channels=in_channels)
+
 
     raise KeyError(f"Unknown model {name!r}. Available: {list_models()}")
 

@@ -455,6 +455,21 @@ class TorchvisionDatasetSpec(BaseDataset):
         try:
             ds_train = ds_cls(root=root, train=True, download=download, transform=tfm)
             ds_test = ds_cls(root=root, train=False, download=download, transform=tfm)
+            # Optional speed knob (opt-in):
+            # If cfg.data.max_full_train / max_full_test are set (>0),
+            max_full_train = int(getattr(data, "max_full_train", 0) or 0)
+            max_full_test = int(getattr(data, "max_full_test", 0) or 0)
+
+            if max_full_train > 0 and max_full_train < len(ds_train):
+                from torch.utils.data import Subset
+                idx = np.random.default_rng(seed).choice(len(ds_train), size=max_full_train, replace=False)
+                ds_train = Subset(ds_train, idx.tolist())
+
+            if max_full_test > 0 and max_full_test < len(ds_test):
+                from torch.utils.data import Subset
+                idx = np.random.default_rng(seed + 1).choice(len(ds_test), size=max_full_test, replace=False)
+                ds_test = Subset(ds_test, idx.tolist())
+
         except TypeError as e:  # pragma: no cover
             raise TypeError(
                 f"Dataset {self.dataset} did not accept train=True/False constructor.\n"

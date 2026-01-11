@@ -1,0 +1,20 @@
+base: base.yaml
+
+data:
+  root: ../data
+  download: false
+
+model:
+  output_dim: 10
+  epochs: 5
+  batch_size: 64
+
+attack:
+  epsilon: 0.02
+  num_steps: 1
+  random_start: false
+
+graph:
+  topo_k: 20
+  topo_pca_dim: 5
+  topo_min_persistence: 0.0001

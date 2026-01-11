@@ -758,7 +758,14 @@ def load_synthetic_shapes_3class(
 # ---------------------------------------------------------------------
 
 
-def generate_geometrical_dataset(dataset_type, n_points=None, noise=0.1, random_state=42):
+def generate_geometrical_dataset(
+    dataset_type,
+    n_points=None,
+    noise=0.1,
+    random_state=42,
+    train_ratio: float = 0.6,
+    val_ratio: float = 0.2,
+    test_ratio: float = 0.2,):
     np.random.seed(random_state)
     
     if dataset_type == 'torus_one_hole':
@@ -786,11 +793,12 @@ def generate_geometrical_dataset(dataset_type, n_points=None, noise=0.1, random_
     
     X_train, X_t, y_train, y_t = train_test_split(
         points, labels, 
-        test_size=0.3, 
+        test_size=test_ratio, 
         stratify=labels,  
         random_state=42
     )
-
+    
+    val_size = val_ratio / (train_ratio + val_ratio)
     print(X_train.shape)
     print(X_t.shape)
     print(y_train.shape)
@@ -798,7 +806,7 @@ def generate_geometrical_dataset(dataset_type, n_points=None, noise=0.1, random_
 
     X_val, X_test, y_val, y_test = train_test_split(
         X_t, y_t, 
-        test_size=0.5,  
+        test_size=val_size,  
         stratify=y_t, 
         random_state=42
     )

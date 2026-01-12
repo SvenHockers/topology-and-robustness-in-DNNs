@@ -482,3 +482,182 @@ def plot_adversarial_examples(
     return ax
 
 
+def plot_persistence_diagram(
+    diagram: np.ndarray,
+    dimension: int = 0,
+    title: Optional[str] = None,
+    ax: Optional[plt.Axes] = None,
+    min_persistence: float = 1e-6,
+    max_persistence: Optional[float] = None,
+) -> plt.Axes:
+    """
+    Plot a persistence diagram.
+    
+    Args:
+        diagram: Persistence diagram array of shape (n_features, 2) with (birth, death) pairs
+        dimension: Homology dimension (for labeling)
+        title: Plot title (defaults to "H{dimension} Persistence Diagram")
+        ax: Optional axes to plot on
+        min_persistence: Minimum persistence to display (filters noise)
+        max_persistence: Maximum persistence for axis limits (None = auto)
+        
+    Returns:
+        Matplotlib axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 8))
+    
+    if diagram.size == 0:
+        ax.text(0.5, 0.5, 'No features', ha='center', va='center', transform=ax.transAxes)
+        ax.set_xlabel('Birth')
+        ax.set_ylabel('Death')
+        ax.set_title(title or f"H{dimension} Persistence Diagram (empty)")
+        return ax
+    
+    # Filter by persistence
+    births = diagram[:, 0]
+    deaths = diagram[:, 1]
+    finite = np.isfinite(deaths)
+    lifetimes = deaths[finite] - births[finite]
+    valid = finite & (lifetimes >= min_persistence)
+    
+    if valid.sum() == 0:
+        ax.text(0.5, 0.5, 'No features above min_persistence', ha='center', va='center', 
+                transform=ax.transAxes)
+        ax.set_xlabel('Birth')
+        ax.set_ylabel('Death')
+        ax.set_title(title or f"H{dimension} Persistence Diagram")
+        return ax
+    
+    births_plot = births[valid]
+    deaths_plot = deaths[valid]
+    lifetimes_plot = lifetimes[valid]
+    
+    # Plot diagonal line (y=x)
+    if max_persistence is None:
+        max_val = max(deaths_plot.max(), births_plot.max()) if len(deaths_plot) > 0 else 1.0
+    else:
+        max_val = max_persistence
+    ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.5, linewidth=1, label='Diagonal')
+    
+    # Plot points with size proportional to persistence
+    scatter = ax.scatter(
+        births_plot, deaths_plot,
+        s=50 + 100 * (lifetimes_plot / lifetimes_plot.max() if lifetimes_plot.max() > 0 else 1),
+        c=lifetimes_plot, cmap='viridis', alpha=0.7, edgecolors='black', linewidths=0.5
+    )
+    
+    # Colorbar
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label('Persistence (lifetime)')
+    
+    ax.set_xlabel('Birth')
+    ax.set_ylabel('Death')
+    ax.set_title(title or f"H{dimension} Persistence Diagram")
+    ax.set_aspect('equal')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    
+    return ax
+
+
+def plot_topology_summary_features(
+    features: Dict[str, float],
+    title: str = "Topology Summary Features",
+    ax: Optional[plt.Axes] = None,
+) -> plt.Axes:
+    """
+    Plot topology summary features as a bar chart.
+    
+    Args:
+        features: Dictionary of topology features (e.g., from persistence_summary_features)
+        title: Plot title
+        ax: Optional axes to plot on
+        
+    Returns:
+        Matplotlib axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Extract feature names and values
+    feature_names = sorted(features.keys())
+    feature_values = [features[k] for k in feature_names]
+    
+    # Create bar plot
+    bars = ax.bar(range(len(feature_names)), feature_values, alpha=0.7, color='steelblue')
+    ax.set_xticks(range(len(feature_names)))
+    ax.set_xticklabels(feature_names, rotation=45, ha='right')
+    ax.set_ylabel('Feature Value')
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # Add value labels on bars
+    for i, (bar, val) in enumerate(zip(bars, feature_values)):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.3f}', ha='center', va='bottom', fontsize=8)
+    
+    plt.tight_layout()
+    return ax
+
+
+def plot_local_neighborhood(
+    point_cloud: np.ndarray,
+    query_point: Optional[np.ndarray] = None,
+    title: str = "Local Neighborhood Point Cloud",
+    ax: Optional[plt.Axes] = None,
+    max_dims: int = 2,
+) -> plt.Axes:
+    """
+    Plot a local neighborhood point cloud (with optional PCA projection for high-dim data).
+    
+    Args:
+        point_cloud: Point cloud array of shape (n_points, d)
+        query_point: Optional query point to highlight (shape (d,))
+        title: Plot title
+        ax: Optional axes to plot on
+        max_dims: Maximum dimensions to plot (if d > max_dims, use PCA projection)
+        
+    Returns:
+        Matplotlib axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 8))
+    
+    n_points, d = point_cloud.shape
+    
+    # Project to 2D if needed
+    if d > max_dims:
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=2)
+        point_cloud_2d = pca.fit_transform(point_cloud)
+        if query_point is not None:
+            query_point_2d = pca.transform(query_point.reshape(1, -1))[0]
+        else:
+            query_point_2d = None
+        explained_var = pca.explained_variance_ratio_.sum()
+        title_suffix = f" (PCA projection, {explained_var:.1%} variance explained)"
+    else:
+        point_cloud_2d = point_cloud[:, :2] if d >= 2 else point_cloud
+        query_point_2d = query_point[:2] if query_point is not None and len(query_point) >= 2 else None
+        title_suffix = ""
+    
+    # Plot neighborhood points
+    ax.scatter(point_cloud_2d[:, 0], point_cloud_2d[:, 1], 
+              s=30, alpha=0.6, c='blue', label='Neighborhood points', edgecolors='black', linewidths=0.5)
+    
+    # Highlight query point if provided
+    if query_point_2d is not None:
+        ax.scatter(query_point_2d[0], query_point_2d[1], 
+                  s=200, c='red', marker='*', label='Query point', 
+                  edgecolors='black', linewidths=1.5, zorder=10)
+    
+    ax.set_xlabel('Dimension 1')
+    ax.set_ylabel('Dimension 2')
+    ax.set_title(title + title_suffix)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.set_aspect('equal')
+    
+    return ax

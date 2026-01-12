@@ -116,13 +116,19 @@ def persistence_summary_features(
 def local_persistence_features(
     point_cloud: np.ndarray,
     topo_cfg: TopologyConfig,
-) -> Dict[str, float]:
+    return_diagrams: bool = False,
+) -> Dict[str, float] | Tuple[Dict[str, float], Sequence[np.ndarray]]:
     """
     Compute PH summary features for a local neighborhood point cloud.
 
     Args:
         point_cloud: Array of shape (n_points, d)
         topo_cfg: TopologyConfig
+        return_diagrams: If True, also return raw persistence diagrams
+        
+    Returns:
+        If return_diagrams=False: Dict of summary features
+        If return_diagrams=True: Tuple of (features_dict, diagrams_list)
     """
     ripser = _require_ripser()
 
@@ -148,6 +154,10 @@ def local_persistence_features(
 
     out = ripser(point_cloud, **kwargs)
     diagrams = out.get("dgms", [])
-    return persistence_summary_features(diagrams, min_persistence=topo_cfg.min_persistence)
+    features = persistence_summary_features(diagrams, min_persistence=topo_cfg.min_persistence)
+    
+    if return_diagrams:
+        return features, diagrams
+    return features
 
 

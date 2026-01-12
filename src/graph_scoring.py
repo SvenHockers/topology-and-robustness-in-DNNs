@@ -8,7 +8,7 @@ from scipy.spatial.distance import pdist
 from scipy.sparse.linalg import eigs
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, Sequence
 from .utils import GraphConfig
 from .topology_features import TopologyConfig, local_persistence_features
 
@@ -479,4 +479,72 @@ def compute_graph_scores(
     # Combined score is computed separately if needed (see detectors.py)
     
     return scores
+
+
+def compute_graph_scores_with_diagrams(
+    X_point: np.ndarray,
+    model,
+    Z_train: np.ndarray,
+    f_train: np.ndarray,
+    graph_params: GraphConfig,
+    device: str = 'cpu'
+) -> Tuple[Dict[str, float], Sequence[np.ndarray], np.ndarray]:
+    """
+    Compute graph scores with persistence diagrams for a single point (for visualization).
+    
+    Args:
+        X_point: Single point to score, shape (input_dim,)
+        model: Trained PyTorch model
+        Z_train: Training representations (in input or feature space)
+        f_train: Training model outputs (probabilities or logits)
+        graph_params: GraphConfig with hyperparameters
+        device: Device for model inference
+        
+    Returns:
+        Tuple of (features_dict, diagrams_list, point_cloud):
+        - features_dict: Dictionary of topology summary features
+        - diagrams_list: List of persistence diagrams [H0, H1, ...]
+        - point_cloud: The local neighborhood point cloud used for PH
+    """
+    from .models import get_model_logits, extract_features_batch
+    
+    # Extract representation if needed
+    if graph_params.space == 'feature':
+        Z_point = extract_features_batch(
+            model, X_point.reshape(1, -1), layer='penultimate', device=device
+        )[0]
+    else:
+        Z_point = X_point
+    
+    # Get topology features with diagrams
+    if not getattr(graph_params, 'use_topology', False):
+        raise ValueError("compute_graph_scores_with_diagrams requires use_topology=True")
+    
+    topo_k = int(getattr(graph_params, 'topo_k', 50))
+    topo_cfg = TopologyConfig(
+        neighborhood_k=topo_k,
+        maxdim=int(getattr(graph_params, 'topo_maxdim', 1)),
+        metric=str(getattr(graph_params, 'topo_metric', 'euclidean')),
+        thresh=getattr(graph_params, 'topo_thresh', None),
+        min_persistence=float(getattr(graph_params, 'topo_min_persistence', 1e-6)),
+        preprocess=str(getattr(graph_params, 'topo_preprocess', 'none')),
+        pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
+    )
+    
+    # Build neighbor index
+    nbrs_topo = NearestNeighbors(
+        n_neighbors=min(topo_k, len(Z_train)),
+        metric=topo_cfg.metric,
+    ).fit(Z_train)
+    
+    # Get neighborhood
+    _, idx = nbrs_topo.kneighbors(Z_point.reshape(1, -1))
+    neighborhood = Z_train[idx[0]]
+    # Ensure the query point participates in the complex
+    cloud = np.vstack([Z_point.reshape(1, -1), neighborhood])
+    
+    # Compute PH features with diagrams
+    features, diagrams = local_persistence_features(cloud, topo_cfg, return_diagrams=True)
+    
+    return features, diagrams, cloud
 

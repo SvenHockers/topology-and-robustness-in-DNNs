@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import torch
-from typing import Optional, Tuple, Mapping, Any
+from typing import Optional, Tuple, Mapping, Any, Dict
 
 
 def plot_two_moons(

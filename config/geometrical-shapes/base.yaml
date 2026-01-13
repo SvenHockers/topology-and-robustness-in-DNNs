@@ -1,0 +1,31 @@
+seed: 42
+device: cpu
+model:
+  hidden_dims: [256, 128]
+  activation: relu
+  learning_rate: 0.001
+  weight_decay: 0
+  epochs: 40
+  batch_size: 64
+attack:
+  attack_type: pgd
+  epsilon: 0.3
+  num_steps: 50
+  step_size: 0.03
+  random_start: true
+graph:
+  space: input
+  feature_layer: penultimate
+  use_topology: true
+  use_tangent: false
+  k: 150
+  tangent_k: 150
+  topo_k: 150
+  topo_maxdim: 2
+  topo_preprocess: none
+  topo_pca_dim: 3
+  topo_min_persistence: 1e-06
+detector:
+  detector_type: topology_score
+  topo_percentile: 95
+  topo_cov_shrinkage: 0.001

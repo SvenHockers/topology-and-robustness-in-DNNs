@@ -1,6 +1,0 @@
-base: base.yaml
-attack:
-  attack_type: pgd
-  epsilon: 0.1
-graph:
-  topo_pca_dim: 20

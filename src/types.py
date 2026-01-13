@@ -22,6 +22,14 @@ class AttackResult:
 
 
 @dataclass(frozen=True)
+class OODResult:
+    """Container for OOD examples and optional metadata."""
+
+    X_ood: np.ndarray
+    meta: Dict[str, Any]
+
+
+@dataclass(frozen=True)
 class DetectorEvalResult:
     """Container for detector evaluation outputs."""
 
@@ -54,4 +62,11 @@ class RunResult:
     scores_test_adv: Dict[str, np.ndarray]
 
     eval: DetectorEvalResult
+
+    # Optional: OOD evaluation outputs (kept separate from adversarial metrics/plots).
+    ood_val: Optional[OODResult] = None
+    ood_test: Optional[OODResult] = None
+    scores_val_ood: Optional[Dict[str, np.ndarray]] = None
+    scores_test_ood: Optional[Dict[str, np.ndarray]] = None
+    eval_ood: Optional[DetectorEvalResult] = None
 

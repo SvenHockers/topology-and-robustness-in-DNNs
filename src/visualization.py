@@ -2,11 +2,396 @@
 Visualization functions for experiments.
 """
 
+from __future__ import annotations
+
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from cycler import cycler
 from matplotlib.colors import ListedColormap
 import torch
-from typing import Optional, Tuple, Mapping, Any, Dict
+from pathlib import Path
+from typing import Optional, Tuple, Mapping, Any, Dict, Sequence, Union
+
+# -----------------------------------------------------------------------------
+# Publication plotting style utilities
+# -----------------------------------------------------------------------------
+
+# Matplotlib "tab10" palette in hex (Tableau colors).
+_TAB10_HEX: Tuple[str, ...] = (
+    "#1f77b4",  # tab:blue
+    "#ff7f0e",  # tab:orange
+    "#2ca02c",  # tab:green
+    "#d62728",  # tab:red
+    "#9467bd",  # tab:purple
+    "#8c564b",  # tab:brown
+    "#e377c2",  # tab:pink
+    "#7f7f7f",  # tab:gray
+    "#bcbd22",  # tab:olive
+    "#17becf",  # tab:cyan
+)
+
+_NEUTRAL: Dict[str, str] = {
+    # Use for text/thresholds/diagonals; keep legible but not harsh.
+    "text": "#333333",
+    "dark": "#444444",
+    "grid": "#B0B0B0",
+    "light": "#DDDDDD",
+}
+
+_ALPHA: Dict[str, float] = {
+    # Convention:
+    # - Filled elements (histograms, fills, confidence bands): alpha=0.60
+    # - Lines/markers: alpha=1.0 unless the plot specifically needs transparency
+    "fill": 0.60,
+    "line": 1.00,
+}
+
+_STYLE_STATE: Dict[str, Any] = {"configured": False, "latex": None}
+
+
+def get_palette() -> Dict[str, Any]:
+    """
+    Return the central color palette used across this repository.
+
+    Intended usage:
+    - Use `pal["clean"]` and `pal["adversarial"]` for binary comparisons.
+    - Use `pal["tab10"]` (10 colors) as the default categorical cycle.
+    - Use `pal["alpha"]["fill"]` (default 0.60) for filled elements.
+    - Use `pal["alpha"]["line"]` (default 1.0) for lines/markers.
+    """
+    return {
+        "clean": _TAB10_HEX[0],  # tab:blue
+        "adversarial": _TAB10_HEX[1],  # tab:orange
+        "tab10": list(_TAB10_HEX),
+        "neutral": dict(_NEUTRAL),
+        "alpha": dict(_ALPHA),
+    }
+
+
+def _latex_escape_text(s: str) -> str:
+    """
+    Escape LaTeX special characters in plain text (non-math) strings.
+    """
+    # Keep this minimal and predictable; users should prefer raw strings + math mode.
+    repl = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    out = []
+    for ch in s:
+        out.append(repl.get(ch, ch))
+    return "".join(out)
+
+
+def _as_latex(s: Optional[Union[str, float, int]]) -> Optional[str]:
+    """
+    Ensure a label/title string is LaTeX-safe.
+
+    Recommendations:
+    - Prefer raw strings: r"..."
+    - Use math mode when appropriate: r"$\alpha$" or r"$\mathrm{FPR}$"
+    """
+    if s is None:
+        return None
+    if not isinstance(s, str):
+        s = str(s)
+    # If LaTeX rendering is disabled, return plain strings so Matplotlib doesn't
+    # try to parse LaTeX macros (e.g. \textnormal) via mathtext.
+    if not bool(mpl.rcParams.get("text.usetex", False)):
+        return s
+
+    # If the user already provided math mode, respect it verbatim.
+    if "$" in s:
+        return s
+
+    # Plain text: wrap in \textnormal{} so it renders as text with LaTeX.
+    return r"\textnormal{" + _latex_escape_text(s) + "}"
+
+
+def _latex_dependency_error_message(original_exc: BaseException) -> str:
+    return (
+        "Matplotlib is configured to require LaTeX rendering (text.usetex=True), "
+        "but LaTeX could not be executed successfully.\n\n"
+        "Fix by installing a LaTeX distribution and required helpers, then rerun:\n"
+        "- macOS (Homebrew): brew install --cask mactex-no-gui && brew install ghostscript\n"
+        "- Ubuntu/Debian: sudo apt-get install texlive-latex-extra texlive-fonts-recommended "
+        "texlive-science dvipng ghostscript\n"
+        "- Conda: conda install -c conda-forge texlive-core dvipng ghostscript\n\n"
+        "Original error:\n"
+        f"{type(original_exc).__name__}: {original_exc}"
+    )
+
+
+def _sanity_check_latex() -> None:
+    """
+    Minimal runtime check that LaTeX rendering works (fail fast, no silent fallback).
+    """
+    # Use a tiny off-screen draw. This will fail if `latex`/`dvipng`/`gs` are missing.
+    fig = plt.figure(figsize=(0.5, 0.5))
+    try:
+        fig.text(0.1, 0.5, r"$\alpha+\beta=\gamma$")
+        fig.canvas.draw()
+    finally:
+        plt.close(fig)
+
+
+def configure_mpl_style(latex: bool = True) -> None:
+    """
+    Configure Matplotlib rcParams for publication-quality figures.
+
+    Call once at program start (recommended):
+        >>> from src.visualization import configure_mpl_style
+        >>> configure_mpl_style(latex=True)
+
+    Notes:
+    - When latex=True, this function performs a small sanity check and raises
+      RuntimeError with actionable instructions if LaTeX is unavailable.
+    - This function intentionally does NOT silently fall back to non-LaTeX.
+    """
+    pal = get_palette()
+
+    # Typography (paper-ready defaults; base font size 9–10 pt).
+    base_font = 10
+
+    rc = {
+        # Layout/export
+        # IMPORTANT: Use ONE layout system consistently. We default to tight_layout
+        # (user code often calls plt.tight_layout()), because mixing it with
+        # constrained_layout can raise RuntimeError when colorbars exist.
+        "figure.constrained_layout.use": False,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.02,
+        "savefig.transparent": False,
+        # Fonts
+        "font.family": "serif",
+        "font.size": base_font,
+        "axes.labelsize": base_font + 1,
+        "axes.titlesize": base_font + 2,
+        "legend.fontsize": base_font,
+        "xtick.labelsize": base_font - 1,
+        "ytick.labelsize": base_font - 1,
+        # Lines/spines/grid
+        "axes.linewidth": 0.9,
+        "lines.linewidth": 1.5,
+        "grid.linewidth": 0.6,
+        "grid.alpha": 0.25,
+        "grid.color": pal["neutral"]["grid"],
+        "grid.linestyle": "-",
+        "axes.grid": True,
+        "axes.grid.axis": "y",
+        "axes.axisbelow": True,
+        # Ticks
+        "xtick.direction": "in",
+        "ytick.direction": "in",
+        "xtick.top": True,
+        "ytick.right": True,
+        "xtick.minor.visible": True,
+        "ytick.minor.visible": True,
+        "xtick.major.size": 3.0,
+        "ytick.major.size": 3.0,
+        "xtick.minor.size": 1.6,
+        "ytick.minor.size": 1.6,
+        "xtick.major.width": 0.8,
+        "ytick.major.width": 0.8,
+        "xtick.minor.width": 0.6,
+        "ytick.minor.width": 0.6,
+        # Legend
+        "legend.frameon": False,
+        "legend.borderaxespad": 0.2,
+        "legend.handlelength": 1.6,
+        "legend.handletextpad": 0.6,
+        "legend.labelspacing": 0.3,
+        # Colors
+        "axes.prop_cycle": cycler(color=pal["tab10"]),
+        # LaTeX rendering
+        "text.usetex": bool(latex),
+        "axes.unicode_minus": False,
+    }
+
+    if latex:
+        rc["text.latex.preamble"] = (
+            r"\usepackage{amsmath}"
+            r"\usepackage{amssymb}"
+            r"\usepackage{siunitx}"
+            r"\sisetup{detect-all}"
+        )
+
+    mpl.rcParams.update(rc)
+
+    if latex:
+        try:
+            _sanity_check_latex()
+        except Exception as e:  # pragma: no cover (depends on system LaTeX install)
+            raise RuntimeError(_latex_dependency_error_message(e)) from e
+
+    _STYLE_STATE["configured"] = True
+    _STYLE_STATE["latex"] = bool(latex)
+
+
+def set_latex_enabled(enabled: bool) -> None:
+    """
+    Convenience toggle for LaTeX rendering.
+
+    - enabled=True  -> LaTeX required; fails fast if dependencies are missing.
+    - enabled=False -> disable LaTeX (use Matplotlib's default text rendering).
+    """
+    configure_mpl_style(latex=bool(enabled))
+
+
+def _ensure_style(latex: Optional[bool] = None) -> None:
+    """
+    Ensure style is configured before any figure is created.
+    """
+    if not _STYLE_STATE.get("configured", False):
+        # Default to LaTeX-on unless the caller explicitly disables it.
+        configure_mpl_style(latex=True if latex is None else bool(latex))
+        return
+
+    if latex is None:
+        # Respect the already-configured state.
+        return
+
+    if _STYLE_STATE.get("latex") != bool(latex):
+        configure_mpl_style(latex=bool(latex))
+
+
+def new_figure(
+    kind: str = "single",
+    aspect: float = 0.62,
+    nrows: int = 1,
+    ncols: int = 1,
+    sharex: bool = False,
+    sharey: bool = False,
+):
+    """
+    Create a new figure using standardized paper sizes.
+
+    - kind="single": ~3.35 in width (single column)
+    - kind="double": ~6.9  in width (double column)
+
+    Height is chosen as: height = aspect * width * nrows.
+    """
+    _ensure_style()
+
+    if kind not in {"single", "double"}:
+        raise ValueError('kind must be "single" or "double".')
+
+    width = 3.35 if kind == "single" else 6.9
+    height = float(aspect) * float(width) * max(int(nrows), 1)
+
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(width, height),
+        sharex=sharex,
+        sharey=sharey,
+    )
+    return (fig, axes) if (nrows * ncols) != 1 else (fig, axes)
+
+
+def finalize_axes(
+    ax: plt.Axes,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    title: Optional[str] = None,
+    legend: bool = True,
+    legend_kwargs: Optional[Mapping[str, Any]] = None,
+) -> plt.Axes:
+    """
+    Apply consistent formatting to an Axes (ticks, grid, labels, legend).
+
+    Labels/titles are treated as LaTeX strings. Prefer:
+      - raw strings: r"..."
+      - math mode: r"$\mathrm{FPR}$"
+    """
+    _ensure_style()
+
+    if xlabel is not None:
+        ax.set_xlabel(_as_latex(xlabel))
+    if ylabel is not None:
+        ax.set_ylabel(_as_latex(ylabel))
+    if title is not None:
+        ax.set_title(_as_latex(title))
+
+    # Light major y-grid by default; keep plot background clean.
+    ax.grid(True, which="major", axis="y")
+    ax.grid(False, which="minor")
+    ax.minorticks_on()
+
+    ax.tick_params(which="both", direction="in", top=True, right=True)
+    for spine in ax.spines.values():
+        spine.set_linewidth(mpl.rcParams.get("axes.linewidth", 0.9))
+
+    if legend:
+        handles, labels = ax.get_legend_handles_labels()
+        if len(handles) > 0:
+            default_kwargs: Dict[str, Any] = {
+                "frameon": False,
+                "fontsize": mpl.rcParams.get("legend.fontsize", 10),
+                "handlelength": mpl.rcParams.get("legend.handlelength", 1.6),
+                "handletextpad": mpl.rcParams.get("legend.handletextpad", 0.6),
+                "labelspacing": mpl.rcParams.get("legend.labelspacing", 0.3),
+                "borderaxespad": mpl.rcParams.get("legend.borderaxespad", 0.2),
+            }
+            if legend_kwargs:
+                default_kwargs.update(dict(legend_kwargs))
+            ax.legend(**default_kwargs)
+
+    return ax
+
+
+def save_figure(
+    fig: mpl.figure.Figure,
+    path_no_ext: str,
+    formats: Sequence[str] = ("pdf", "png"),
+    dpi: int = 300,
+) -> Dict[str, str]:
+    """
+    Save a figure in standard paper-ready formats.
+
+    Always includes PDF (vector). PNG is also produced for quick inspection.
+    """
+    _ensure_style()
+
+    fmts = [str(f).lower().lstrip(".") for f in formats]
+    if "pdf" not in fmts:
+        fmts = ["pdf"] + fmts
+
+    out: Dict[str, str] = {}
+    path = Path(path_no_ext)
+    if path.parent != Path("."):
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Prefer tight_layout for spacing (safe with colorbars); bbox_inches="tight"
+    # remains enabled to avoid label clipping in exports.
+    try:
+        fig.tight_layout()
+    except Exception:
+        # If a user configured a non-tight layout engine explicitly, don't fail
+        # at export time—bbox_inches="tight" still prevents clipping.
+        pass
+
+    for fmt in fmts:
+        out_path = str(path.with_suffix(f".{fmt}"))
+        save_kwargs: Dict[str, Any] = {
+            "bbox_inches": "tight",
+            "pad_inches": mpl.rcParams.get("savefig.pad_inches", 0.02),
+        }
+        if fmt in {"png", "jpg", "jpeg", "tif", "tiff"}:
+            save_kwargs["dpi"] = int(dpi)
+        fig.savefig(out_path, **save_kwargs)
+        out[fmt] = out_path
+
+    return out
 
 
 def plot_two_moons(
@@ -27,14 +412,25 @@ def plot_two_moons(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 6))
-    
-    scatter = ax.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.RdYlBu, s=50, alpha=0.6)
-    ax.set_xlabel('Feature 1')
-    ax.set_ylabel('Feature 2')
-    ax.set_title(title)
-    plt.colorbar(scatter, ax=ax, label='Class')
+        fig, ax = new_figure(kind="single", aspect=0.62)
+
+    pal = get_palette()
+    cmap = ListedColormap([pal["tab10"][0], pal["tab10"][1]])
+    scatter = ax.scatter(
+        X[:, 0],
+        X[:, 1],
+        c=y,
+        cmap=cmap,
+        s=28,
+        alpha=pal["alpha"]["line"],
+        linewidths=0.0,
+    )
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label(_as_latex("Class"))
+
+    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=False)
     
     return ax
 
@@ -63,9 +459,10 @@ def plot_decision_boundary(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 8))
-    
+        fig, ax = new_figure(kind="double", aspect=0.62)
+
     # Create a mesh grid
     x_min, x_max = X[:, 0].min() - 0.5, X[:, 0].max() + 0.5
     y_min, y_max = X[:, 1].min() - 0.5, X[:, 1].max() + 0.5
@@ -85,19 +482,39 @@ def plot_decision_boundary(
         Z = probs[:, 1].cpu().numpy()  # Probability of class 1
     
     Z = Z.reshape(xx.shape)
-    
-    # Plot decision boundary
-    contour = ax.contourf(xx, yy, Z, levels=50, cmap=plt.cm.RdYlBu, alpha=0.5)
-    ax.contour(xx, yy, Z, levels=[0.5], colors='black', linewidths=2)
-    
-    # Plot data points
-    scatter = ax.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.RdYlBu, 
-                        s=50, alpha=0.8, edgecolors='black', linewidths=1)
-    
-    ax.set_xlabel('Feature 1')
-    ax.set_ylabel('Feature 2')
-    ax.set_title(title)
-    plt.colorbar(contour, ax=ax, label='Probability of Class 1')
+
+    pal = get_palette()
+    from matplotlib.colors import LinearSegmentedColormap
+
+    prob_cmap = LinearSegmentedColormap.from_list(
+        "clean_to_adv", [pal["clean"], pal["adversarial"]]
+    )
+
+    # Plot decision boundary / probability surface (filled element -> alpha=0.60)
+    contour = ax.contourf(
+        xx, yy, Z, levels=50, cmap=prob_cmap, alpha=pal["alpha"]["fill"]
+    )
+    ax.contour(
+        xx, yy, Z, levels=[0.5], colors=pal["neutral"]["dark"], linewidths=1.5
+    )
+
+    # Plot data points (markers -> alpha=1.0)
+    cls_cmap = ListedColormap([pal["tab10"][0], pal["tab10"][1]])
+    scatter = ax.scatter(
+        X[:, 0],
+        X[:, 1],
+        c=y,
+        cmap=cls_cmap,
+        s=22,
+        alpha=pal["alpha"]["line"],
+        edgecolors=pal["neutral"]["dark"],
+        linewidths=0.4,
+    )
+
+    cbar = plt.colorbar(contour, ax=ax)
+    cbar.set_label(_as_latex("Probability of Class 1"))
+
+    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=False)
     
     return ax
 
@@ -112,9 +529,9 @@ def plot_score_distributions(
     *,
     threshold: Optional[float] = None,
     labels: Tuple[str, str] = ("Clean", "Adversarial"),
-    alpha: float = 0.5,
+    alpha: float = 0.60,
     density: bool = True,
-    colors: Tuple[str, str] = ("tab:blue", "tab:orange"),
+    colors: Optional[Tuple[str, str]] = None,
 ) -> plt.Axes:
     """
     Plot histogram/KDE of scores for clean vs adversarial examples.
@@ -135,14 +552,20 @@ def plot_score_distributions(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 6))
-    
+        fig, ax = new_figure(kind="single", aspect=0.62)
+
+    pal = get_palette()
+    if colors is None:
+        colors = (pal["clean"], pal["adversarial"])
+    alpha = float(alpha)
+
     ax.hist(
         np.asarray(scores_clean, dtype=float).ravel(),
         bins=bins,
         alpha=alpha,
-        label=labels[0],
+        label=_as_latex(labels[0]),
         density=density,
         color=colors[0],
     )
@@ -150,20 +573,22 @@ def plot_score_distributions(
         np.asarray(scores_adv, dtype=float).ravel(),
         bins=bins,
         alpha=alpha,
-        label=labels[1],
+        label=_as_latex(labels[1]),
         density=density,
         color=colors[1],
     )
 
     thr = float(threshold) if threshold is not None else np.nan
     if np.isfinite(thr):
-        ax.axvline(thr, color="k", linestyle="--", linewidth=1, label=f"thr={thr:.3f}")
-    
-    ax.set_xlabel(score_name)
-    ax.set_ylabel('Density')
-    ax.set_title(title)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+        ax.axvline(
+            thr,
+            color=pal["neutral"]["dark"],
+            linestyle="--",
+            linewidth=1.0,
+            label=rf"$\mathrm{{thr}}={thr:.3f}$",
+        )
+
+    finalize_axes(ax, xlabel=score_name, ylabel="Density", title=title, legend=True)
     
     return ax
 
@@ -177,11 +602,11 @@ def plot_score_distributions_figure(
     bins: int = 50,
     threshold: Optional[float] = None,
     labels: Tuple[str, str] = ("Clean", "Adversarial"),
-    alpha: float = 0.5,
+    alpha: float = 0.60,
     density: bool = True,
-    colors: Tuple[str, str] = ("tab:blue", "tab:orange"),
+    colors: Optional[Tuple[str, str]] = None,
     ax: Optional[plt.Axes] = None,
-    figsize: Tuple[float, float] = (7, 4),
+    figsize: Optional[Tuple[float, float]] = None,
     show: bool = True,
 ):
     """
@@ -189,8 +614,12 @@ def plot_score_distributions_figure(
 
     Returns (fig, ax).
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=figsize)
+        if figsize is None:
+            fig, ax = new_figure(kind="single", aspect=0.62)
+        else:
+            fig, ax = plt.subplots(figsize=figsize)
     else:
         fig = ax.figure
 
@@ -209,7 +638,6 @@ def plot_score_distributions_figure(
     )
 
     if show:
-        fig.tight_layout()
         plt.show()
 
     return fig, ax
@@ -244,10 +672,12 @@ def plot_roc_curve(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8))
+        fig, ax = new_figure(kind="single", aspect=1.0)
 
     auc = float(auc_score if auc_score is not None else roc_auc) if (auc_score is not None or roc_auc is not None) else None
+    pal = get_palette()
 
     if interpolate and len(fpr) > 1:
         grid = np.linspace(0.0, 1.0, int(n_points))
@@ -255,18 +685,28 @@ def plot_roc_curve(
         tpr_i = np.interp(grid, fpr, tpr)
         if label is None:
             label = f"ROC curve (AUC = {auc:.3f})" if auc is not None else "ROC curve"
-        ax.plot(grid, tpr_i, linewidth=2, label=label)
+        ax.plot(grid, tpr_i, color=pal["clean"], alpha=pal["alpha"]["line"], label=_as_latex(label))
     else:
         if label is None:
             label = f"ROC curve (AUC = {auc:.3f})" if auc is not None else "ROC curve"
-        ax.plot(fpr, tpr, linewidth=2, label=label)
-    ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random classifier')
-    
-    ax.set_xlabel('False Positive Rate')
-    ax.set_ylabel('True Positive Rate')
-    ax.set_title(title)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+        ax.plot(fpr, tpr, color=pal["clean"], alpha=pal["alpha"]["line"], label=_as_latex(label))
+
+    ax.plot(
+        [0, 1],
+        [0, 1],
+        linestyle="--",
+        color=pal["neutral"]["dark"],
+        linewidth=1.0,
+        label=_as_latex("Random classifier"),
+    )
+
+    finalize_axes(
+        ax,
+        xlabel="False Positive Rate",
+        ylabel="True Positive Rate",
+        title=title,
+        legend=True,
+    )
     
     return ax
 
@@ -290,7 +730,7 @@ def plot_roc_from_metrics(
     roc_auc = metrics.get("roc_auc", None)
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig, ax = new_figure(kind="single", aspect=1.0)
     else:
         fig = ax.figure
 
@@ -305,7 +745,6 @@ def plot_roc_from_metrics(
     )
 
     if show:
-        fig.tight_layout()
         plt.show()
 
     return fig, ax
@@ -331,6 +770,7 @@ def plot_confusion_matrix(
       - y_true + y_pred
       - y_true + y_scores + threshold  (y_pred computed as y_scores >= threshold)
     """
+    _ensure_style()
     y_true = np.asarray(y_true, dtype=int).ravel()
     if y_pred is None:
         if y_scores is None or threshold is None:
@@ -350,7 +790,7 @@ def plot_confusion_matrix(
     cm_norm = cm / (cm.sum(axis=1, keepdims=True) + 1e-12)
 
     if ax is None:
-        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        fig, axes = new_figure(kind="double", aspect=0.45, ncols=2)
     else:
         # If a single axis is provided, draw counts only.
         fig = ax.figure
@@ -359,26 +799,29 @@ def plot_confusion_matrix(
     # Left: counts
     ax0 = axes[0]
     ax0.imshow(cm, cmap="Blues")
-    ax0.set_title("Confusion (counts)")
+    ax0.set_title(_as_latex("Confusion (counts)"))
     ax0.set_xticks([0, 1]); ax0.set_yticks([0, 1])
-    ax0.set_xticklabels([f"pred {labels[0]}", f"pred {labels[1]}"])
-    ax0.set_yticklabels([f"true {labels[0]}", f"true {labels[1]}"])
+    ax0.set_xticklabels([_as_latex(f"pred {labels[0]}"), _as_latex(f"pred {labels[1]}")])
+    ax0.set_yticklabels([_as_latex(f"true {labels[0]}"), _as_latex(f"true {labels[1]}")])
     for (i, j), val in np.ndenumerate(cm):
         ax0.text(j, i, f"{int(val)}", ha="center", va="center")
+    finalize_axes(ax0, legend=False)
+    ax0.grid(False)
 
     # Right: normalized
     if len(axes) > 1:
         ax1 = axes[1]
         ax1.imshow(cm_norm, vmin=0, vmax=1, cmap="Blues")
-        ax1.set_title("Confusion (row-normalized)")
+        ax1.set_title(_as_latex("Confusion (row-normalized)"))
         ax1.set_xticks([0, 1]); ax1.set_yticks([0, 1])
-        ax1.set_xticklabels([f"pred {labels[0]}", f"pred {labels[1]}"])
-        ax1.set_yticklabels([f"true {labels[0]}", f"true {labels[1]}"])
+        ax1.set_xticklabels([_as_latex(f"pred {labels[0]}"), _as_latex(f"pred {labels[1]}")])
+        ax1.set_yticklabels([_as_latex(f"true {labels[0]}"), _as_latex(f"true {labels[1]}")])
         for (i, j), val in np.ndenumerate(cm_norm):
             ax1.text(j, i, f"{val:.2f}", ha="center", va="center")
+        finalize_axes(ax1, legend=False)
+        ax1.grid(False)
 
     if show:
-        fig.tight_layout()
         plt.show()
 
     return {
@@ -413,14 +856,24 @@ def plot_score_scatter(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 8))
-    
-    scatter = ax.scatter(X[:, 0], X[:, 1], c=scores, cmap=cmap, s=50, alpha=0.6)
-    ax.set_xlabel('Feature 1')
-    ax.set_ylabel('Feature 2')
-    ax.set_title(title)
-    plt.colorbar(scatter, ax=ax, label='Score')
+        fig, ax = new_figure(kind="double", aspect=0.62)
+
+    pal = get_palette()
+    scatter = ax.scatter(
+        X[:, 0],
+        X[:, 1],
+        c=scores,
+        cmap=cmap,
+        s=26,
+        alpha=pal["alpha"]["line"],
+        linewidths=0.0,
+    )
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label(_as_latex("Score"))
+
+    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=False)
     
     return ax
 
@@ -447,9 +900,12 @@ def plot_adversarial_examples(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 8))
-    
+        fig, ax = new_figure(kind="double", aspect=0.62)
+
+    pal = get_palette()
+
     # Sample subset if too many points
     if len(X_clean) > n_samples:
         indices = np.random.choice(len(X_clean), n_samples, replace=False)
@@ -458,26 +914,50 @@ def plot_adversarial_examples(
         y = y[indices]
     
     # Plot clean points
-    scatter_clean = ax.scatter(X_clean[:, 0], X_clean[:, 1], c=y, 
-                              cmap=plt.cm.RdYlBu, s=50, alpha=0.6, 
-                              marker='o', label='Clean')
+    cls_cmap = ListedColormap([pal["tab10"][0], pal["tab10"][1]])
+    scatter_clean = ax.scatter(
+        X_clean[:, 0],
+        X_clean[:, 1],
+        c=y,
+        cmap=cls_cmap,
+        s=26,
+        alpha=pal["alpha"]["line"],
+        marker="o",
+        label=_as_latex("Clean"),
+        edgecolors="none",
+    )
     
     # Plot adversarial points
-    scatter_adv = ax.scatter(X_adv[:, 0], X_adv[:, 1], c=y,
-                            cmap=plt.cm.RdYlBu, s=50, alpha=0.6,
-                            marker='x', label='Adversarial')
+    scatter_adv = ax.scatter(
+        X_adv[:, 0],
+        X_adv[:, 1],
+        c=y,
+        cmap=cls_cmap,
+        s=30,
+        alpha=pal["alpha"]["line"],
+        marker="x",
+        label=_as_latex("Adversarial"),
+    )
     
     # Draw arrows showing perturbations
     for i in range(len(X_clean)):
         dx = X_adv[i, 0] - X_clean[i, 0]
         dy = X_adv[i, 1] - X_clean[i, 1]
-        ax.arrow(X_clean[i, 0], X_clean[i, 1], dx, dy,
-                head_width=0.05, head_length=0.05, fc='gray', ec='gray', alpha=0.3)
-    
-    ax.set_xlabel('Feature 1')
-    ax.set_ylabel('Feature 2')
-    ax.set_title(title)
-    ax.legend()
+        ax.arrow(
+            X_clean[i, 0],
+            X_clean[i, 1],
+            dx,
+            dy,
+            head_width=0.05,
+            head_length=0.05,
+            fc=pal["neutral"]["grid"],
+            ec=pal["neutral"]["grid"],
+            alpha=0.35,
+            linewidth=0.6,
+            length_includes_head=True,
+        )
+
+    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=True)
     
     return ax
 
@@ -504,14 +984,28 @@ def plot_persistence_diagram(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8))
-    
+        fig, ax = new_figure(kind="single", aspect=1.0)
+
+    pal = get_palette()
+
     if diagram.size == 0:
-        ax.text(0.5, 0.5, 'No features', ha='center', va='center', transform=ax.transAxes)
-        ax.set_xlabel('Birth')
-        ax.set_ylabel('Death')
-        ax.set_title(title or f"H{dimension} Persistence Diagram (empty)")
+        ax.text(
+            0.5,
+            0.5,
+            _as_latex("No features"),
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        finalize_axes(
+            ax,
+            xlabel="Birth",
+            ylabel="Death",
+            title=title or f"H{dimension} Persistence Diagram (empty)",
+            legend=False,
+        )
         return ax
     
     # Filter by persistence
@@ -522,11 +1016,21 @@ def plot_persistence_diagram(
     valid = finite & (lifetimes >= min_persistence)
     
     if valid.sum() == 0:
-        ax.text(0.5, 0.5, 'No features above min_persistence', ha='center', va='center', 
-                transform=ax.transAxes)
-        ax.set_xlabel('Birth')
-        ax.set_ylabel('Death')
-        ax.set_title(title or f"H{dimension} Persistence Diagram")
+        ax.text(
+            0.5,
+            0.5,
+            _as_latex("No features above min_persistence"),
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        finalize_axes(
+            ax,
+            xlabel="Birth",
+            ylabel="Death",
+            title=title or f"H{dimension} Persistence Diagram",
+            legend=False,
+        )
         return ax
     
     births_plot = births[valid]
@@ -538,25 +1042,39 @@ def plot_persistence_diagram(
         max_val = max(deaths_plot.max(), births_plot.max()) if len(deaths_plot) > 0 else 1.0
     else:
         max_val = max_persistence
-    ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.5, linewidth=1, label='Diagonal')
+    ax.plot(
+        [0, max_val],
+        [0, max_val],
+        linestyle="--",
+        color=pal["neutral"]["dark"],
+        alpha=0.8,
+        linewidth=1.0,
+        label=_as_latex("Diagonal"),
+    )
     
     # Plot points with size proportional to persistence
     scatter = ax.scatter(
         births_plot, deaths_plot,
         s=50 + 100 * (lifetimes_plot / lifetimes_plot.max() if lifetimes_plot.max() > 0 else 1),
-        c=lifetimes_plot, cmap='viridis', alpha=0.7, edgecolors='black', linewidths=0.5
+        c=lifetimes_plot,
+        cmap="viridis",
+        alpha=pal["alpha"]["line"],
+        edgecolors=pal["neutral"]["dark"],
+        linewidths=0.4,
     )
     
     # Colorbar
     cbar = plt.colorbar(scatter, ax=ax)
-    cbar.set_label('Persistence (lifetime)')
-    
-    ax.set_xlabel('Birth')
-    ax.set_ylabel('Death')
-    ax.set_title(title or f"H{dimension} Persistence Diagram")
+    cbar.set_label(_as_latex("Persistence (lifetime)"))
+
+    finalize_axes(
+        ax,
+        xlabel="Birth",
+        ylabel="Death",
+        title=title or f"H{dimension} Persistence Diagram",
+        legend=True,
+    )
     ax.set_aspect('equal')
-    ax.grid(True, alpha=0.3)
-    ax.legend()
     
     return ax
 
@@ -577,20 +1095,27 @@ def plot_topology_summary_features(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(12, 6))
-    
+        fig, ax = new_figure(kind="double", aspect=0.50)
+
+    pal = get_palette()
+
     # Extract feature names and values
     feature_names = sorted(features.keys())
     feature_values = [features[k] for k in feature_names]
     
     # Create bar plot
-    bars = ax.bar(range(len(feature_names)), feature_values, alpha=0.7, color='steelblue')
+    bars = ax.bar(
+        range(len(feature_names)),
+        feature_values,
+        alpha=pal["alpha"]["fill"],
+        color=pal["clean"],
+        edgecolor="none",
+    )
     ax.set_xticks(range(len(feature_names)))
-    ax.set_xticklabels(feature_names, rotation=45, ha='right')
-    ax.set_ylabel('Feature Value')
-    ax.set_title(title)
-    ax.grid(True, alpha=0.3, axis='y')
+    ax.set_xticklabels([_as_latex(n) for n in feature_names], rotation=45, ha='right')
+    finalize_axes(ax, xlabel=None, ylabel="Feature Value", title=title, legend=False)
     
     # Add value labels on bars
     for i, (bar, val) in enumerate(zip(bars, feature_values)):
@@ -598,7 +1123,6 @@ def plot_topology_summary_features(
         ax.text(bar.get_x() + bar.get_width()/2., height,
                 f'{val:.3f}', ha='center', va='bottom', fontsize=8)
     
-    plt.tight_layout()
     return ax
 
 
@@ -622,9 +1146,12 @@ def plot_local_neighborhood(
     Returns:
         Matplotlib axes
     """
+    _ensure_style()
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8))
-    
+        fig, ax = new_figure(kind="single", aspect=1.0)
+
+    pal = get_palette()
+
     n_points, d = point_cloud.shape
     
     # Project to 2D if needed
@@ -645,19 +1172,22 @@ def plot_local_neighborhood(
     
     # Plot neighborhood points
     ax.scatter(point_cloud_2d[:, 0], point_cloud_2d[:, 1], 
-              s=30, alpha=0.6, c='blue', label='Neighborhood points', edgecolors='black', linewidths=0.5)
+              s=22, alpha=pal["alpha"]["line"], c=pal["clean"], label=_as_latex("Neighborhood points"),
+              edgecolors='none', linewidths=0.0)
     
     # Highlight query point if provided
     if query_point_2d is not None:
         ax.scatter(query_point_2d[0], query_point_2d[1], 
-                  s=200, c='red', marker='*', label='Query point', 
-                  edgecolors='black', linewidths=1.5, zorder=10)
-    
-    ax.set_xlabel('Dimension 1')
-    ax.set_ylabel('Dimension 2')
-    ax.set_title(title + title_suffix)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+                  s=140, c=pal["adversarial"], marker='*', label=_as_latex("Query point"),
+                  edgecolors=pal["neutral"]["dark"], linewidths=0.6, zorder=10)
+
+    finalize_axes(
+        ax,
+        xlabel="Dimension 1",
+        ylabel="Dimension 2",
+        title=title + title_suffix,
+        legend=True,
+    )
     ax.set_aspect('equal')
     
     return ax

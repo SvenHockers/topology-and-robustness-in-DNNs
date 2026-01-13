@@ -303,9 +303,10 @@ def compute_graph_scores(
     
     # Extract representations if needed
     if graph_params.space == 'feature':
-        Z_points = extract_features_batch(
-            model, X_points, layer='penultimate', device=device
-        )
+        # Keep query embedding space consistent with Z_train construction.
+        # (Z_train is built upstream using cfg.graph.feature_layer.)
+        layer = str(getattr(graph_params, "feature_layer", "penultimate"))
+        Z_points = extract_features_batch(model, X_points, layer=layer, device=device)
     else:
         Z_points = X_points
     
@@ -510,9 +511,8 @@ def compute_graph_scores_with_diagrams(
     
     # Extract representation if needed
     if graph_params.space == 'feature':
-        Z_point = extract_features_batch(
-            model, X_point.reshape(1, -1), layer='penultimate', device=device
-        )[0]
+        layer = str(getattr(graph_params, "feature_layer", "penultimate"))
+        Z_point = extract_features_batch(model, X_point.reshape(1, -1), layer=layer, device=device)[0]
     else:
         Z_point = X_point
     

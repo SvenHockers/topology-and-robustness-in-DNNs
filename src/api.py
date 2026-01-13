@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple, cast
 import json
 import shutil
+import warnings
 
 import numpy as np
 import torch
@@ -22,6 +23,7 @@ from .adv_attacks import (
     generate_adversarial_examples,
     generate_adversarial_examples_images,
 )
+from .OOD import generate_ood_examples, generate_ood_examples_images
 from .data import DATASET_REGISTRY, DatasetBundle, create_data_loaders
 from .detectors import TopologyScoreDetector, predict_graph_detector, train_graph_detector
 from .evaluation import evaluate_detector
@@ -36,8 +38,8 @@ from .models import (
     get_submodule_by_name,
     train_model,
 )
-from .utils import ExperimentConfig
-from .types import AttackResult, DetectorEvalResult, RunResult
+from .utils import ExperimentConfig, OODConfig
+from .types import AttackResult, DetectorEvalResult, OODResult, RunResult
 
 
 # ---------------------------------------------------------------------
@@ -325,6 +327,77 @@ def generate_adversarial(
     raise ValueError(f"Unsupported input rank X.ndim={X.ndim}. Expected 2 (vector) or 4 (image).")
 
 
+def generate_ood(
+    X: np.ndarray,
+    cfg: Optional[ExperimentConfig] = None,
+    *,
+    method: Optional[str] = None,
+    severity: Optional[float] = None,
+    seed: Optional[int] = None,
+    clip: Optional[Tuple[float, float]] = None,
+    batch_size: Optional[int] = None,
+    device: Optional[str] = None,
+    patch_size: Optional[int] = None,
+    blur_kernel_size: Optional[int] = None,
+    blur_sigma: Optional[float] = None,
+    saltpepper_p: Optional[float] = None,
+) -> np.ndarray:
+    """
+    Generate OOD examples for either vectors (N,D) / point clouds (N,D) or images (N,C,H,W).
+
+    This is intentionally lightweight: it does not require a model; it generates shifted/corrupted
+    samples from an existing split to probe OOD sensitivity.
+    """
+    if cfg is None:
+        cfg = ExperimentConfig()
+
+    X = np.asarray(X)
+    base = cfg.ood if getattr(cfg, "ood", None) is not None else OODConfig()
+
+    # Resolve config defaults from cfg.ood, then allow explicit overrides.
+    resolved_method = str(method if method is not None else base.method)
+    resolved_severity = float(severity if severity is not None else base.severity)
+    # Seed precedence:
+    #   explicit seed arg > cfg.ood.seed > cfg.seed
+    s = int(seed if seed is not None else (base.seed if base.seed is not None else cfg.seed))
+    resolved_bs = int(batch_size if batch_size is not None else base.batch_size)
+    resolved_patch = int(patch_size if patch_size is not None else base.patch_size)
+    resolved_bk = int(blur_kernel_size if blur_kernel_size is not None else base.blur_kernel_size)
+    resolved_sig = float(blur_sigma if blur_sigma is not None else base.blur_sigma)
+    resolved_sp = float(saltpepper_p if saltpepper_p is not None else base.saltpepper_p)
+
+    # OOD.py expects a config object with method/severity/seed + image knobs.
+    # (OODConfig also contains `enabled`; generators ignore it.)
+    oc = OODConfig(
+        enabled=bool(getattr(base, "enabled", False)),
+        method=resolved_method,
+        severity=resolved_severity,
+        seed=s,
+        batch_size=resolved_bs,
+        patch_size=resolved_patch,
+        blur_kernel_size=resolved_bk,
+        blur_sigma=resolved_sig,
+        saltpepper_p=resolved_sp,
+    )
+
+    if X.ndim == 2:
+        return generate_ood_examples(X, config=oc)
+
+    if X.ndim == 4:
+        if clip is None:
+            # Keep consistent with adversarial/image datasets in this repo.
+            clip = (0.0, 1.0)
+        return generate_ood_examples_images(
+            X,
+            config=oc,
+            clip=clip,
+            batch_size=int(resolved_bs),
+            device=str(device or cfg.device),
+        )
+
+    raise ValueError(f"Unsupported input rank X.ndim={X.ndim}. Expected 2 (vector) or 4 (image).")
+
+
 # ---------------------------------------------------------------------
 # Scoring / detector API
 # ---------------------------------------------------------------------
@@ -357,7 +430,8 @@ def compute_scores(
     """
     gc = cast(Any, cfg.graph)
     if gc.space == "feature":
-        Z_train = extract_features_batch(model, bundle.X_train, layer="penultimate", device=str(cfg.device))
+        layer = str(getattr(gc, "feature_layer", "penultimate"))
+        Z_train = extract_features_batch(model, bundle.X_train, layer=layer, device=str(cfg.device))
     else:
         Z_train = bundle.X_train
 
@@ -481,6 +555,12 @@ def run_pipeline(
     eval_only_successful_attacks: bool = False,
     max_points_for_scoring: Optional[int] = None,
     seed: Optional[int] = None,
+    make_plots: bool = True,
+    # Optional OOD evaluation
+    run_ood: Optional[bool] = None,
+    ood_method: Optional[str] = None,
+    ood_severity: Optional[float] = None,
+    ood_batch_size: Optional[int] = None,
 ) -> RunResult:
     """
     Run an end-to-end experiment:
@@ -502,6 +582,12 @@ def run_pipeline(
     num_classes = int(bundle.meta.get("num_classes", mc.output_dim))
     mk.setdefault("num_classes", num_classes)
     mk.setdefault("output_dim", num_classes)  # for MLP factory
+
+    # Per-dataset ergonomics: infer input_dim for vector/pointcloud MLPs if caller didn't supply it.
+    # This prevents common shape-mismatch errors when sweeping datasets/models.
+    if str(model_name).lower() == "two_moons_mlp":
+        if getattr(bundle.X_train, "ndim", None) == 2:
+            mk.setdefault("input_dim", int(bundle.X_train.shape[1]))
     model = get_model(model_name, cfg, **mk)
 
     trained = cast(nn.Module, train(model, bundle, cfg, device=str(cfg.device), verbose=True, return_history=False))
@@ -530,6 +616,45 @@ def run_pipeline(
         adv_mask_test = attack_success_mask(
             trained, bundle.X_test, X_adv_test, bundle.y_test, device=str(cfg.device)
         )
+
+    # Robustness: it's common (especially for small eps / small datasets) to have
+    # very few or even zero "successful" attacks after filtering. The notebooks
+    # typically warn and fall back to evaluating on all adversarial points.
+    if filter_clean_to_correct:
+        if not np.any(clean_mask_val):
+            clean_mask_val = np.ones(len(bundle.X_val), dtype=bool)
+        if not np.any(clean_mask_test):
+            clean_mask_test = np.ones(len(bundle.X_test), dtype=bool)
+
+    # Track attack success rates + warn on degenerate evaluation sets.
+    val_succ_rate = float(np.mean(np.asarray(adv_mask_val, dtype=bool))) if len(adv_mask_val) else 0.0
+    test_succ_rate = float(np.mean(np.asarray(adv_mask_test, dtype=bool))) if len(adv_mask_test) else 0.0
+    fallback_all_adv_val = False
+    fallback_all_adv_test = False
+
+    if eval_only_successful_attacks:
+        if not np.any(adv_mask_val):
+            fallback_all_adv_val = True
+            warnings.warn(
+                "No successful VAL attacks after filtering (eval_only_successful_attacks=True). "
+                "Falling back to evaluating on ALL adversarial points for VAL. "
+                "Detection AUROC may collapse toward ~0.5 if adv≈clean. "
+                "Consider increasing attack strength (e.g., switch to PGD / increase epsilon/steps) "
+                "or disabling successful-attack-only evaluation.",
+                RuntimeWarning,
+            )
+            adv_mask_val = np.ones(len(X_adv_val), dtype=bool)
+        if not np.any(adv_mask_test):
+            fallback_all_adv_test = True
+            warnings.warn(
+                "No successful TEST attacks after filtering (eval_only_successful_attacks=True). "
+                "Falling back to evaluating on ALL adversarial points for TEST. "
+                "Detection AUROC may collapse toward ~0.5 if adv≈clean. "
+                "Consider increasing attack strength (e.g., switch to PGD / increase epsilon/steps) "
+                "or disabling successful-attack-only evaluation.",
+                RuntimeWarning,
+            )
+            adv_mask_test = np.ones(len(X_adv_test), dtype=bool)
 
     X_val_clean_used, y_val_clean_used = bundle.X_val, bundle.y_val
     X_test_clean_used, y_test_clean_used = bundle.X_test, bundle.y_test
@@ -579,42 +704,194 @@ def run_pipeline(
     threshold = float(thr_val)
     metrics = evaluate_detector(labels_test, raw_scores_test, threshold=threshold)
 
-    # Optional plots (no display by default; notebook can display returned figures).
+    # Optional plots (no display by default; notebooks can display returned figures).
+    #
+    # IMPORTANT: Some Matplotlib GUI backends (notably MacOSX) can hard-abort the
+    # interpreter when used in headless contexts. Since `run_pipeline()` is meant
+    # to be usable from scripts/CI as well as notebooks, we skip plot creation in
+    # those contexts by default (or when explicitly disabled).
     plots: Dict[str, Any] = {}
-    try:
-        from .visualization import (
-            plot_confusion_matrix,
-            plot_roc_from_metrics,
-            plot_score_distributions_figure,
+    if bool(make_plots):
+        try:
+            import os
+            import matplotlib
+
+            backend = str(matplotlib.get_backend()).lower()
+            is_headless = (os.environ.get("DISPLAY", "") == "") and (os.environ.get("MPLBACKEND", "") == "")
+            if is_headless and backend in {"macosx"}:
+                plots["plot_skipped"] = f"Skipped plotting in headless mode (backend={backend!r})."
+            else:
+                from .visualization import (
+                    plot_confusion_matrix,
+                    plot_roc_from_metrics,
+                    plot_score_distributions_figure,
+                )
+
+                roc_fig, roc_ax = plot_roc_from_metrics(metrics, title="ROC curve", show=False, interpolate=True)
+                plots["roc_fig"] = roc_fig
+                plots["roc_ax"] = roc_ax
+
+                y_pred_test = np.asarray(detector.predict(scores_test_all), dtype=int)
+                cm_out = plot_confusion_matrix(labels_test, y_pred=y_pred_test, show=False)
+                plots["confusion"] = cm_out
+                plots["confusion_fig"] = cm_out.get("fig")
+                plots["confusion_axes"] = cm_out.get("axes")
+
+                # Score distributions (clean vs adversarial) using the detector's raw score.
+                s_clean = np.asarray(detector.score(scores_test_clean), dtype=float)
+                s_adv = np.asarray(detector.score(scores_test_adv), dtype=float)
+                dist_fig, dist_ax = plot_score_distributions_figure(
+                    s_clean,
+                    s_adv,
+                    score_name="Detector score",
+                    title="Detector score distributions (test)",
+                    bins=50,
+                    threshold=threshold,
+                    show=False,
+                )
+                plots["score_dist_fig"] = dist_fig
+                plots["score_dist_ax"] = dist_ax
+        except Exception as e:
+            # Plotting should never break the pipeline; expose the error for debugging.
+            plots["plot_error"] = repr(e)
+
+    # -----------------------------------------------------------------
+    # Optional: OOD evaluation (separate metrics/plots)
+    # -----------------------------------------------------------------
+    ood_val: Optional[OODResult] = None
+    ood_test: Optional[OODResult] = None
+    scores_val_ood: Optional[Dict[str, np.ndarray]] = None
+    scores_test_ood: Optional[Dict[str, np.ndarray]] = None
+    eval_ood: Optional[DetectorEvalResult] = None
+
+    # If cfg.ood.enabled=True, we run OOD by default (unless user explicitly sets run_ood=False).
+    cfg_ood_enabled = bool(getattr(getattr(cfg, "ood", None), "enabled", False))
+    run_ood_effective = cfg_ood_enabled if run_ood is None else bool(run_ood)
+
+    if bool(run_ood_effective):
+        # When cfg.ood.enabled=True, config controls defaults; function args can still override.
+        # Generate OOD samples from the same splits (val/test) to avoid data leakage.
+        X_ood_val = generate_ood(
+            bundle.X_val,
+            cfg,
+            method=ood_method,
+            severity=ood_severity,
+            seed=s + 10_001,
+            clip=clip,
+            batch_size=ood_batch_size,
+        )
+        X_ood_test = generate_ood(
+            bundle.X_test,
+            cfg,
+            method=ood_method,
+            severity=ood_severity,
+            seed=s + 10_002,
+            clip=clip,
+            batch_size=ood_batch_size,
         )
 
-        roc_fig, roc_ax = plot_roc_from_metrics(metrics, title="ROC curve", show=False, interpolate=True)
-        plots["roc_fig"] = roc_fig
-        plots["roc_ax"] = roc_ax
+        # Use the same clean filtering/subsampling knobs as the adversarial path.
+        X_val_ood_used, y_val_ood_used = X_ood_val, bundle.y_val
+        X_test_ood_used, y_test_ood_used = X_ood_test, bundle.y_test
 
-        y_pred_test = np.asarray(detector.predict(scores_test_all), dtype=int)
-        cm_out = plot_confusion_matrix(labels_test, y_pred=y_pred_test, show=False)
-        plots["confusion"] = cm_out
-        plots["confusion_fig"] = cm_out.get("fig")
-        plots["confusion_axes"] = cm_out.get("axes")
+        if max_points_for_scoring is not None:
+            # For OOD, treat all OOD points as eligible (mask=all True).
+            ood_mask_val = np.ones(len(X_ood_val), dtype=bool)
+            ood_mask_test = np.ones(len(X_ood_test), dtype=bool)
+            X_val_ood_used, y_val_ood_used = subsample_masked(
+                X_ood_val, bundle.y_val, ood_mask_val, int(max_points_for_scoring), seed=s + 4
+            )
+            X_test_ood_used, y_test_ood_used = subsample_masked(
+                X_ood_test, bundle.y_test, ood_mask_test, int(max_points_for_scoring), seed=s + 5
+            )
 
-        # Score distributions (clean vs adversarial) using the detector's raw score.
-        s_clean = np.asarray(detector.score(scores_test_clean), dtype=float)
-        s_adv = np.asarray(detector.score(scores_test_adv), dtype=float)
-        dist_fig, dist_ax = plot_score_distributions_figure(
-            s_clean,
-            s_adv,
-            score_name="Detector score",
-            title="Detector score distributions (test)",
-            bins=50,
-            threshold=threshold,
-            show=False,
+        scores_val_ood = compute_scores(X_val_ood_used, trained, bundle=bundle, cfg=cfg)
+        scores_test_ood = compute_scores(X_test_ood_used, trained, bundle=bundle, cfg=cfg)
+
+        # Evaluate on test: clean vs OOD, using the SAME detector (trained on clean vs adversarial).
+        scores_test_ood_all = concat_scores(scores_test_clean, scores_test_ood)
+        any_key_ood = next(iter(scores_test_clean.keys()))
+        labels_test_ood = np.concatenate(
+            [
+                np.zeros(len(scores_test_clean[any_key_ood]), dtype=int),
+                np.ones(len(scores_test_ood[any_key_ood]), dtype=int),
+            ]
         )
-        plots["score_dist_fig"] = dist_fig
-        plots["score_dist_ax"] = dist_ax
-    except Exception as e:
-        # Plotting should never break the pipeline; expose the error for debugging.
-        plots["plot_error"] = repr(e)
+        raw_scores_test_ood = np.asarray(detector.score(scores_test_ood_all), dtype=float)
+        metrics_ood = evaluate_detector(labels_test_ood, raw_scores_test_ood, threshold=threshold)
+
+        plots_ood: Dict[str, Any] = {}
+        if bool(make_plots):
+            try:
+                import os
+                import matplotlib
+
+                backend = str(matplotlib.get_backend()).lower()
+                is_headless = (os.environ.get("DISPLAY", "") == "") and (os.environ.get("MPLBACKEND", "") == "")
+                if is_headless and backend in {"macosx"}:
+                    plots_ood["plot_skipped"] = f"Skipped plotting in headless mode (backend={backend!r})."
+                else:
+                    from .visualization import (
+                        plot_confusion_matrix,
+                        plot_roc_from_metrics,
+                        plot_score_distributions_figure,
+                    )
+
+                    roc_fig, roc_ax = plot_roc_from_metrics(
+                        metrics_ood, title="ROC curve (OOD)", show=False, interpolate=True
+                    )
+                    plots_ood["roc_fig"] = roc_fig
+                    plots_ood["roc_ax"] = roc_ax
+
+                    y_pred_ood = (raw_scores_test_ood >= float(threshold)).astype(int)
+                    cm_out_ood = plot_confusion_matrix(
+                        labels_test_ood, y_pred=y_pred_ood, labels=("clean", "ood"), show=False
+                    )
+                    plots_ood["confusion"] = cm_out_ood
+                    plots_ood["confusion_fig"] = cm_out_ood.get("fig")
+                    plots_ood["confusion_axes"] = cm_out_ood.get("axes")
+
+                    s_clean_ood = np.asarray(detector.score(scores_test_clean), dtype=float)
+                    s_ood = np.asarray(detector.score(scores_test_ood), dtype=float)
+                    dist_fig_ood, dist_ax_ood = plot_score_distributions_figure(
+                        s_clean_ood,
+                        s_ood,
+                        score_name="Detector score",
+                        title="Detector score distributions (test: clean vs OOD)",
+                        bins=50,
+                        threshold=threshold,
+                        labels=("clean", "OOD"),
+                        show=False,
+                    )
+                    plots_ood["score_dist_fig"] = dist_fig_ood
+                    plots_ood["score_dist_ax"] = dist_ax_ood
+            except Exception as e:
+                plots_ood["plot_error"] = repr(e)
+
+        ood_val = OODResult(
+            X_ood=np.asarray(X_ood_val),
+            meta={
+                "method": str(ood_method),
+                "severity": float(ood_severity),
+                "seed": int(s + 10_001),
+                "y_ref": np.asarray(bundle.y_val, dtype=int),
+            },
+        )
+        ood_test = OODResult(
+            X_ood=np.asarray(X_ood_test),
+            meta={
+                "method": str(ood_method),
+                "severity": float(ood_severity),
+                "seed": int(s + 10_002),
+                "y_ref": np.asarray(bundle.y_test, dtype=int),
+            },
+        )
+        eval_ood = DetectorEvalResult(
+            labels=np.asarray(labels_test_ood, dtype=int),
+            raw_scores=np.asarray(raw_scores_test_ood, dtype=float),
+            metrics=dict(metrics_ood),
+            plots=plots_ood,
+        )
 
     attack_val = AttackResult(
         X_adv=np.asarray(X_adv_val),
@@ -622,6 +899,8 @@ def run_pipeline(
             "adv_mask": np.asarray(adv_mask_val, dtype=bool),
             "clean_mask": np.asarray(clean_mask_val, dtype=bool),
             "y_true": np.asarray(bundle.y_val, dtype=int),
+            "success_rate": float(val_succ_rate),
+            "fallback_all_adv": bool(fallback_all_adv_val),
         },
     )
     attack_test = AttackResult(
@@ -630,6 +909,8 @@ def run_pipeline(
             "adv_mask": np.asarray(adv_mask_test, dtype=bool),
             "clean_mask": np.asarray(clean_mask_test, dtype=bool),
             "y_true": np.asarray(bundle.y_test, dtype=int),
+            "success_rate": float(test_succ_rate),
+            "fallback_all_adv": bool(fallback_all_adv_test),
         },
     )
     eval_out = DetectorEvalResult(
@@ -650,6 +931,11 @@ def run_pipeline(
         scores_test_clean=scores_test_clean,
         scores_test_adv=scores_test_adv,
         eval=eval_out,
+        ood_val=ood_val,
+        ood_test=ood_test,
+        scores_val_ood=scores_val_ood,
+        scores_test_ood=scores_test_ood,
+        eval_ood=eval_ood,
     )
 
 
@@ -674,6 +960,10 @@ def run_experiment(
     eval_only_successful_attacks: bool = False,
     max_points_for_scoring: Optional[int] = None,
     seed: Optional[int] = None,
+    # Optional OOD evaluation (forwarded to run_pipeline)
+    run_ood: Optional[bool] = None,
+    ood_method: Optional[str] = None,
+    ood_severity: Optional[float] = None,
     # What to write
     save_npz: bool = True,
     save_metrics_json: bool = True,
@@ -793,6 +1083,9 @@ def run_experiment(
             eval_only_successful_attacks=eval_only_successful_attacks,
             max_points_for_scoring=max_points_for_scoring,
             seed=seed,
+            run_ood=run_ood,
+            ood_method=ood_method,
+            ood_severity=ood_severity,
         )
 
         # Copy YAML used (helps reproducibility even if inheritance/base is used).
@@ -810,6 +1103,7 @@ def run_experiment(
             "seed": int(seed if seed is not None else cfg.seed),
             "threshold": None if threshold_val is None else float(threshold_val),
             "metrics": _json_safe(res.eval.metrics),
+            "metrics_ood": None if res.eval_ood is None else _json_safe(res.eval_ood.metrics),
             "cfg": _json_safe(cfg.to_dict()) if hasattr(cfg, "to_dict") else _json_safe(cfg),
         }
         results.append(summary)
@@ -824,10 +1118,20 @@ def run_experiment(
                 labels=np.asarray(res.eval.labels),
                 raw_scores=np.asarray(res.eval.raw_scores),
             )
+            if res.eval_ood is not None:
+                np.savez_compressed(
+                    exp_dir / "eval_ood.npz",
+                    labels=np.asarray(res.eval_ood.labels),
+                    raw_scores=np.asarray(res.eval_ood.raw_scores),
+                )
             _save_score_dict_npz(exp_dir / "scores_val_clean.npz", res.scores_val_clean)
             _save_score_dict_npz(exp_dir / "scores_val_adv.npz", res.scores_val_adv)
             _save_score_dict_npz(exp_dir / "scores_test_clean.npz", res.scores_test_clean)
             _save_score_dict_npz(exp_dir / "scores_test_adv.npz", res.scores_test_adv)
+            if res.scores_val_ood is not None:
+                _save_score_dict_npz(exp_dir / "scores_val_ood.npz", res.scores_val_ood)
+            if res.scores_test_ood is not None:
+                _save_score_dict_npz(exp_dir / "scores_test_ood.npz", res.scores_test_ood)
 
     # Write run-level summaries
     with (run_dir / "summary.json").open("w", encoding="utf-8") as f:
@@ -843,6 +1147,9 @@ def run_experiment(
             "roc_auc",
             "pr_auc",
             "fpr_at_tpr95",
+            "roc_auc_ood",
+            "pr_auc_ood",
+            "fpr_at_tpr95_ood",
             "accuracy",
             "precision",
             "recall",
@@ -854,12 +1161,16 @@ def run_experiment(
             w.writeheader()
             for s in results:
                 m = s.get("metrics") or {}
+                mo = s.get("metrics_ood") or {}
                 w.writerow(
                     {
                         "config_name": s.get("config_name"),
                         "roc_auc": m.get("roc_auc"),
                         "pr_auc": m.get("pr_auc"),
                         "fpr_at_tpr95": m.get("fpr_at_tpr95"),
+                        "roc_auc_ood": mo.get("roc_auc"),
+                        "pr_auc_ood": mo.get("pr_auc"),
+                        "fpr_at_tpr95_ood": mo.get("fpr_at_tpr95"),
                         "accuracy": m.get("accuracy"),
                         "precision": m.get("precision"),
                         "recall": m.get("recall"),

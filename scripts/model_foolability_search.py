@@ -114,15 +114,15 @@ def _candidate_grid(dataset_name: str) -> List[Dict[str, Any]]:
     if ds == "mnist":
         return [
             # With MNIST subsampling, you usually need ~10-20 epochs to reach "respectable" accuracy.
-            {"name": "minicnn_feat64_reg", "model_kwargs": {"feat_dim": 64}, "model": {"weight_decay": 1e-4, "epochs": 10}},
-            {"name": "minicnn_feat128_reg", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 10}},
-            {"name": "minicnn_feat256_reg", "model_kwargs": {"feat_dim": 256}, "model": {"weight_decay": 1e-4, "epochs": 10}},
+            {"name": "CNN_feat64_reg", "model_kwargs": {"feat_dim": 64}, "model": {"weight_decay": 1e-4, "epochs": 10}},
+            {"name": "CNN_feat128_reg", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 10}},
+            {"name": "CNN_feat256_reg", "model_kwargs": {"feat_dim": 256}, "model": {"weight_decay": 1e-4, "epochs": 10}},
             # fewer epochs: often still "respectable" but more attackable
-            {"name": "minicnn_feat128_early", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 5}},
+            {"name": "CNN_feat128_early", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 5}},
             # remove weight decay: can increase confidence; include as probe
-            {"name": "minicnn_feat128_no_reg", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 0.0, "epochs": 10}},
+            {"name": "CNN_feat128_no_reg", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 0.0, "epochs": 10}},
             # a slightly "better" baseline for reference
-            {"name": "minicnn_feat128_reg_20ep", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 20}},
+            {"name": "CNN_feat128_reg_20ep", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 20}},
         ]
 
     raise KeyError(f"Unknown dataset for candidate grid: {dataset_name!r}")
@@ -234,7 +234,7 @@ def main():
         num_classes = int(bundle.meta.get("num_classes", cfg_i.model.output_dim))
         model_kwargs.setdefault("num_classes", num_classes)
         model_kwargs.setdefault("output_dim", num_classes)  # for MLP factory
-        if str(preset["model_name"]).lower() == "two_moons_mlp" and getattr(bundle.X_train, "ndim", None) == 2:
+        if str(preset["model_name"]).lower() == "MLP" and getattr(bundle.X_train, "ndim", None) == 2:
             model_kwargs.setdefault("input_dim", int(bundle.X_train.shape[1]))
 
         # Construct + train

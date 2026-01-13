@@ -59,7 +59,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
     # Tabular (standardized) — topology in feature space + local PCA by default.
     "breast_cancer_tabular": {
         "dataset_name": "breast_cancer_tabular",
-        "model_name": "two_moons_mlp",
+        "model_name": "MLP",
         "model_kwargs": {},  # input_dim/output_dim inferred in api.run_pipeline for vectors
         "cfg": {
             "seed": 42,
@@ -100,7 +100,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
     # Vector / point clouds (3D) — topology in input space; PCA optional.
     "geometrical-shapes": {
         "dataset_name": "geometrical-shapes",
-        "model_name": "two_moons_mlp",
+        "model_name": "MLP",
         "model_kwargs": {},  # input_dim inferred as 3
         "cfg": {
             "seed": 42,
@@ -141,7 +141,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
     # Images (MNIST) — topology in penultimate feature space + PCA by default.
     "mnist": {
         "dataset_name": "mnist",
-        "model_name": "minicnn",
+        "model_name": "CNN",
         "model_kwargs": {"in_channels": 1, "feat_dim": 128},
         "cfg": {
             "seed": 42,
@@ -151,7 +151,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
                 "output_dim": 10,
                 "learning_rate": 1e-3,
                 "weight_decay": 1e-4,
-                # Freeze: "minicnn_feat128_reg_20ep" (sanity-checked at eps=0.05..0.2)
+                # Freeze: "CNN_feat128_reg_20ep" (sanity-checked at eps=0.05..0.2)
                 "epochs": 20,
                 "batch_size": 64,
             },

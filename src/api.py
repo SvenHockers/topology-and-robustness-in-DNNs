@@ -30,7 +30,7 @@ from .evaluation import evaluate_detector
 from .graph_scoring import compute_graph_scores
 from .models import (
     HookedFeatureModel,
-    MiniCNN,
+    CNN,
     TwoMoonsMLP,
     extract_features_batch,
     get_model_logits,
@@ -171,7 +171,7 @@ def get_dataset(
 
 def list_models() -> list[str]:
     """Return built-in model factory names."""
-    return sorted(["two_moons_mlp", "minicnn"])
+    return sorted(["MLP", "CNN"])
 
 
 def get_model(
@@ -183,8 +183,8 @@ def get_model(
     Construct a model by name.
 
     Built-ins:
-      - 'two_moons_mlp' -> TwoMoonsMLP
-      - 'minicnn' -> MiniCNN
+      - 'MLP' -> TwoMoonsMLP
+      - 'CNN' -> CNN
 
     Args:
         name: Model key (see `list_models()`).
@@ -195,7 +195,7 @@ def get_model(
         cfg = ExperimentConfig()
 
     name = str(name).lower()
-    if name == "two_moons_mlp":
+    if name == "MLP":
         mc = cast(Any, cfg.model)
         return TwoMoonsMLP(
             input_dim=int(kwargs.get("input_dim", mc.input_dim)),
@@ -203,13 +203,13 @@ def get_model(
             output_dim=int(kwargs.get("output_dim", mc.output_dim)),
             activation=str(kwargs.get("activation", mc.activation)),
         )
-    if name == "minicnn":
+    if name == "CNN":
         # CNN config is intentionally lightweight; most training hyperparams come from cfg.model.
         mc = cast(Any, cfg.model)
         num_classes = int(kwargs.get("num_classes", mc.output_dim))
         feat_dim = int(kwargs.get("feat_dim", 128))
         in_channels = int(kwargs.get("in_channels", 3))
-        return MiniCNN(num_classes=num_classes, feat_dim=feat_dim, in_channels=in_channels)
+        return CNN(num_classes=num_classes, feat_dim=feat_dim, in_channels=in_channels)
 
     raise KeyError(f"Unknown model {name!r}. Available: {list_models()}")
 
@@ -561,6 +561,7 @@ def run_pipeline(
     ood_method: Optional[str] = None,
     ood_severity: Optional[float] = None,
     ood_batch_size: Optional[int] = None,
+    all_vis: bool = False,
 ) -> RunResult:
     """
     Run an end-to-end experiment:
@@ -585,7 +586,7 @@ def run_pipeline(
 
     # Per-dataset ergonomics: infer input_dim for vector/pointcloud MLPs if caller didn't supply it.
     # This prevents common shape-mismatch errors when sweeping datasets/models.
-    if str(model_name).lower() == "two_moons_mlp":
+    if str(model_name).lower() == "MLP":
         if getattr(bundle.X_train, "ndim", None) == 2:
             mk.setdefault("input_dim", int(bundle.X_train.shape[1]))
     model = get_model(model_name, cfg, **mk)
@@ -725,7 +726,10 @@ def run_pipeline(
                     plot_confusion_matrix,
                     plot_roc_from_metrics,
                     plot_score_distributions_figure,
+                    plot_persistence_diagram,
+                    plot_topology_summary_features,
                 )
+                import matplotlib.pyplot as plt
 
                 roc_fig, roc_ax = plot_roc_from_metrics(metrics, title="ROC curve", show=False, interpolate=True)
                 plots["roc_fig"] = roc_fig
@@ -751,6 +755,45 @@ def run_pipeline(
                 )
                 plots["score_dist_fig"] = dist_fig
                 plots["score_dist_ax"] = dist_ax
+
+                # Optional, richer visualizations for research reporting.
+                if bool(all_vis) and bool(getattr(cfg.graph, "use_topology", False)):
+                    plots["all_vis"] = {}
+
+                    # Reconstruct training representations and f_train (mirrors compute_scores)
+                    gc = cast(Any, cfg.graph)
+                    if gc.space == "feature":
+                        layer = str(getattr(gc, "feature_layer", "penultimate"))
+                        Z_train = extract_features_batch(trained, bundle.X_train, layer=layer, device=str(cfg.device))
+                    else:
+                        Z_train = bundle.X_train
+                    logits_train = get_model_logits(trained, bundle.X_train, device=str(cfg.device))
+                    probs_train = _softmax_probs(logits_train)
+                    f_train = _scalar_f_from_probs(probs_train)
+
+                    from .graph_scoring import compute_graph_scores_with_diagrams
+
+                    def _one_example_pd(X_point, label: str):
+                        feats, diagrams, cloud = compute_graph_scores_with_diagrams(
+                            np.asarray(X_point, dtype=float),
+                            trained,
+                            Z_train=np.asarray(Z_train),
+                            f_train=np.asarray(f_train),
+                            graph_params=gc,
+                            device=str(cfg.device),
+                        )
+                        pd_figs = []
+                        for dim, diag in enumerate(diagrams[:2]):  # only H0/H1 for brevity
+                            ax = plot_persistence_diagram(diag, dimension=dim, title=f"{label} H{dim} PD", ax=None)
+                            pd_figs.append(ax.figure)
+                        bar_ax = plot_topology_summary_features(feats, title=f"{label} topology features")
+                        bar_fig = bar_ax.figure
+                        return {"features": feats, "diagrams": diagrams, "pd_figs": pd_figs, "bar_fig": bar_fig, "cloud": cloud}
+
+                    if len(X_test_clean_used) > 0:
+                        plots["all_vis"]["clean_example"] = _one_example_pd(X_test_clean_used[0], "Clean sample")
+                    if len(X_test_adv_used) > 0:
+                        plots["all_vis"]["adv_example"] = _one_example_pd(X_test_adv_used[0], "Adversarial sample")
         except Exception as e:
             # Plotting should never break the pipeline; expose the error for debugging.
             plots["plot_error"] = repr(e)

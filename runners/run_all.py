@@ -31,6 +31,8 @@ def _forwarded_args(argv: Any) -> List[str]:
         out += ["--ignore", str(pat)]
     if getattr(argv, "device", None):
         out += ["--device", str(argv.device)]
+    if bool(getattr(argv, "enable_latex", False)):
+        out += ["--enable-latex"]
     if bool(argv.dry_run):
         out += ["--dry-run"]
     out += ["--max-workers", str(int(argv.max_workers))]
@@ -154,6 +156,7 @@ def main() -> None:
             dataset_name=dataset_name,
             model_name=model_name,
             device=None if getattr(args, "device", None) is None else str(args.device),
+            enable_latex=bool(getattr(args, "enable_latex", False)),
             dry_run=bool(args.dry_run),
             max_workers=int(args.max_workers),
             export_features=str(args.export_features),  # type: ignore[arg-type]

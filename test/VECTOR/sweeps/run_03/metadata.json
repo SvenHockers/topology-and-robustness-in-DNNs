@@ -3,22 +3,11 @@
   "config_relpath": "VECTOR/sweeps/run_03.yaml",
   "dataset_name": "VECTOR",
   "device": null,
-  "duration_s": 0.0525970458984375,
-  "error": {
-    "message": "\"Unknown model 'mlp'. Available: ['CNN', 'MLP']\"",
-    "type": "KeyError"
-  },
+  "duration_s": null,
   "export_features": "npy",
-  "git_commit": "7f0af76d220a7073cdebfb41c5c383d72367d873",
+  "git_commit": "30245adcc3c3d4a4713aa3550c445c55263fb66a",
   "model_name": "MLP",
   "output_dir": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_03",
-  "status": "failed",
-  "success_counts": {
-    "adversarial_success": null,
-    "adversarial_total": null,
-    "notes": "success counts unavailable (no recognizable artifacts)",
-    "ood_success": null,
-    "ood_total": null
-  },
-  "timestamp_utc": "2026-01-13T14:36:51+00:00"
+  "status": "started",
+  "timestamp_utc": "2026-01-13T20:22:06+00:00"
 }

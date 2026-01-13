@@ -3,22 +3,741 @@
   "config_relpath": "VECTOR/sweeps/run_00.yaml",
   "dataset_name": "VECTOR",
   "device": null,
-  "duration_s": 0.06578540802001953,
-  "error": {
-    "message": "\"Unknown model 'mlp'. Available: ['CNN', 'MLP']\"",
-    "type": "KeyError"
-  },
+  "duration_s": 855.4222865104675,
   "export_features": "npy",
-  "git_commit": "7f0af76d220a7073cdebfb41c5c383d72367d873",
+  "feature_file_count": 80,
+  "feature_files": [
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__tangent_residual.npy",
+      "key": "tangent_residual",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__tangent_residual_z.npy",
+      "key": "tangent_residual_z",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__knn_radius.npy",
+      "key": "knn_radius",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_clean__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__tangent_residual.npy",
+      "key": "tangent_residual",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__tangent_residual_z.npy",
+      "key": "tangent_residual_z",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__knn_radius.npy",
+      "key": "knn_radius",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 720,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\val_adv__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        720
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__tangent_residual.npy",
+      "key": "tangent_residual",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__tangent_residual_z.npy",
+      "key": "tangent_residual_z",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__knn_radius.npy",
+      "key": "knn_radius",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_clean__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__tangent_residual.npy",
+      "key": "tangent_residual",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__tangent_residual_z.npy",
+      "key": "tangent_residual_z",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__knn_radius.npy",
+      "key": "knn_radius",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00\\raw\\features\\test_adv__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        240
+      ]
+    }
+  ],
+  "git_commit": "30245adcc3c3d4a4713aa3550c445c55263fb66a",
   "model_name": "MLP",
   "output_dir": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\VECTOR\\sweeps\\run_00",
-  "status": "failed",
+  "status": "success",
   "success_counts": {
-    "adversarial_success": null,
-    "adversarial_total": null,
-    "notes": "success counts unavailable (no recognizable artifacts)",
+    "adversarial_success": 0,
+    "adversarial_total": 240,
+    "notes": "adversarial_success derived from attack_test.meta.success_rate (fallback path); ood_success unavailable (no eval_ood in result)",
     "ood_success": null,
     "ood_total": null
   },
-  "timestamp_utc": "2026-01-13T14:36:51+00:00"
+  "timestamp_utc": "2026-01-13T17:27:50+00:00"
 }

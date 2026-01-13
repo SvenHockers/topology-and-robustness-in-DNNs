@@ -53,6 +53,7 @@ All runners accept the same flags:
 - **`--max-workers`**: parallelism per subdir runner (default: `1`)
 - **`--export-features`**: `npy` | `npy+csv` | `npy+parquet` (default: `npy`)
 - **`--verbose`**: also stream per-run logs to stdout (full logs always go to `outputs/.../logs/run.log`)
+- **`--enable-latex`**: pretty self explanatory
 
 Examples:
 

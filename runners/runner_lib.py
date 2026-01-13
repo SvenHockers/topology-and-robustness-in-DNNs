@@ -31,6 +31,7 @@ import subprocess
 import sys
 import time
 import traceback
+import warnings
 
 from typing import TYPE_CHECKING
 
@@ -282,6 +283,7 @@ def run_pipeline_from_config(
     dataset_name: str,
     model_name: str,
     device: Optional[str] = None,
+    enable_latex: bool = False,
     eval_only_successful_attacks: bool = True,
     make_plots: bool = True,
     run_ood: Optional[bool] = None,
@@ -297,6 +299,28 @@ def run_pipeline_from_config(
     # Import lazily so `--dry-run` works without third-party deps installed.
     from src.api import run_pipeline  # type: ignore
 
+    # Keep batch runs headless + avoid LaTeX popups (e.g. missing `siunitx.sty`).
+    #
+    # IMPORTANT: `src.visualization._ensure_style()` defaults to latex=True when not configured.
+    # So simply changing matplotlib.rcParams isn't enough; we must configure the repo style
+    # to latex=False up-front (unless the user opts in via --enable-latex).
+    if not bool(enable_latex):
+        os.environ["MPLBACKEND"] = "Agg"
+        try:
+            import matplotlib  # type: ignore
+
+            matplotlib.rcParams["text.usetex"] = False
+        except Exception:
+            pass
+
+        try:
+            from src.visualization import configure_mpl_style  # type: ignore
+
+            configure_mpl_style(latex=False)
+        except Exception:
+            # Visualization is optional; pipeline should continue even if unavailable.
+            pass
+
     cfg = load_config_any(config_path)
     if device is not None:
         # Override config. Support "auto" consistently with ExperimentConfig.__post_init__.
@@ -310,14 +334,24 @@ def run_pipeline_from_config(
                 cfg.device = "cpu"
         else:
             cfg.device = dev
-    return run_pipeline(
-        dataset_name=str(dataset_name),
-        model_name=str(model_name),
-        cfg=cfg,
-        eval_only_successful_attacks=bool(eval_only_successful_attacks),
-        make_plots=bool(make_plots),
-        run_ood=run_ood,
-    )
+    # ripser can emit a noisy warning when n_features > n_points, which can happen
+    # in feature-space topology experiments (e.g., tabular/image embeddings).
+    # This warning is not actionable during batch runs; suppress it for cleaner CLI logs.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r".*more columns than rows; did you mean to transpose.*",
+            category=UserWarning,
+            module=r"ripser\..*",
+        )
+        return run_pipeline(
+            dataset_name=str(dataset_name),
+            model_name=str(model_name),
+            cfg=cfg,
+            eval_only_successful_attacks=bool(eval_only_successful_attacks),
+            make_plots=bool(make_plots),
+            run_ood=run_ood,
+        )
 
 
 def _try_save_plot(obj: Any, out_path: Path, logger: logging.Logger) -> bool:
@@ -705,6 +739,7 @@ def run_one_config(
     dataset_name: str,
     model_name: str,
     device: Optional[str],
+    enable_latex: bool,
     extensions: Sequence[str],
     export_features: ExportFeatures,
     dry_run: bool,
@@ -781,6 +816,7 @@ def run_one_config(
             dataset_name=str(dataset_name),
             model_name=str(model_name),
             device=device,
+            enable_latex=bool(enable_latex),
             eval_only_successful_attacks=True,
             make_plots=True,
             run_ood=None,  # follow cfg.ood.enabled unless user changes YAML
@@ -968,6 +1004,7 @@ def run_subdir(
     dataset_name: str,
     model_name: str,
     device: Optional[str],
+    enable_latex: bool,
     dry_run: bool,
     max_workers: int,
     export_features: ExportFeatures,
@@ -1002,6 +1039,7 @@ def run_subdir(
                     dataset_name=dataset_name,
                     model_name=model_name,
                     device=device,
+                    enable_latex=bool(enable_latex),
                     extensions=extensions,
                     export_features=export_features,
                     dry_run=dry_run,
@@ -1024,6 +1062,7 @@ def run_subdir(
                 dataset_name=dataset_name,
                 model_name=model_name,
                 device=device,
+                enable_latex=bool(enable_latex),
                 extensions=extensions,
                 export_features=export_features,
                 dry_run=dry_run,
@@ -1107,6 +1146,11 @@ def build_arg_parser(*, default_config_root: str = "config", default_output_root
         default=None,
         help='Override device for all runs (choices: cpu,cuda,auto). If omitted, uses config value.',
     )
+    p.add_argument(
+        "--enable-latex",
+        action="store_true",
+        help="Enable LaTeX rendering for plots (may require a full TeX install, e.g. siunitx).",
+    )
     p.add_argument("--dry-run", action="store_true", help="Discover and print, but do not execute pipeline")
     p.add_argument("--max-workers", type=int, default=1, help="Parallel workers (default: 1)")
     p.add_argument(
@@ -1145,6 +1189,7 @@ def run_and_optionally_emit_results(
         dataset_name=str(dataset_name),
         model_name=str(model_name),
         device=None if getattr(args, "device", None) is None else str(args.device),
+        enable_latex=bool(getattr(args, "enable_latex", False)),
         dry_run=bool(args.dry_run),
         max_workers=int(args.max_workers),
         export_features=cast(ExportFeatures, str(args.export_features)),

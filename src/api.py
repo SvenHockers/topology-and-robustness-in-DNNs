@@ -593,6 +593,12 @@ def run_pipeline(
     if str(model_name).strip().lower() == "mlp":
         if getattr(bundle.X_train, "ndim", None) == 2:
             mk.setdefault("input_dim", int(bundle.X_train.shape[1]))
+
+    # Per-dataset ergonomics: infer input channels for CNNs from the dataset.
+    # This prevents common shape-mismatch errors (e.g., MNIST is 1-channel, but CNN defaults to 3).
+    if str(model_name).strip().lower() == "cnn":
+        if getattr(bundle.X_train, "ndim", None) == 4:
+            mk.setdefault("in_channels", int(bundle.X_train.shape[1]))
     model = get_model(model_name, cfg, **mk)
 
     trained = cast(nn.Module, train(model, bundle, cfg, device=str(cfg.device), verbose=True, return_history=False))

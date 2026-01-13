@@ -1,2 +1,2 @@
 adversarial_total,adversarial_success,ood_total,ood_success,notes
-,,,,success counts unavailable (no recognizable artifacts)
+114,28,,,adversarial_success derived from attack_test.meta.adv_mask; ood_success unavailable (no eval_ood in result)

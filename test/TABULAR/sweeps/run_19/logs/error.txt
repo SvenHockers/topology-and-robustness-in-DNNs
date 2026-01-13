@@ -1,18 +1,17 @@
 Traceback (most recent call last):
-  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 778, in run_one_config
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 813, in run_one_config
     res = run_pipeline_from_config(
         config_path=config_path,
-    ...<6 lines>...
+    ...<7 lines>...
         run_ood=None,  # follow cfg.ood.enabled unless user changes YAML
     )
-  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 313, in run_pipeline_from_config
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 347, in run_pipeline_from_config
     return run_pipeline(
         dataset_name=str(dataset_name),
     ...<4 lines>...
         run_ood=run_ood,
     )
-  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\api.py", line 592, in run_pipeline
-    model = get_model(model_name, cfg, **mk)
-  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\api.py", line 214, in get_model
-    raise KeyError(f"Unknown model {name!r}. Available: {list_models()}")
-KeyError: "Unknown model 'mlp'. Available: ['CNN', 'MLP']"
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\api.py", line 928, in run_pipeline
+    "severity": float(ood_severity),
+                ~~~~~^^^^^^^^^^^^^^
+TypeError: float() argument must be a string or a real number, not 'NoneType'

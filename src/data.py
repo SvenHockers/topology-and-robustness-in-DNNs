@@ -496,8 +496,10 @@ DATASET_REGISTRY: Dict[str, BaseDataset] = {
     "synthetic_shapes_2class": SyntheticShapes2ClassDatasetSpec(image_size=32),
     "synthetic_shapes_3class": SyntheticShapes3ClassDatasetSpec(image_size=32),
     # External datasets (optional; require torchvision). Defaults: no auto-download.
-    "IMAGE": TorchvisionDatasetSpec(name="IMAGE", dataset="IMAGE", num_classes=10),
-    "fashion_IMAGE": TorchvisionDatasetSpec(name="fashion_IMAGE", dataset="FashionIMAGE", num_classes=10),
+    # `dataset` must match an actual `torchvision.datasets.<DatasetClass>` name.
+    # We use the generic key "IMAGE" to mean MNIST-like grayscale images by default.
+    "IMAGE": TorchvisionDatasetSpec(name="IMAGE", dataset="MNIST", num_classes=10),
+    "fashion_IMAGE": TorchvisionDatasetSpec(name="fashion_IMAGE", dataset="FashionMNIST", num_classes=10),
     "cifar10": TorchvisionDatasetSpec(name="cifar10", dataset="CIFAR10", num_classes=10),
     "cifar100": TorchvisionDatasetSpec(name="cifar100", dataset="CIFAR100", num_classes=100),
     "VECTOR":GeometricalPointCloudDatasetSpec()

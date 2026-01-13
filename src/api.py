@@ -194,8 +194,10 @@ def get_model(
     if cfg is None:
         cfg = ExperimentConfig()
 
-    name = str(name).lower()
-    if name == "MLP":
+    # Normalize for ergonomic CLI/config usage.
+    # We keep list_models() returning uppercase ("MLP"/"CNN") but accept any casing here.
+    name = str(name).strip().lower()
+    if name == "mlp":
         mc = cast(Any, cfg.model)
         return TwoMoonsMLP(
             input_dim=int(kwargs.get("input_dim", mc.input_dim)),
@@ -203,7 +205,7 @@ def get_model(
             output_dim=int(kwargs.get("output_dim", mc.output_dim)),
             activation=str(kwargs.get("activation", mc.activation)),
         )
-    if name == "CNN":
+    if name == "cnn":
         # CNN config is intentionally lightweight; most training hyperparams come from cfg.model.
         mc = cast(Any, cfg.model)
         num_classes = int(kwargs.get("num_classes", mc.output_dim))
@@ -584,9 +586,11 @@ def run_pipeline(
     mk.setdefault("num_classes", num_classes)
     mk.setdefault("output_dim", num_classes)  # for MLP factory
 
-    # Per-dataset ergonomics: infer input_dim for vector/pointcloud MLPs if caller didn't supply it.
+    # Per-dataset ergonomics: infer input_dim for vector/pointcloud/tabular MLPs if caller didn't supply it.
     # This prevents common shape-mismatch errors when sweeping datasets/models.
-    if str(model_name).lower() == "MLP":
+    #
+    # NOTE: `get_model()` normalizes name casing, so we check the lowercased form here.
+    if str(model_name).strip().lower() == "mlp":
         if getattr(bundle.X_train, "ndim", None) == 2:
             mk.setdefault("input_dim", int(bundle.X_train.shape[1]))
     model = get_model(model_name, cfg, **mk)

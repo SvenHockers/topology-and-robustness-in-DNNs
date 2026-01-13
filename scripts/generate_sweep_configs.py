@@ -65,7 +65,7 @@ def write_yaml(path: Path, d: Dict[str, Any], *, overwrite: bool) -> None:
 
 
 BASES: Dict[str, Dict[str, Any]] = {
-    "breast_cancer_tabular": {
+    "TABULAR": {
         "seed": 42,
         "device": "cpu",
         "model": {
@@ -103,7 +103,7 @@ BASES: Dict[str, Dict[str, Any]] = {
             "topo_cov_shrinkage": 0.001,
         },
     },
-    "mnist": {
+    "IMAGE": {
         "seed": 42,
         "device": "cpu",
         "data": {"root": "./data", "download": False, "train_ratio": 0.9, "val_ratio": 0.1},
@@ -136,7 +136,7 @@ BASES: Dict[str, Dict[str, Any]] = {
         },
         "detector": {"detector_type": "topology_score", "topo_percentile": 95.0, "topo_cov_shrinkage": 0.001},
     },
-    "geometrical-shapes": {
+    "VECTOR": {
         "seed": 42,
         "device": "cpu",
         "model": {
@@ -173,21 +173,21 @@ def ood_runs(dataset: str) -> List[Dict[str, Any]]:
     The OOD generators live in `src/OOD.py` and are enabled in the pipeline when
     `cfg.ood.enabled` is true.
     """
-    if dataset == "mnist":
+    if dataset == "IMAGE":
         # Realistic digit corruptions.
         presets: List[Dict[str, Any]] = [
             {"method": "gaussian_noise", "severity": 1.0},
             {"method": "blur", "severity": 1.0, "blur_kernel_size": 5, "blur_sigma": 1.0},
             {"method": "patch_shuffle", "severity": 1.0, "patch_size": 4},
         ]
-    elif dataset == "breast_cancer_tabular":
+    elif dataset == "TABULAR":
         # Realistic tabular shifts: correlation break, measurement noise, support widening.
         presets = [
             {"method": "feature_shuffle", "severity": 1.0},
             {"method": "gaussian_noise", "severity": 0.5},
             {"method": "uniform_wide", "severity": 0.25},
         ]
-    elif dataset == "geometrical-shapes":
+    elif dataset == "VECTOR":
         # Point clouds (treated as vectors): geometry/sensor-like shifts.
         presets = [
             {"method": "gaussian_noise", "severity": 0.15},
@@ -217,17 +217,17 @@ def sweep_runs(dataset: str) -> List[Dict[str, Any]]:
     Then we **double** the set by emitting an FGSM copy of every PGD config
     (same parameters, only `attack.attack_type` changes).
     """
-    if dataset == "breast_cancer_tabular":
+    if dataset == "TABULAR":
         eps = [(0.05, 0.005), (0.10, 0.01), (0.20, 0.02)]
         # include a larger k option (PH neighborhoods can change a lot here)
         ks = [20, 40, 120]
         pca_dim = [10, 20]
-    elif dataset == "mnist":
+    elif dataset == "IMAGE":
         eps = [(0.05, 0.005), (0.10, 0.01), (0.20, 0.02)]
         # include a larger k option (PH neighborhoods can change a lot here)
         ks = [20, 40, 120]
         pca_dim = [16, 32]
-    elif dataset == "geometrical-shapes":
+    elif dataset == "VECTOR":
         eps = [(0.20, 0.02), (0.30, 0.03), (0.50, 0.05)]
         ks = [60, 150, 220]
         pca_dim = [2, 3]

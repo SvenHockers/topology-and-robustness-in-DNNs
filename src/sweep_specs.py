@@ -17,8 +17,8 @@ Notes on the pipeline:
   - `cfg.detector.topo_percentile` sets the clean-quantile threshold (e.g. 95 => ~5% clean FPR target).
   - Attack epsilons are in *input units*:
       - standardized tabular: eps ~ 0.03..0.30 is typical
-      - images in [0,1]: eps ~ 2/255..16/255 (CIFAR-like) or 0.10..0.30 (MNIST-like)
-      - point clouds: eps depends on dataset scale; geometrical-shapes defaults are ~0.2..0.6
+      - images in [0,1]: eps ~ 2/255..16/255 (CIFAR-like) or 0.10..0.30 (IMAGE-like)
+      - point clouds: eps depends on dataset scale; VECTOR defaults are ~0.2..0.6
 
 Detector-layer convention for this repo:
   - We only consider the **penultimate layer** when `graph.space == "feature"`.
@@ -57,8 +57,8 @@ def _logspace10(lo_exp: float, hi_exp: float, n: int) -> List[float]:
 
 DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
     # Tabular (standardized) — topology in feature space + local PCA by default.
-    "breast_cancer_tabular": {
-        "dataset_name": "breast_cancer_tabular",
+    "TABULAR": {
+        "dataset_name": "TABULAR",
         "model_name": "MLP",
         "model_kwargs": {},  # input_dim/output_dim inferred in api.run_pipeline for vectors
         "cfg": {
@@ -98,8 +98,8 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
         },
     },
     # Vector / point clouds (3D) — topology in input space; PCA optional.
-    "geometrical-shapes": {
-        "dataset_name": "geometrical-shapes",
+    "VECTOR": {
+        "dataset_name": "VECTOR",
         "model_name": "MLP",
         "model_kwargs": {},  # input_dim inferred as 3
         "cfg": {
@@ -138,9 +138,9 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-    # Images (MNIST) — topology in penultimate feature space + PCA by default.
-    "mnist": {
-        "dataset_name": "mnist",
+    # Images (IMAGE) — topology in penultimate feature space + PCA by default.
+    "IMAGE": {
+        "dataset_name": "IMAGE",
         "model_name": "CNN",
         "model_kwargs": {"in_channels": 1, "feat_dim": 128},
         "cfg": {
@@ -157,7 +157,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
             },
             "attack": {
                 "attack_type": "pgd",
-                "epsilon": 0.20,  # MNIST in [0,1]
+                "epsilon": 0.20,  # IMAGE in [0,1]
                 "num_steps": 10,
                 "step_size": 0.04,  # epsilon/5; keep derived in sweeps
                 "random_start": True,
@@ -193,7 +193,7 @@ DATASET_PRESETS: Dict[str, Dict[str, Any]] = {
 #   - and "no PCA" (graph.topo_preprocess="none")
 
 FOCUSED_SWEEP_RANGES: Dict[str, Dict[str, List[Any]]] = {
-    "breast_cancer_tabular": {
+    "TABULAR": {
         "attack.epsilon": [0.03, 0.05, 0.10, 0.20, 0.30],
         "graph.topo_k": [20, 40, 80, 120],
         "graph.topo_preprocess": ["pca", "none"],
@@ -205,7 +205,7 @@ FOCUSED_SWEEP_RANGES: Dict[str, Dict[str, List[Any]]] = {
         # step size should be derived from epsilon in the sweep runner
         "attack.step_size": ["__DERIVE_EPS_OVER_10__", "__DERIVE_EPS_OVER_5__"],
     },
-    "geometrical-shapes": {
+    "VECTOR": {
         "attack.epsilon": [0.10, 0.20, 0.30, 0.50, 0.70],
         "graph.topo_k": [60, 100, 150, 220],
         "graph.topo_preprocess": ["none", "pca"],
@@ -214,8 +214,8 @@ FOCUSED_SWEEP_RANGES: Dict[str, Dict[str, List[Any]]] = {
         "detector.topo_cov_shrinkage": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2],
         "attack.step_size": ["__DERIVE_EPS_OVER_10__", "__DERIVE_EPS_OVER_5__"],
     },
-    "mnist": {
-        # MNIST in [0,1]
+    "IMAGE": {
+        # IMAGE in [0,1]
         # Include a smaller eps regime (sanity check showed non-trivial but not-saturated success at 0.05).
         "attack.epsilon": [0.05, 0.08, 0.10, 0.20, 0.30],
         # CIFAR-like alternative (0..1): [2/255, 4/255, 8/255, 16/255]

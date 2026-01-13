@@ -1,5 +1,5 @@
 """
-Runner for configs under `config/geometrical-shapes/`.
+Runner for configs under `config/VECTOR/`.
 
 This is a thin CLI wrapper around `runners.runner_lib`.
 
@@ -23,8 +23,8 @@ def main() -> None:
     args = parser.parse_args()
 
     run_and_optionally_emit_results(
-        subdir="geometrical-shapes",
-        dataset_name="geometrical-shapes",
+        subdir="VECTOR",
+        dataset_name="VECTOR",
         model_name="MLP",
         args=args,
     )

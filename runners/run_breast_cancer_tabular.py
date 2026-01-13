@@ -1,5 +1,5 @@
 """
-Runner for configs under `config/breast_cancer_tabular/`.
+Runner for configs under `config/TABULAR/`.
 
 This is a thin CLI wrapper around `runners.runner_lib`.
 """
@@ -21,8 +21,8 @@ def main() -> None:
     args = parser.parse_args()
 
     run_and_optionally_emit_results(
-        subdir="breast_cancer_tabular",
-        dataset_name="breast_cancer_tabular",
+        subdir="TABULAR",
+        dataset_name="TABULAR",
         model_name="MLP",
         args=args,
     )

@@ -36,7 +36,7 @@ class DataConfig:
     train_ratio: float = 0.6
     val_ratio: float = 0.2
     test_ratio: float = 0.2
-    # Optional: root directory for external datasets (e.g. torchvision MNIST/CIFAR).
+    # Optional: root directory for external datasets (e.g. torchvision IMAGE/CIFAR).
     root: str = "./data"
     # Optional: whether to download external datasets if missing.
     # Repo default is conservative (no auto-download); can be overridden by user code.

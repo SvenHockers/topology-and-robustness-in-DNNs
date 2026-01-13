@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 778, in run_one_config
+    res = run_pipeline_from_config(
+        config_path=config_path,
+    ...<6 lines>...
+        run_ood=None,  # follow cfg.ood.enabled unless user changes YAML
+    )
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\runners\runner_lib.py", line 313, in run_pipeline_from_config
+    return run_pipeline(
+        dataset_name=str(dataset_name),
+    ...<4 lines>...
+        run_ood=run_ood,
+    )
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\api.py", line 578, in run_pipeline
+    bundle = get_dataset(dataset_name, cfg)
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\api.py", line 164, in get_dataset
+    return DATASET_REGISTRY[name].load(cfg)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\shockers\Desktop\topology-and-robustness-in-DNNs\src\data.py", line 449, in load
+    raise KeyError(f"torchvision.datasets has no dataset {self.dataset!r}")
+KeyError: "torchvision.datasets has no dataset 'IMAGE'"

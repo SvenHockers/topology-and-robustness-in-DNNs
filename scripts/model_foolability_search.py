@@ -89,7 +89,7 @@ def _candidate_grid(dataset_name: str) -> List[Dict[str, Any]]:
     """
     ds = str(dataset_name).lower()
 
-    if ds == "breast_cancer_tabular":
+    if ds == "TABULAR":
         return [
             {"name": "mlp_small_light_reg", "model": {"hidden_dims": [64, 32], "weight_decay": 1e-5, "epochs": 80}},
             {"name": "mlp_small_no_reg", "model": {"hidden_dims": [64, 32], "weight_decay": 0.0, "epochs": 80}},
@@ -102,7 +102,7 @@ def _candidate_grid(dataset_name: str) -> List[Dict[str, Any]]:
             {"name": "mlp_big_reg", "model": {"hidden_dims": [256, 128], "weight_decay": 1e-4, "epochs": 80}},
         ]
 
-    if ds == "geometrical-shapes":
+    if ds == "VECTOR":
         return [
             {"name": "mlp_small", "model": {"hidden_dims": [64, 32], "weight_decay": 0.0, "epochs": 40}},
             {"name": "mlp_med", "model": {"hidden_dims": [128, 64], "weight_decay": 0.0, "epochs": 40}},
@@ -111,9 +111,9 @@ def _candidate_grid(dataset_name: str) -> List[Dict[str, Any]]:
             {"name": "mlp_med_reg", "model": {"hidden_dims": [128, 64], "weight_decay": 1e-4, "epochs": 40}},
         ]
 
-    if ds == "mnist":
+    if ds == "IMAGE":
         return [
-            # With MNIST subsampling, you usually need ~10-20 epochs to reach "respectable" accuracy.
+            # With IMAGE subsampling, you usually need ~10-20 epochs to reach "respectable" accuracy.
             {"name": "CNN_feat64_reg", "model_kwargs": {"feat_dim": 64}, "model": {"weight_decay": 1e-4, "epochs": 10}},
             {"name": "CNN_feat128_reg", "model_kwargs": {"feat_dim": 128}, "model": {"weight_decay": 1e-4, "epochs": 10}},
             {"name": "CNN_feat256_reg", "model_kwargs": {"feat_dim": 256}, "model": {"weight_decay": 1e-4, "epochs": 10}},
@@ -180,11 +180,11 @@ def main():
     if args.eps is not None:
         eps_list = [float(x) for x in args.eps.split(",") if x.strip()]
     else:
-        if ds == "breast_cancer_tabular":
+        if ds == "TABULAR":
             eps_list = [0.03, 0.10, 0.20]
-        elif ds == "geometrical-shapes":
+        elif ds == "VECTOR":
             eps_list = [0.20, 0.30, 0.50]
-        elif ds == "mnist":
+        elif ds == "IMAGE":
             eps_list = [0.10, 0.20, 0.30]
         else:
             eps_list = [0.10, 0.20]
@@ -192,12 +192,12 @@ def main():
     if args.ood_methods is not None:
         ood_methods = [m.strip() for m in args.ood_methods.split(",") if m.strip()]
     else:
-        ood_methods = ["gaussian_noise", "patch_shuffle"] if ds == "mnist" else ["gaussian_noise", "extrapolate", "uniform_wide"]
+        ood_methods = ["gaussian_noise", "patch_shuffle"] if ds == "IMAGE" else ["gaussian_noise", "extrapolate", "uniform_wide"]
 
     if args.ood_severities is not None:
         ood_sevs = [float(x) for x in args.ood_severities.split(",") if x.strip()]
     else:
-        ood_sevs = [0.5, 1.0, 2.0] if ds != "mnist" else [0.5, 1.0, 2.0]
+        ood_sevs = [0.5, 1.0, 2.0] if ds != "IMAGE" else [0.5, 1.0, 2.0]
 
     candidates = _candidate_grid(ds)
     if args.candidates:
@@ -258,7 +258,7 @@ def main():
 
         # Attacks at multiple eps
         clip = bundle.meta.get("clip", None)
-        # Optional subsampling for attack evaluation (especially useful for MNIST/CIFAR).
+        # Optional subsampling for attack evaluation (especially useful for IMAGE/CIFAR).
         if int(args.n_attack) > 0:
             X_val_a, y_val_a = api.subsample_masked(bundle.X_val, bundle.y_val, np.ones(len(bundle.X_val), dtype=bool), int(args.n_attack), seed=seed + 1)
             X_test_a, y_test_a = api.subsample_masked(bundle.X_test, bundle.y_test, np.ones(len(bundle.X_test), dtype=bool), int(args.n_attack), seed=seed + 2)

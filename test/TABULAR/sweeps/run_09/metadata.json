@@ -1,0 +1,24 @@
+{
+  "config_path": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\config\\TABULAR\\sweeps\\run_09.yaml",
+  "config_relpath": "TABULAR/sweeps/run_09.yaml",
+  "dataset_name": "TABULAR",
+  "device": null,
+  "duration_s": 0.10782623291015625,
+  "error": {
+    "message": "\"Unknown model 'mlp'. Available: ['CNN', 'MLP']\"",
+    "type": "KeyError"
+  },
+  "export_features": "npy",
+  "git_commit": "7f0af76d220a7073cdebfb41c5c383d72367d873",
+  "model_name": "MLP",
+  "output_dir": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\TABULAR\\sweeps\\run_09",
+  "status": "failed",
+  "success_counts": {
+    "adversarial_success": null,
+    "adversarial_total": null,
+    "notes": "success counts unavailable (no recognizable artifacts)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-13T14:36:49+00:00"
+}

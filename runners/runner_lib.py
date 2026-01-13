@@ -141,7 +141,7 @@ def compute_run_dir(
     Mirror config structure under `output_root` and strip the config extension.
 
     Example:
-      config/mnist/sweeps/run_00.yaml -> outputs/mnist/sweeps/run_00/
+      config/IMAGE/sweeps/run_00.yaml -> outputs/IMAGE/sweeps/run_00/
     """
     rel = config_path.resolve().relative_to(config_root.resolve())
     # rel = <subdir>/.../<file.ext>

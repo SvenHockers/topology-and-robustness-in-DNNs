@@ -16,9 +16,9 @@ The implementation is shared in `runners/runner_lib.py`; the `run_*.py` files ar
     - `outputs/_aggregate/aggregate_success_counts.json`
 
 - **Per-subdir runners**
-  - **`runners/run_mnist.py`** → runs `config/mnist/**` using `dataset_name="mnist"`, `model_name="CNN"`
-  - **`runners/run_breast_cancer_tabular.py`** → runs `config/breast_cancer_tabular/**` using `dataset_name="breast_cancer_tabular"`, `model_name="MLP"`
-  - **`runners/run_geometrical-shapes.py`** → runs `config/geometrical-shapes/**` using `dataset_name="geometrical-shapes"`, `model_name="MLP"`
+  - **`runners/run_IMAGE.py`** → runs `config/IMAGE/**` using `dataset_name="IMAGE"`, `model_name="CNN"`
+  - **`runners/run_TABULAR.py`** → runs `config/TABULAR/**` using `dataset_name="TABULAR"`, `model_name="MLP"`
+  - **`runners/run_VECTOR.py`** → runs `config/VECTOR/**` using `dataset_name="VECTOR"`, `model_name="MLP"`
 
 ---
 
@@ -58,8 +58,8 @@ Examples:
 
 ```powershell
 python runners\run_all.py --ignore "*template*" --max-workers 4
-python runners\run_mnist.py --dry-run
-python runners\run_breast_cancer_tabular.py --export-features npy+csv
+python runners\run_IMAGE.py --dry-run
+python runners\run_TABULAR.py --export-features npy+csv
 python runners\run_all.py --device cuda
 ```
 
@@ -161,6 +161,6 @@ After `run_all.py` finishes, you’ll get:
 - Start with `--dry-run` to verify discovery and output paths.
 - Keep `--max-workers 1` initially (models/attacks can be compute-heavy); increase once stable.
 - If a subdir has no dedicated `run_<subdir>.py`, `run_all.py` falls back to a generic runner:
-  - `mnist` → `CNN`
+  - `IMAGE` → `CNN`
   - everything else → `MLP`
 

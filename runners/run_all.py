@@ -143,7 +143,7 @@ def main() -> None:
         # Generic fallback (covers any number of subdirs even without a dedicated runner file).
         print(f"[SUB ] {subdir} -> (generic runner)")
         dataset_name = subdir
-        model_name = "CNN" if subdir.lower() == "mnist" else "MLP"
+        model_name = "CNN" if subdir.lower() == "IMAGE" else "MLP"
         rows = run_subdir(
             subdir=subdir,
             config_root=config_root,

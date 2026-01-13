@@ -1,0 +1,24 @@
+{
+  "config_path": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\config\\IMAGE\\sweeps\\run_15.yaml",
+  "config_relpath": "IMAGE/sweeps/run_15.yaml",
+  "dataset_name": "IMAGE",
+  "device": null,
+  "duration_s": 0.05424046516418457,
+  "error": {
+    "message": "\"torchvision.datasets has no dataset 'IMAGE'\"",
+    "type": "KeyError"
+  },
+  "export_features": "npy",
+  "git_commit": "7f0af76d220a7073cdebfb41c5c383d72367d873",
+  "model_name": "MLP",
+  "output_dir": "C:\\Users\\shockers\\Desktop\\topology-and-robustness-in-DNNs\\test\\IMAGE\\sweeps\\run_15",
+  "status": "failed",
+  "success_counts": {
+    "adversarial_success": null,
+    "adversarial_total": null,
+    "notes": "success counts unavailable (no recognizable artifacts)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-13T14:36:48+00:00"
+}

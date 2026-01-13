@@ -1,5 +1,5 @@
 """
-Runner for configs under `config/mnist/`.
+Runner for configs under `config/IMAGE/`.
 
 This is a thin CLI wrapper around `runners.runner_lib`.
 """
@@ -22,8 +22,8 @@ def main() -> None:
 
     # Dataset/model mapping for this config subtree (see `model_config.md`).
     run_and_optionally_emit_results(
-        subdir="mnist",
-        dataset_name="mnist",
+        subdir="IMAGE",
+        dataset_name="IMAGE",
         model_name="CNN",
         args=args,
     )

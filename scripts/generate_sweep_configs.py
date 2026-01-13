@@ -3,9 +3,14 @@ Generate YAML experiment configs under config/<dataset>/...
 
 This script is optional convenience: it regenerates the same structure we created:
   - config/<dataset>/base.yaml
-  - config/<dataset>/sweeps/run_00.yaml .. run_08.yaml
+  - config/<dataset>/sweeps/run_00.yaml .. (many)
 
 All YAML files are compatible with `ExperimentConfig.from_yaml(...)` (supports `base:` inheritance).
+
+Notes:
+  - The repo supports optional OOD evaluation when `cfg.ood.enabled: true`.
+  - This generator can emit a small set of OOD sweep YAMLs so you can test OOD
+    behavior alongside adversarial evaluation.
 """
 
 from __future__ import annotations
@@ -161,6 +166,43 @@ BASES: Dict[str, Dict[str, Any]] = {
 }
 
 
+def ood_runs(dataset: str) -> List[Dict[str, Any]]:
+    """
+    Return a small set of realistic OOD configurations per dataset.
+
+    The OOD generators live in `src/OOD.py` and are enabled in the pipeline when
+    `cfg.ood.enabled` is true.
+    """
+    if dataset == "mnist":
+        # Realistic digit corruptions.
+        presets: List[Dict[str, Any]] = [
+            {"method": "gaussian_noise", "severity": 1.0},
+            {"method": "blur", "severity": 1.0, "blur_kernel_size": 5, "blur_sigma": 1.0},
+            {"method": "patch_shuffle", "severity": 1.0, "patch_size": 4},
+        ]
+    elif dataset == "breast_cancer_tabular":
+        # Realistic tabular shifts: correlation break, measurement noise, support widening.
+        presets = [
+            {"method": "feature_shuffle", "severity": 1.0},
+            {"method": "gaussian_noise", "severity": 0.5},
+            {"method": "uniform_wide", "severity": 0.25},
+        ]
+    elif dataset == "geometrical-shapes":
+        # Point clouds (treated as vectors): geometry/sensor-like shifts.
+        presets = [
+            {"method": "gaussian_noise", "severity": 0.15},
+            {"method": "extrapolate", "severity": 0.5},
+            {"method": "uniform_wide", "severity": 0.25},
+        ]
+    else:
+        raise KeyError(dataset)
+
+    runs: List[Dict[str, Any]] = []
+    for p in presets:
+        runs.append({"base": "../base.yaml", "ood": {"enabled": True, **p}})
+    return runs
+
+
 def sweep_runs(dataset: str) -> List[Dict[str, Any]]:
     """
     9-run orthogonal-ish coverage over:
@@ -263,6 +305,11 @@ def main() -> None:
         action="store_true",
         help="Overwrite existing YAML files (default: keep existing, skip writes).",
     )
+    ap.add_argument(
+        "--no-ood",
+        action="store_true",
+        help="Do not emit additional OOD sweep configs (default: include OOD configs).",
+    )
     args = ap.parse_args()
 
     root = Path(args.config_dir)
@@ -274,7 +321,10 @@ def main() -> None:
         ds_dir = root / ds
         write_yaml(ds_dir / "base.yaml", BASES[ds], overwrite=bool(args.overwrite))
         sweep_dir = ds_dir / "sweeps"
-        for i, run in enumerate(sweep_runs(ds)):
+        runs = list(sweep_runs(ds))
+        if not bool(args.no_ood):
+            runs.extend(ood_runs(ds))
+        for i, run in enumerate(runs):
             write_yaml(sweep_dir / f"run_{i:02d}.yaml", run, overwrite=bool(args.overwrite))
 
     print("Generated configs under:", root.resolve())

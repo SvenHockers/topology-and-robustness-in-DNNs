@@ -1,0 +1,5 @@
+base: ../base.yaml
+ood:
+  enabled: true
+  method: uniform_wide
+  severity: 0.25

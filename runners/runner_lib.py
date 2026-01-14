@@ -285,6 +285,8 @@ def run_pipeline_from_config(
     device: Optional[str] = None,
     enable_latex: bool = False,
     eval_only_successful_attacks: bool = True,
+    filter_clean_to_correct: bool = False,
+    max_points_for_scoring: Optional[int] = None,
     make_plots: bool = True,
     run_ood: Optional[bool] = None,
 ) -> RunResult:
@@ -344,11 +346,25 @@ def run_pipeline_from_config(
             category=UserWarning,
             module=r"ripser\..*",
         )
+        # Important: `src.api.run_pipeline()` only *applies* adv/clean masks when
+        # `max_points_for_scoring` is not None (masking is currently wired through
+        # subsample_masked()). For batch runs we typically don't want subsampling,
+        # but we do want the masking semantics. So when either filtering knob is
+        # enabled and the caller didn't specify a cap, we pass a very large cap.
+        #
+        # This makes "evaluate only successful attacks" actually evaluate only
+        # successful attacks (instead of reporting the success rate but scoring
+        # on all adversarial points).
+        effective_max_points = max_points_for_scoring
+        if effective_max_points is None and (bool(eval_only_successful_attacks) or bool(filter_clean_to_correct)):
+            effective_max_points = 1_000_000_000
         return run_pipeline(
             dataset_name=str(dataset_name),
             model_name=str(model_name),
             cfg=cfg,
             eval_only_successful_attacks=bool(eval_only_successful_attacks),
+            filter_clean_to_correct=bool(filter_clean_to_correct),
+            max_points_for_scoring=effective_max_points,
             make_plots=bool(make_plots),
             run_ood=run_ood,
         )
@@ -744,6 +760,8 @@ def run_one_config(
     export_features: ExportFeatures,
     dry_run: bool,
     verbose: bool,
+    filter_clean_to_correct: bool,
+    max_points_for_scoring: Optional[int],
 ) -> RunRow:
     """
     Execute the pipeline for a single config file and write required artifacts.
@@ -818,6 +836,8 @@ def run_one_config(
             device=device,
             enable_latex=bool(enable_latex),
             eval_only_successful_attacks=True,
+            filter_clean_to_correct=bool(filter_clean_to_correct),
+            max_points_for_scoring=max_points_for_scoring,
             make_plots=True,
             run_ood=None,  # follow cfg.ood.enabled unless user changes YAML
         )
@@ -1009,6 +1029,8 @@ def run_subdir(
     max_workers: int,
     export_features: ExportFeatures,
     verbose: bool,
+    filter_clean_to_correct: bool,
+    max_points_for_scoring: Optional[int],
 ) -> List[RunRow]:
     """
     Run all configs under `config_root/<subdir>/`.
@@ -1044,6 +1066,8 @@ def run_subdir(
                     export_features=export_features,
                     dry_run=dry_run,
                     verbose=verbose,
+                    filter_clean_to_correct=bool(filter_clean_to_correct),
+                    max_points_for_scoring=max_points_for_scoring,
                 )
             )
         return rows
@@ -1067,6 +1091,8 @@ def run_subdir(
                 export_features=export_features,
                 dry_run=dry_run,
                 verbose=verbose,
+                filter_clean_to_correct=bool(filter_clean_to_correct),
+                max_points_for_scoring=max_points_for_scoring,
             )
             for p in cfgs
         ]
@@ -1162,6 +1188,28 @@ def build_arg_parser(*, default_config_root: str = "config", default_output_root
     # Optional: where the runner writes machine-readable results for master aggregation.
     p.add_argument("--results-json", default=None, help=argparse.SUPPRESS)
     p.add_argument("--verbose", action="store_true", help="Also stream per-run logs to stdout")
+    p.add_argument(
+        "--no-filter-clean-to-correct",
+        dest="filter_clean_to_correct",
+        action="store_false",
+        help=(
+            "Disable filtering the clean evaluation set to model-correct points. "
+            "By default the runner matches the notebook and filters clean points to those the model "
+            "classifies correctly."
+        ),
+    )
+    p.add_argument(
+        "--max-points-for-scoring",
+        type=int,
+        default=400,
+        help=(
+            "Optional cap on the number of (masked) clean/adv points used for scoring. "
+            "Default matches the notebook (400). Use a larger value to reduce subsampling, or a smaller "
+            "value to speed up runs."
+        ),
+    )
+    # Default behavior should match the notebook.
+    p.set_defaults(filter_clean_to_correct=True)
     return p
 
 
@@ -1194,6 +1242,8 @@ def run_and_optionally_emit_results(
         max_workers=int(args.max_workers),
         export_features=cast(ExportFeatures, str(args.export_features)),
         verbose=bool(args.verbose),
+        filter_clean_to_correct=bool(args.filter_clean_to_correct),
+        max_points_for_scoring=int(args.max_points_for_scoring),
     )
 
     # Emit results for a master process (optional).

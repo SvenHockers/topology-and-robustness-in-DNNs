@@ -136,6 +136,74 @@ BASES: Dict[str, Dict[str, Any]] = {
         },
         "detector": {"detector_type": "topology_score", "topo_percentile": 95.0, "topo_cov_shrinkage": 0.001},
     },
+    # SyntheticShapes are generated on-the-fly (no downloads); they behave like IMAGE datasets,
+    # but with a small class count and a `data.n_samples` knob.
+    "synthetic_shapes_2class": {
+        "seed": 42,
+        "device": "cpu",
+        "data": {"n_samples": 1000, "train_ratio": 0.6, "val_ratio": 0.2},
+        "model": {
+            "output_dim": 2,
+            "learning_rate": 0.001,
+            "weight_decay": 0.0001,
+            "epochs": 20,
+            "batch_size": 64,
+        },
+        "attack": {
+            "attack_type": "pgd",
+            "epsilon": 0.10,
+            "num_steps": 20,
+            "step_size": 0.01,
+            "random_start": True,
+        },
+        "graph": {
+            "space": "feature",
+            "feature_layer": "penultimate",
+            "use_topology": True,
+            "use_tangent": False,
+            "k": 40,
+            "tangent_k": 40,
+            "topo_k": 40,
+            "topo_maxdim": 1,
+            "topo_preprocess": "pca",
+            "topo_pca_dim": 16,
+            "topo_min_persistence": 0.000001,
+        },
+        "detector": {"detector_type": "topology_score", "topo_percentile": 95.0, "topo_cov_shrinkage": 0.001},
+    },
+    "synthetic_shapes_3class": {
+        "seed": 42,
+        "device": "cpu",
+        "data": {"n_samples": 1000, "train_ratio": 0.6, "val_ratio": 0.2},
+        "model": {
+            "output_dim": 3,
+            "learning_rate": 0.001,
+            "weight_decay": 0.0001,
+            "epochs": 20,
+            "batch_size": 64,
+        },
+        "attack": {
+            "attack_type": "pgd",
+            "epsilon": 0.10,
+            "num_steps": 20,
+            "step_size": 0.01,
+            "random_start": True,
+        },
+        "graph": {
+            "space": "feature",
+            "feature_layer": "penultimate",
+            "use_topology": True,
+            "use_tangent": False,
+            "k": 40,
+            "tangent_k": 40,
+            "topo_k": 40,
+            "topo_maxdim": 1,
+            "topo_preprocess": "pca",
+            "topo_pca_dim": 16,
+            "topo_min_persistence": 0.000001,
+        },
+        "detector": {"detector_type": "topology_score", "topo_percentile": 95.0, "topo_cov_shrinkage": 0.001},
+    },
     "VECTOR": {
         "seed": 42,
         "device": "cpu",
@@ -173,7 +241,7 @@ def ood_runs(dataset: str) -> List[Dict[str, Any]]:
     The OOD generators live in `src/OOD.py` and are enabled in the pipeline when
     `cfg.ood.enabled` is true.
     """
-    if dataset == "IMAGE":
+    if dataset in {"IMAGE", "synthetic_shapes_2class", "synthetic_shapes_3class"}:
         # Realistic digit corruptions.
         presets: List[Dict[str, Any]] = [
             {"method": "gaussian_noise", "severity": 1.0},
@@ -222,7 +290,7 @@ def sweep_runs(dataset: str) -> List[Dict[str, Any]]:
         # include a larger k option (PH neighborhoods can change a lot here)
         ks = [20, 40, 120]
         pca_dim = [10, 20]
-    elif dataset == "IMAGE":
+    elif dataset in {"IMAGE", "synthetic_shapes_2class", "synthetic_shapes_3class"}:
         eps = [(0.05, 0.005), (0.10, 0.01), (0.20, 0.02)]
         # include a larger k option (PH neighborhoods can change a lot here)
         ks = [20, 40, 120]

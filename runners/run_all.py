@@ -39,6 +39,11 @@ def _forwarded_args(argv: Any) -> List[str]:
     out += ["--export-features", str(argv.export_features)]
     if bool(argv.verbose):
         out += ["--verbose"]
+    # Match per-subdir runner defaults/flags.
+    if not bool(getattr(argv, "filter_clean_to_correct", True)):
+        out += ["--no-filter-clean-to-correct"]
+    if getattr(argv, "max_points_for_scoring", None) is not None:
+        out += ["--max-points-for-scoring", str(int(argv.max_points_for_scoring))]
     return out
 
 
@@ -161,6 +166,10 @@ def main() -> None:
             max_workers=int(args.max_workers),
             export_features=str(args.export_features),  # type: ignore[arg-type]
             verbose=bool(args.verbose),
+            filter_clean_to_correct=bool(getattr(args, "filter_clean_to_correct", True)),
+            max_points_for_scoring=None
+            if getattr(args, "max_points_for_scoring", None) is None
+            else int(args.max_points_for_scoring),
         )
         all_rows.extend(rows)
 

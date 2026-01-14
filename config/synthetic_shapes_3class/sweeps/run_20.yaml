@@ -1,0 +1,6 @@
+base: ../base.yaml
+ood:
+  enabled: true
+  method: patch_shuffle
+  severity: 1
+  patch_size: 4

@@ -170,7 +170,7 @@ class TwoMoonsMLP(BaseFeatureModel):
             raise ValueError(f"Unknown layer: {layer}")
 
 
-class MiniCNN(BaseFeatureModel):
+class CNN(BaseFeatureModel):
     """
     Small CNN used by the synthetic image notebooks (05/06).
 
@@ -379,7 +379,7 @@ def extract_features_batch(
     with torch.no_grad():
         for i in range(0, len(X_tensor), batch_size):
             batch_X = X_tensor[i:i+batch_size]
-            # Note: model is expected to implement extract_features (TwoMoonsMLP, MiniCNN, etc.)
+            # Note: model is expected to implement extract_features (TwoMoonsMLP, CNN, etc.)
             batch_features = model.extract_features(batch_X, layer=layer)  # type: ignore[attr-defined]
             features.append(batch_features.cpu().numpy())
     

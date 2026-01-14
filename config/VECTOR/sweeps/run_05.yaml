@@ -1,0 +1,18 @@
+base: ../base.yaml
+attack:
+  epsilon: 0.5
+  step_size: 0.5
+  attack_type: fgsm
+  num_steps: 1
+  random_start: false
+graph:
+  k: 60
+  topo_k: 60
+  use_tangent: true
+  tangent_k: 60
+  topo_preprocess: pca
+  topo_min_persistence: 1e-04
+  topo_pca_dim: 3
+detector:
+  topo_percentile: 95
+  topo_cov_shrinkage: 1e-04

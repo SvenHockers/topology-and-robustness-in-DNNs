@@ -295,10 +295,10 @@ class GeometricalPointCloudDatasetSpec(BaseDataset):
         )
 
 class BreastCancerTabularDatasetSpec(BaseDataset):
-    name = "breast_cancer_tabular"
+    name = "TABULAR"
 
     def load(self, cfg: Any) -> DatasetBundle:
-        X, y = load_breast_cancer_tabular(as_float32=False)
+        X, y = load_TABULAR(as_float32=False)
         data = getattr(cfg, "data", cfg)
         X_train, y_train, X_val, y_val, X_test, y_test, scaler = split_and_scale(
             X,
@@ -451,7 +451,7 @@ class TorchvisionDatasetSpec(BaseDataset):
         ds_cls = getattr(datasets, self.dataset)
         tfm = transforms.ToTensor()
 
-        # Most torchvision datasets use train=True/False (MNIST/CIFAR*). This repo supports those first.
+        # Most torchvision datasets use train=True/False (IMAGE/CIFAR*). This repo supports those first.
         try:
             ds_train = ds_cls(root=root, train=True, download=download, transform=tfm)
             ds_test = ds_cls(root=root, train=False, download=download, transform=tfm)
@@ -492,15 +492,17 @@ class TorchvisionDatasetSpec(BaseDataset):
 
 DATASET_REGISTRY: Dict[str, BaseDataset] = {
     "two_moons": TwoMoonsDatasetSpec(),
-    "breast_cancer_tabular": BreastCancerTabularDatasetSpec(),
+    "TABULAR": BreastCancerTabularDatasetSpec(),
     "synthetic_shapes_2class": SyntheticShapes2ClassDatasetSpec(image_size=32),
     "synthetic_shapes_3class": SyntheticShapes3ClassDatasetSpec(image_size=32),
     # External datasets (optional; require torchvision). Defaults: no auto-download.
-    "mnist": TorchvisionDatasetSpec(name="mnist", dataset="MNIST", num_classes=10),
-    "fashion_mnist": TorchvisionDatasetSpec(name="fashion_mnist", dataset="FashionMNIST", num_classes=10),
+    # `dataset` must match an actual `torchvision.datasets.<DatasetClass>` name.
+    # We use the generic key "IMAGE" to mean MNIST-like grayscale images by default.
+    "IMAGE": TorchvisionDatasetSpec(name="IMAGE", dataset="MNIST", num_classes=10),
+    "fashion_IMAGE": TorchvisionDatasetSpec(name="fashion_IMAGE", dataset="FashionMNIST", num_classes=10),
     "cifar10": TorchvisionDatasetSpec(name="cifar10", dataset="CIFAR10", num_classes=10),
     "cifar100": TorchvisionDatasetSpec(name="cifar100", dataset="CIFAR100", num_classes=100),
-    "geometrical-shapes":GeometricalPointCloudDatasetSpec()
+    "VECTOR":GeometricalPointCloudDatasetSpec()
 }
 
 # ---------------------------------------------------------------------
@@ -543,7 +545,7 @@ def split_and_scale(
     return X_train_s, y_train, X_val_s, y_val, X_test_s, y_test, scaler
 
 
-def load_breast_cancer_tabular(*, as_float32: bool = False):
+def load_TABULAR(*, as_float32: bool = False):
     """
     Load scikit-learn breast cancer dataset (X,y).
     """

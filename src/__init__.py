@@ -11,6 +11,7 @@ from .api import (  # noqa: F401
     evaluate_detection,
     fit_detector,
     generate_adversarial,
+    generate_ood,
     get_dataset,
     get_model,
     load_config,
@@ -21,7 +22,7 @@ from .api import (  # noqa: F401
     train,
     wrap_feature_model,
 )
-from .types import AttackResult, DetectorEvalResult, RunResult  # noqa: F401
+from .types import AttackResult, DetectorEvalResult, OODResult, RunResult  # noqa: F401
 from .utils import (  # noqa: F401
     AttackConfig,
     DataConfig,
@@ -29,6 +30,7 @@ from .utils import (  # noqa: F401
     ExperimentConfig,
     GraphConfig,
     ModelConfig,
+    OODConfig,
 )
 
 __all__ = [
@@ -40,8 +42,10 @@ __all__ = [
     "ExperimentConfig",
     "GraphConfig",
     "ModelConfig",
+    "OODConfig",
     # results/types
     "AttackResult",
+    "OODResult",
     "DetectorEvalResult",
     "RunResult",
     # api
@@ -54,6 +58,7 @@ __all__ = [
     "train",
     "predict",
     "generate_adversarial",
+    "generate_ood",
     "compute_scores",
     "fit_detector",
     "detect",

@@ -9,7 +9,7 @@ from sklearn.metrics import (
 )
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Any
 
 
 def compute_classification_metrics(
@@ -49,7 +49,7 @@ def evaluate_detector(
     y_true: np.ndarray,
     y_scores: np.ndarray,
     threshold: Optional[float] = None
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
     Evaluate adversarial detector performance.
     
@@ -71,7 +71,7 @@ def evaluate_detector(
     fpr_at_tpr95 = fpr[idx] if idx > 0 else 1.0
     
     # Precision-Recall curve
-    precision, recall, thresholds_pr = precision_recall_curve(y_true, y_scores)
+    pr_precision, pr_recall, pr_thresholds = precision_recall_curve(y_true, y_scores)
     pr_auc = average_precision_score(y_true, y_scores)
     
     # If threshold provided, compute binary metrics
@@ -87,9 +87,10 @@ def evaluate_detector(
         'fpr': fpr,
         'tpr': tpr,
         'thresholds_roc': thresholds_roc,
-        'precision': precision,
-        'recall': recall,
-        'thresholds_pr': thresholds_pr,
+        # Store PR curve arrays under non-colliding keys (binary metrics use 'precision'/'recall').
+        'pr_precision': pr_precision,
+        'pr_recall': pr_recall,
+        'pr_thresholds': pr_thresholds,
         **binary_metrics
     }
 

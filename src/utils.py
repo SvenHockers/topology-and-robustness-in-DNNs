@@ -36,7 +36,12 @@ class DataConfig:
     train_ratio: float = 0.6
     val_ratio: float = 0.2
     test_ratio: float = 0.2
-    # Optional: root directory for external datasets (e.g. torchvision MNIST/CIFAR).
+    # VECTOR dataset variant (used by `GeometricalPointCloudDatasetSpec`).
+    # Examples: "torus_one_hole", "torus_two_holes", "nested_spheres", "Blobs"
+    dataset_type: str = "torus_one_hole"
+    # Optional: explicit point count for generated point-cloud datasets.
+    n_points: Optional[int] = None
+    # Optional: root directory for external datasets (e.g. torchvision IMAGE/CIFAR).
     root: str = "./data"
     # Optional: whether to download external datasets if missing.
     # Repo default is conservative (no auto-download); can be overridden by user code.
@@ -72,11 +77,39 @@ class AttackConfig:
 
 
 @dataclass
+class OODConfig:
+    """
+    Configuration for out-of-distribution (OOD) generation.
+
+    Notes:
+      - `method` selects the OOD shift/corruption family.
+      - `severity` is a generic scalar (interpretation depends on method).
+    """
+
+    enabled: bool = False
+    method: str = "feature_shuffle"
+    severity: float = 1.0
+
+    # Determinism: if None, API falls back to ExperimentConfig.seed (+ offsets)
+    seed: Optional[int] = None
+
+    # Image-specific knobs (used by some methods)
+    batch_size: int = 128
+    patch_size: int = 4
+    blur_kernel_size: int = 5
+    blur_sigma: float = 1.0
+    saltpepper_p: float = 0.05
+
+
+@dataclass
 class GraphConfig:
     """Configuration for graph construction and manifold scores."""
     k: int = 10  # number of nearest neighbors
     sigma: Optional[float] = None  # if None, will use median distance heuristic
     space: str = 'feature'  # 'input' or 'feature'
+    # Which feature layer to use when `space == "feature"`.
+    # Models may support multiple layers (e.g. `TwoMoonsMLP`: "penultimate" or "first").
+    feature_layer: str = "penultimate"
     normalized_laplacian: bool = True
     use_diffusion: bool = False  # optional diffusion map embedding
     diffusion_components: int = 10  # for diffusion embedding
@@ -124,6 +157,18 @@ class DetectorConfig:
     topo_cov_shrinkage: float = 1e-3  # diagonal shrinkage for covariance stabilization
     topo_percentile: float = 95.0  # clean-score percentile threshold (FPR target ~ 5%)
 
+    # --- Class-conditional topology scoring (optional) ---
+    # Motivation: pooled (all-class) Gaussian scoring can be a poor approximation when
+    # topology features are multi-modal across classes. Enabling this fits one Gaussian
+    # per class on clean samples and scores using either:
+    #   - 'min_over_classes' (default): min Mahalanobis distance over classes
+    #   - 'predicted_class': Mahalanobis distance to the classifier's predicted class
+    #
+    # Defaults preserve current behavior (pooled scoring).
+    topo_class_conditional: bool = False
+    topo_class_scoring_mode: str = "min_over_classes"  # 'min_over_classes' | 'predicted_class' | 'true_class'
+    topo_min_clean_per_class: int = 5  # below this, class covariance falls back to diagonal+shrinkage
+
 
 @dataclass
 class ExperimentConfig:
@@ -131,6 +176,7 @@ class ExperimentConfig:
     data: Optional[DataConfig] = None
     model: Optional[ModelConfig] = None
     attack: Optional[AttackConfig] = None
+    ood: Optional[OODConfig] = None
     graph: Optional[GraphConfig] = None
     detector: Optional[DetectorConfig] = None
     seed: int = 42
@@ -143,6 +189,8 @@ class ExperimentConfig:
             self.model = ModelConfig()
         if self.attack is None:
             self.attack = AttackConfig()
+        if self.ood is None:
+            self.ood = OODConfig()
         if self.graph is None:
             self.graph = GraphConfig()
         if self.detector is None:
@@ -205,6 +253,7 @@ class ExperimentConfig:
         data_cfg = DataConfig(**(d.get("data") or {}))
         model_cfg = ModelConfig(**(d.get("model") or {}))
         attack_cfg = AttackConfig(**(d.get("attack") or {}))
+        ood_cfg = OODConfig(**(d.get("ood") or {}))
         graph_cfg = GraphConfig(**(d.get("graph") or {}))
         detector_cfg = DetectorConfig(**(d.get("detector") or {}))
 
@@ -212,6 +261,7 @@ class ExperimentConfig:
             data=data_cfg,
             model=model_cfg,
             attack=attack_cfg,
+            ood=ood_cfg,
             graph=graph_cfg,
             detector=detector_cfg,
             seed=d.get("seed", 42),
@@ -257,6 +307,7 @@ class ExperimentConfig:
             "data": dict(self.data.__dict__),
             "model": dict(self.model.__dict__),
             "attack": dict(self.attack.__dict__),
+            "ood": dict(self.ood.__dict__),
             "graph": dict(self.graph.__dict__),
             "detector": dict(self.detector.__dict__),
             "seed": int(self.seed),

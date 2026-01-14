@@ -1,0 +1,44 @@
+params:
+  - name: graph.topo_preprocess
+    path: graph.topo_preprocess
+    kind: categorical
+    choices: [none, pca]
+
+  - name: graph.k
+    path: graph.k
+    kind: int
+    min: 5
+    max: 120
+
+  - name: graph.topo_k
+    path: graph.topo_k
+    kind: int
+    min: 5
+    max: 120
+
+  - name: graph.topo_pca_dim
+    path: graph.topo_pca_dim
+    kind: int
+    min: 2
+    max: 64
+
+  - name: graph.topo_min_persistence
+    path: graph.topo_min_persistence
+    kind: float
+    min: 1e-08
+    max: 1e-03
+    log: true
+
+  - name: detector.topo_cov_shrinkage
+    path: detector.topo_cov_shrinkage
+    kind: float
+    min: 1e-06
+    max: 1e-01
+    log: true
+
+  - name: detector.topo_percentile
+    path: detector.topo_percentile
+    kind: float
+    min: 80
+    max: 99
+

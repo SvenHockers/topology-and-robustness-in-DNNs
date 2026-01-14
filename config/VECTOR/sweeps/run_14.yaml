@@ -1,0 +1,15 @@
+base: ../base.yaml
+attack:
+  epsilon: 0.3
+  step_size: 0.03
+  attack_type: pgd
+graph:
+  k: 220
+  topo_k: 220
+  use_tangent: false
+  tangent_k: 220
+  topo_preprocess: none
+  topo_min_persistence: 1e-06
+detector:
+  topo_percentile: 90
+  topo_cov_shrinkage: 1e-06

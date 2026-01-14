@@ -8,7 +8,7 @@ from scipy.spatial.distance import pdist
 from scipy.sparse.linalg import eigs
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
-from typing import Tuple, Optional, Dict, Sequence
+from typing import Tuple, Optional, Dict, Sequence, List, Any
 from .utils import GraphConfig
 from .topology_features import TopologyConfig, local_persistence_features
 
@@ -276,7 +276,10 @@ def compute_graph_scores(
     Z_train: np.ndarray,
     f_train: np.ndarray,
     graph_params: GraphConfig,
-    device: str = 'cpu'
+    device: str = 'cpu',
+    *,
+    y_train: Optional[np.ndarray] = None,
+    y_points: Optional[np.ndarray] = None,
 ) -> Dict[str, np.ndarray]:
     """
     Compute all graph-based manifold conformity scores for a batch of points.
@@ -324,6 +327,9 @@ def compute_graph_scores(
         f_points = probs[:, 1]  # Probability of class 1
     else:
         f_points = probs.max(axis=1)  # Confidence proxy
+
+    # Predicted class labels (used by class-aware topology neighborhoods when enabled).
+    y_pred_points = probs.argmax(axis=1).astype(int, copy=False)
     
     # Compute degree scores
     degree_scores = np.zeros(n_points)
@@ -423,8 +429,19 @@ def compute_graph_scores(
     # --- Topology features (persistent homology on local neighborhoods) ---
     if getattr(graph_params, 'use_topology', False):
         topo_k = int(getattr(graph_params, 'topo_k', 50))
+        topo_k_list = getattr(graph_params, "topo_k_list", None)
+        if topo_k_list is None:
+            k_list: List[int] = [topo_k]
+            prefix_keys = False  # legacy keys
+        else:
+            k_list = [int(k) for k in topo_k_list if int(k) > 0]
+            if len(k_list) == 0:
+                raise ValueError("graph.topo_k_list was provided but empty/invalid.")
+            prefix_keys = True
+
+        max_k = int(max(k_list))
         topo_cfg = TopologyConfig(
-            neighborhood_k=topo_k,
+            neighborhood_k=max_k,
             maxdim=int(getattr(graph_params, 'topo_maxdim', 1)),
             metric=str(getattr(graph_params, 'topo_metric', 'euclidean')),
             thresh=getattr(graph_params, 'topo_thresh', None),
@@ -433,23 +450,146 @@ def compute_graph_scores(
             pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
         )
 
-        # Build a neighbor index for local neighborhoods in the scoring space.
-        nbrs_topo = NearestNeighbors(
-            n_neighbors=min(topo_k, len(Z_train)),
+        neighbor_mode = str(getattr(graph_params, "topo_neighbor_mode", "global")).strip().lower()
+        metric_norm = str(getattr(graph_params, "topo_metric_normalization", "none")).strip().lower()
+        whiten_ridge = float(getattr(graph_params, "topo_whiten_ridge", 1e-3))
+
+        # Build neighbor indices for local neighborhoods in the scoring space.
+        # Default: global kNN (legacy).
+        global_nbrs = NearestNeighbors(
+            n_neighbors=min(max_k, len(Z_train)),
             metric=topo_cfg.metric,
         ).fit(Z_train)
+
+        # Optional: class-restricted kNN indices (built once per class for efficiency).
+        class_nbrs: Dict[int, Any] = {}
+        class_Z: Dict[int, np.ndarray] = {}
+        if neighbor_mode in {"class_pred", "class_true"}:
+            if y_train is None:
+                raise ValueError(
+                    "graph.topo_neighbor_mode requires y_train to restrict neighbors by class. "
+                    "Pass y_train to compute_graph_scores(..., y_train=...) or set topo_neighbor_mode='global'."
+                )
+            y_train_i = np.asarray(y_train, dtype=int).ravel()
+            if y_train_i.shape[0] != Z_train.shape[0]:
+                raise ValueError(f"Z_train/y_train length mismatch: {Z_train.shape[0]} vs {y_train_i.shape[0]}")
+            for c in np.unique(y_train_i).tolist():
+                c = int(c)
+                mask = (y_train_i == c)
+                Zc = np.asarray(Z_train)[mask]
+                if Zc.shape[0] < 2:
+                    continue
+                class_Z[c] = Zc
+                class_nbrs[c] = NearestNeighbors(
+                    n_neighbors=min(max_k, len(Zc)),
+                    metric=topo_cfg.metric,
+                ).fit(Zc)
+
+        def _normalize_cloud(cloud: np.ndarray, *, dists: Optional[np.ndarray]) -> np.ndarray:
+            """
+            Apply local metric conditioning prior to PH.
+            We treat the neighborhood (excluding the query point) as defining the local chart.
+            """
+            if metric_norm in {"none", ""}:
+                return cloud
+
+            X = np.asarray(cloud, dtype=float)
+            if X.ndim != 2 or X.shape[0] < 2:
+                return X
+
+            # Use neighborhood mean (exclude query point at row 0) for centering.
+            neigh = X[1:]
+            mu = neigh.mean(axis=0, keepdims=True)
+            Xc = X - mu
+
+            if metric_norm == "center":
+                return Xc
+
+            if metric_norm == "local_scale":
+                # Scale by a robust local radius proxy (median kNN distance of query to neighbors).
+                if dists is None:
+                    # Fallback: median pairwise distance within neighborhood.
+                    r = np.median(pdist(neigh)) if neigh.shape[0] >= 3 else float(np.linalg.norm(neigh[0] - neigh.mean(axis=0)))
+                else:
+                    dd = np.asarray(dists, dtype=float).ravel()
+                    dd = dd[np.isfinite(dd)]
+                    r = float(np.median(dd[dd > 0])) if np.any(dd > 0) else float(np.median(dd))
+                r = float(r) if np.isfinite(r) and r > 1e-12 else 1.0
+                return Xc / r
+
+            if metric_norm == "whiten":
+                # Whiten using neighborhood covariance (ridge-stabilized).
+                Y = neigh - mu  # (k, d)
+                if Y.shape[0] < 2:
+                    return Xc
+                cov = (Y.T @ Y) / max(1, (Y.shape[0] - 1))
+                cov = cov + float(whiten_ridge) * np.eye(cov.shape[0], dtype=float)
+                # SVD for inverse sqrt
+                U, S, _ = np.linalg.svd(cov, full_matrices=False)
+                S = np.maximum(S, 1e-12)
+                W = U @ np.diag(1.0 / np.sqrt(S)) @ U.T
+                return Xc @ W
+
+            # Unknown normalization: fall back to none (do not break experiments silently).
+            raise ValueError(f"Unknown graph.topo_metric_normalization: {metric_norm!r}")
 
         # Compute PH features for each query point's neighborhood cloud.
         # Note: neighborhood selection uses metric geometry only to define the local patch;
         # the detection statistic itself is topology-derived (PH summaries).
-        topo_feat_dicts = []
+        topo_feat_dicts: List[Dict[str, float]] = []
         for i in range(n_points):
-            _, idx = nbrs_topo.kneighbors(Z_points[i].reshape(1, -1))
-            neighborhood = Z_train[idx[0]]
-            # Ensure the query point participates in the complex (stability wrt insertion).
-            cloud = np.vstack([Z_points[i].reshape(1, -1), neighborhood])
-            feats_i = local_persistence_features(cloud, topo_cfg)
-            topo_feat_dicts.append(feats_i)
+            # Choose which neighbor index to use.
+            chosen = "global"
+            query_class: Optional[int] = None
+            if neighbor_mode == "class_pred":
+                query_class = int(y_pred_points[i])
+                if query_class in class_nbrs:
+                    chosen = "class"
+            elif neighbor_mode == "class_true":
+                if y_points is None:
+                    raise ValueError(
+                        "graph.topo_neighbor_mode='class_true' requires y_points aligned with X_points."
+                    )
+                yp = np.asarray(y_points, dtype=int).ravel()
+                if yp.shape[0] != n_points:
+                    raise ValueError(f"X_points/y_points length mismatch: {n_points} vs {yp.shape[0]}")
+                query_class = int(yp[i])
+                if query_class in class_nbrs:
+                    chosen = "class"
+
+            # Get maximum-k neighborhood (we'll slice per k in k_list).
+            if chosen == "class" and query_class is not None:
+                nbrs = class_nbrs[query_class]
+                Zref = class_Z[query_class]
+            else:
+                nbrs = global_nbrs
+                Zref = Z_train
+
+            dists_max, idx_max = nbrs.kneighbors(Z_points[i].reshape(1, -1))
+            dists_max = dists_max[0]
+            idx_max = idx_max[0]
+
+            # Compute features for each requested k and merge into one dict (possibly prefixed).
+            feats_merged: Dict[str, float] = {}
+            for K in k_list:
+                kk = int(min(max(1, K), len(idx_max)))
+                neigh = Zref[idx_max[:kk]]
+                cloud = np.vstack([Z_points[i].reshape(1, -1), neigh])
+                cloud = _normalize_cloud(cloud, dists=dists_max[:kk])
+                feats_k = local_persistence_features(cloud, topo_cfg)
+                if prefix_keys:
+                    # Prefix keys so they remain `topo_*` and distinct per k.
+                    for key, val in feats_k.items():
+                        # key is like "topo_h0_count" -> "topo_k30_h0_count"
+                        if str(key).startswith("topo_"):
+                            k2 = f"topo_k{K}_" + str(key)[5:]
+                        else:
+                            k2 = f"topo_k{K}_" + str(key)
+                        feats_merged[k2] = float(val)
+                else:
+                    feats_merged.update({str(k): float(v) for k, v in feats_k.items()})
+
+            topo_feat_dicts.append(feats_merged)
 
         # Materialize into score arrays with stable keys.
         all_keys = sorted({k for d in topo_feat_dicts for k in d.keys()})
@@ -512,7 +652,22 @@ def compute_graph_scores_with_diagrams(
     # Extract representation if needed
     if graph_params.space == 'feature':
         layer = str(getattr(graph_params, "feature_layer", "penultimate"))
-        Z_point = extract_features_batch(model, X_point.reshape(1, -1), layer=layer, device=device)[0]
+        # Support both vector and image inputs:
+        # - vector: (D,) -> (1,D)
+        # - image: (C,H,W) -> (1,C,H,W)
+        # - already batched: (1,...) -> keep
+        Xp = np.asarray(X_point)
+        if Xp.ndim == 1:
+            Xb = Xp.reshape(1, -1)
+        elif Xp.ndim == 3:
+            Xb = Xp.reshape(1, *Xp.shape)
+        elif Xp.ndim == 4:
+            if Xp.shape[0] != 1:
+                raise ValueError(f"Expected a single point for diagrams; got batch shape={Xp.shape}")
+            Xb = Xp
+        else:
+            raise ValueError(f"Unsupported X_point ndim={Xp.ndim}. Expected 1 (vector) or 3 (C,H,W).")
+        Z_point = extract_features_batch(model, Xb, layer=layer, device=device)[0]
     else:
         Z_point = X_point
     
@@ -531,7 +686,7 @@ def compute_graph_scores_with_diagrams(
         pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
     )
     
-    # Build neighbor index
+    # Build neighbor index (visualization helper sticks to global neighborhoods for simplicity).
     nbrs_topo = NearestNeighbors(
         n_neighbors=min(topo_k, len(Z_train)),
         metric=topo_cfg.metric,
@@ -542,6 +697,29 @@ def compute_graph_scores_with_diagrams(
     neighborhood = Z_train[idx[0]]
     # Ensure the query point participates in the complex
     cloud = np.vstack([Z_point.reshape(1, -1), neighborhood])
+    # Optional local metric normalization for visualization parity.
+    metric_norm = str(getattr(graph_params, "topo_metric_normalization", "none")).strip().lower()
+    whiten_ridge = float(getattr(graph_params, "topo_whiten_ridge", 1e-3))
+    if metric_norm not in {"none", ""}:
+        neigh = cloud[1:]
+        mu = neigh.mean(axis=0, keepdims=True)
+        cloud_c = cloud - mu
+        if metric_norm == "center":
+            cloud = cloud_c
+        elif metric_norm == "local_scale":
+            r = np.median(pdist(neigh)) if neigh.shape[0] >= 3 else 1.0
+            r = float(r) if np.isfinite(r) and r > 1e-12 else 1.0
+            cloud = cloud_c / r
+        elif metric_norm == "whiten":
+            Y = neigh - mu
+            cov = (Y.T @ Y) / max(1, (Y.shape[0] - 1))
+            cov = cov + float(whiten_ridge) * np.eye(cov.shape[0], dtype=float)
+            U, S, _ = np.linalg.svd(cov, full_matrices=False)
+            S = np.maximum(S, 1e-12)
+            W = U @ np.diag(1.0 / np.sqrt(S)) @ U.T
+            cloud = cloud_c @ W
+        else:
+            raise ValueError(f"Unknown graph.topo_metric_normalization: {metric_norm!r}")
     
     # Compute PH features with diagrams
     features, diagrams = local_persistence_features(cloud, topo_cfg, return_diagrams=True)

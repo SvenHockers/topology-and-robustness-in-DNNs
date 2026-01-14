@@ -18,6 +18,8 @@ from sklearn.datasets import make_moons
 from sklearn.model_selection import train_test_split
 from typing import Tuple, Optional, Sequence, Any, Dict
 
+from .mechanistic_synthetic import generate_anisotropic_moons, AnisotropicMoonsParams
+
 
 def _validate_split_ratios(train_ratio: float, val_ratio: float, test_ratio: float) -> None:
     if abs(train_ratio + val_ratio + test_ratio - 1.0) >= 1e-6:
@@ -221,6 +223,83 @@ def _as_int64(y: Any) -> np.ndarray:
     """Convert array-like to np.int64 numpy array (no copy when possible)."""
     y = np.asarray(y)
     return y.astype(np.int64, copy=False) if y.dtype != np.int64 else y
+
+
+# ---------------------------------------------------------------------
+# Mechanistic synthetic datasets
+# ---------------------------------------------------------------------
+
+
+class MechanisticAnisotropicMoonsDatasetSpec(BaseDataset):
+    """
+    Mechanistic 2D moons with location-dependent anisotropic noise.
+
+    Motivation:
+      - Local neighborhoods in representation space can be strongly anisotropic
+        and location-dependent, making raw PH features hard to compare.
+      - Local metric conditioning (e.g. whitening) should factor out this nuisance.
+
+    Uses DataConfig knobs:
+      - noise, random_state, split ratios (standard)
+      - mech_sigma_tangent, mech_sigma_normal, mech_class_aniso_scale, mech_warp_strength
+    """
+
+    name: str = "mechanistic_aniso_moons"
+
+    def load(self, cfg: Any) -> DatasetBundle:
+        seed = int(getattr(cfg, "seed", 42))
+        data_cfg = getattr(cfg, "data", cfg)
+
+        n_samples = int(getattr(data_cfg, "n_samples", 1000))
+        noise = float(getattr(data_cfg, "noise", 0.02))
+        random_state = int(getattr(data_cfg, "random_state", seed))
+        train_ratio = float(getattr(data_cfg, "train_ratio", 0.6))
+        val_ratio = float(getattr(data_cfg, "val_ratio", 0.2))
+        test_ratio = float(getattr(data_cfg, "test_ratio", 0.2))
+
+        params = AnisotropicMoonsParams(
+            sigma_tangent=float(getattr(data_cfg, "mech_sigma_tangent", 0.25)),
+            sigma_normal=float(getattr(data_cfg, "mech_sigma_normal", 0.05)),
+            class_aniso_scale=float(getattr(data_cfg, "mech_class_aniso_scale", 1.5)),
+            warp_strength=float(getattr(data_cfg, "mech_warp_strength", 0.0)),
+        )
+
+        _validate_split_ratios(train_ratio, val_ratio, test_ratio)
+        X, y = generate_anisotropic_moons(
+            n_samples=n_samples,
+            noise=noise,
+            seed=random_state,
+            params=params,
+        )
+
+        # Split train/val/test (stratified)
+        X_temp, X_test, y_temp, y_test = train_test_split(
+            X, y, test_size=test_ratio, random_state=random_state, stratify=y
+        )
+        val_size = val_ratio / (train_ratio + val_ratio)
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=val_size, random_state=random_state, stratify=y_temp
+        )
+
+        meta = {
+            "input_kind": "vector",
+            "num_classes": int(_infer_num_classes(y_train)),
+            "clip": None,
+            "source": "mechanistic_synthetic",
+            "description": "two_moons + location-dependent anisotropic noise (tangent/normal) + optional warp",
+            "params": {
+                "sigma_tangent": float(params.sigma_tangent),
+                "sigma_normal": float(params.sigma_normal),
+                "class_aniso_scale": float(params.class_aniso_scale),
+                "warp_strength": float(params.warp_strength),
+            },
+        }
+        return DatasetBundle(
+            _as_float32(X_train), _as_int64(y_train),
+            _as_float32(X_val), _as_int64(y_val),
+            _as_float32(X_test), _as_int64(y_test),
+            meta=meta,
+        )
 
 
 class TwoMoonsDatasetSpec(BaseDataset):
@@ -492,6 +571,7 @@ class TorchvisionDatasetSpec(BaseDataset):
 
 DATASET_REGISTRY: Dict[str, BaseDataset] = {
     "two_moons": TwoMoonsDatasetSpec(),
+    "mechanistic_aniso_moons": MechanisticAnisotropicMoonsDatasetSpec(),
     "TABULAR": BreastCancerTabularDatasetSpec(),
     "synthetic_shapes_2class": SyntheticShapes2ClassDatasetSpec(image_size=32),
     "synthetic_shapes_3class": SyntheticShapes3ClassDatasetSpec(image_size=32),

@@ -285,6 +285,48 @@ class ClassConditionalTopologyScoreDetector:
                 dists.append(self._score_against_class(X, c=int(c)))
             return np.min(np.stack(dists, axis=0), axis=0)
 
+        if m in {"contrastive_pred_gap", "contrastive", "pred_gap"}:
+            # Decision–geometry inconsistency score:
+            #   s(x) = d(predicted_class) - min_{c != predicted_class} d(c)
+            # Larger => predicted class is less typical than alternatives.
+            if y_pred is None:
+                raise ValueError("mode='contrastive_pred_gap' requires y_pred.")
+            y_pred = np.asarray(y_pred, dtype=int).ravel()
+            if y_pred.shape[0] != X.shape[0]:
+                raise ValueError(f"Scores/y_pred length mismatch: X has {X.shape[0]} rows, y_pred has {y_pred.shape[0]}.")
+
+            # Compute full distance matrix: (n_classes, n_points)
+            dist_rows = []
+            for c in self.classes_.tolist():
+                dist_rows.append(self._score_against_class(X, c=int(c)))
+            D = np.stack(dist_rows, axis=0)  # (C, N)
+
+            # Map y_pred to class-row indices
+            classes = np.asarray(self.classes_, dtype=int)
+            row_idx = np.full((X.shape[0],), -1, dtype=int)
+            for j, c in enumerate(classes.tolist()):
+                row_idx[y_pred == int(c)] = int(j)
+
+            d_pred = np.empty((X.shape[0],), dtype=float)
+            d_other = np.empty((X.shape[0],), dtype=float)
+            for j in range(D.shape[0]):
+                mask = row_idx == j
+                if not np.any(mask):
+                    continue
+                d_pred[mask] = D[j, mask]
+                D_other = D[:, mask].copy()
+                D_other[j, :] = np.inf
+                d_other[mask] = np.min(D_other, axis=0)
+
+            # Unseen predicted labels: fall back to "no contrast" (gap=0) using min_over_classes.
+            unseen = row_idx < 0
+            if np.any(unseen):
+                d0 = np.min(D[:, unseen], axis=0)
+                d_pred[unseen] = d0
+                d_other[unseen] = d0
+
+            return d_pred - d_other
+
         if m in {"predicted_class", "pred"}:
             if y_pred is None:
                 raise ValueError("mode='predicted_class' requires y_pred.")

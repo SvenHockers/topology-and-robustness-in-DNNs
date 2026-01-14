@@ -42,6 +42,14 @@ class DataConfig:
     # Repo default is conservative (no auto-download); can be overridden by user code.
     download: bool = False
 
+    # --- Mechanistic synthetic dataset knobs (used by `mechanistic_aniso_moons`) ---
+    # These are intentionally generic so they can be documented as part of a
+    # fundamental, mechanistic research question about local metric conditioning.
+    mech_sigma_tangent: float = 0.25
+    mech_sigma_normal: float = 0.05
+    mech_class_aniso_scale: float = 1.5
+    mech_warp_strength: float = 0.0
+
 
 @dataclass
 class ModelConfig:
@@ -130,6 +138,25 @@ class GraphConfig:
     # uninformative; projecting to a local low-d subspace often yields more meaningful topology.
     topo_preprocess: str = 'none'  # 'none' or 'pca'
     topo_pca_dim: int = 10  # used when topo_preprocess == 'pca'
+
+    # Neighborhood semantics for topology features.
+    # - 'global': kNN over all training representations (current default / backwards compatible)
+    # - 'class_pred': kNN restricted to training points of the query's predicted class
+    # - 'class_true': kNN restricted to training points of the query's provided true class (requires y_points)
+    topo_neighbor_mode: str = "global"
+
+    # Optional multiscale topology: compute PH features for each k in this list and prefix keys as:
+    #   topo_k{K}_h0_count, topo_k{K}_h1_entropy, ...
+    # If None, uses `topo_k` and emits the legacy keys (topo_h0_*, topo_h1_*).
+    topo_k_list: Optional[list[int]] = None
+
+    # Local metric conditioning prior to PH. This helps make PH summaries comparable across regions.
+    # - 'none': no additional normalization (legacy)
+    # - 'center': center neighborhood (remove local mean)
+    # - 'whiten': center + locally whiten using neighborhood covariance (ridge-stabilized)
+    # - 'local_scale': center + scale by median kNN radius (density normalization)
+    topo_metric_normalization: str = "none"
+    topo_whiten_ridge: float = 1e-3
 
 
 @dataclass

@@ -453,6 +453,7 @@ def compute_scores(
         f_train=np.asarray(f_train),
         graph_params=gc,
         device=str(cfg.device),
+        y_train=np.asarray(bundle.y_train, dtype=int),
     )
 
 
@@ -721,9 +722,14 @@ def run_pipeline(
     )
     y_pred_val_all: Optional[np.ndarray] = None
     det_cfg = cast(Any, cfg.detector)
-    use_pred_class = bool(getattr(det_cfg, "topo_class_conditional", False)) and str(
-        getattr(det_cfg, "topo_class_scoring_mode", "min_over_classes")
-    ).strip().lower() in {"predicted_class", "pred"}
+    mode_cc = str(getattr(det_cfg, "topo_class_scoring_mode", "min_over_classes")).strip().lower()
+    use_pred_class = bool(getattr(det_cfg, "topo_class_conditional", False)) and mode_cc in {
+        "predicted_class",
+        "pred",
+        "contrastive_pred_gap",
+        "contrastive",
+        "pred_gap",
+    }
     if use_pred_class:
         y_pred_val_clean = get_model_predictions(trained, np.asarray(X_val_clean_used), device=str(cfg.device), return_probs=False)
         y_pred_val_adv = get_model_predictions(trained, np.asarray(X_val_adv_used), device=str(cfg.device), return_probs=False)

@@ -27,6 +27,7 @@ import fnmatch
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -75,6 +76,63 @@ def _utc_now_iso() -> str:
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
+
+
+def _json_safe(x: Any) -> Any:
+    """
+    Convert common scientific Python objects into JSON-serializable structures.
+
+    This is intentionally lightweight (no torch dependency here).
+    """
+    # Basic primitives
+    if x is None or isinstance(x, (bool, int, float, str)):
+        return x
+    # pathlib
+    if isinstance(x, Path):
+        return str(x)
+    # numpy objects (import lazily)
+    try:
+        import numpy as np  # type: ignore
+
+        if isinstance(x, np.generic):
+            return x.item()
+        if isinstance(x, np.ndarray):
+            return x.tolist()
+    except Exception:
+        pass
+    # dict / list-like
+    if isinstance(x, dict):
+        return {str(k): _json_safe(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_json_safe(v) for v in x]
+    # fallback
+    return repr(x)
+
+
+def _copy_config_snapshot(
+    *,
+    config_path: Path,
+    run_dir: Path,
+    config_root: Path,
+) -> Dict[str, str]:
+    """
+    Copy the *original* config file used for this run into the run folder.
+
+    Returns a small dict with snapshot metadata (paths), never raises.
+    """
+    out: Dict[str, str] = {}
+    try:
+        cfg_dir = run_dir / "config"
+        _ensure_dir(cfg_dir)
+        dst = cfg_dir / config_path.name
+        shutil.copy2(str(config_path), str(dst))
+        out["copied_config_path"] = str(dst)
+        out["copied_config_relpath"] = _safe_relpath(dst, run_dir)
+        out["original_config_relpath"] = _safe_relpath(config_path, config_root)
+        out["original_config_path"] = str(config_path)
+    except Exception as e:
+        out["copy_error"] = repr(e)
+    return out
 
 
 def _safe_relpath(path: Path, start: Path) -> str:
@@ -773,11 +831,13 @@ def run_one_config(
 
     repo_root = config_root.parent
     metadata_path = run_dir / "metadata.json"
+    config_snapshot = _copy_config_snapshot(config_path=config_path, run_dir=run_dir, config_root=config_root)
     meta: Dict[str, Any] = {
         "timestamp_utc": _utc_now_iso(),
         "git_commit": _get_git_commit(repo_root),
         "config_path": str(config_path),
         "config_relpath": _safe_relpath(config_path, config_root),
+        "config_snapshot": dict(config_snapshot),
         "dataset_name": str(dataset_name),
         "model_name": str(model_name),
         "device": None if device is None else str(device),
@@ -901,8 +961,9 @@ def run_one_config(
             "dataset_name": str(dataset_name),
             "model_name": str(model_name),
             "threshold": float(getattr(res.detector, "threshold", math.nan)),
-            "metrics_adv": res.eval.metrics,
-            "metrics_ood": None if res.eval_ood is None else res.eval_ood.metrics,
+            # Make metrics JSON-readable (arrays -> lists, numpy scalars -> python scalars).
+            "metrics_adv": _json_safe(res.eval.metrics),
+            "metrics_ood": None if res.eval_ood is None else _json_safe(res.eval_ood.metrics),
         }
         with (folders["metrics"] / "metrics.json").open("w", encoding="utf-8") as f:
             json.dump(metrics_payload, f, indent=2, sort_keys=True, default=str)
@@ -914,12 +975,70 @@ def run_one_config(
             labels=np.asarray(res.eval.labels),
             raw_scores=np.asarray(res.eval.raw_scores),
         )
+        # Also provide split-level convenience arrays (derived from eval_adv labels).
+        try:
+            lab = np.asarray(res.eval.labels, dtype=int).ravel()
+            sc = np.asarray(res.eval.raw_scores, dtype=float).ravel()
+            np.savez_compressed(
+                str(folders["raw"] / "scores_adv_split.npz"),
+                test_clean_scores=sc[lab == 0],
+                test_adv_scores=sc[lab == 1],
+                threshold=float(getattr(res.detector, "threshold", math.nan)),
+            )
+        except Exception as e:
+            logger.info("Failed to write scores_adv_split.npz: %s", repr(e))
         if res.eval_ood is not None:
             np.savez_compressed(
                 str(folders["raw"] / "eval_ood.npz"),
                 labels=np.asarray(res.eval_ood.labels),
                 raw_scores=np.asarray(res.eval_ood.raw_scores),
             )
+
+        # Optional: write a threshold sweep CSV for downstream analysis.
+        try:
+            from sklearn.metrics import precision_recall_fscore_support  # type: ignore
+
+            y_true = np.asarray(res.eval.labels, dtype=int).ravel()
+            y_score = np.asarray(res.eval.raw_scores, dtype=float).ravel()
+            # Evaluate at all unique score thresholds (plus +/- inf endpoints).
+            uniq = np.unique(y_score)
+            # Keep deterministic order: low->high; detector uses >= threshold.
+            thresholds = uniq.tolist()
+            out_csv = folders["metrics"] / "threshold_sweep_adv.csv"
+            with out_csv.open("w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(
+                    f,
+                    fieldnames=["threshold", "tp", "fp", "tn", "fn", "tpr", "fpr", "precision", "recall", "f1"],
+                )
+                w.writeheader()
+                for thr in thresholds:
+                    y_pred = (y_score >= float(thr)).astype(int)
+                    # confusion components
+                    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
+                    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
+                    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
+                    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+                    tpr = float(tp / (tp + fn)) if (tp + fn) else 0.0
+                    fpr = float(fp / (fp + tn)) if (fp + tn) else 0.0
+                    prec, rec, f1, _ = precision_recall_fscore_support(
+                        y_true, y_pred, average="binary", zero_division=0
+                    )
+                    w.writerow(
+                        {
+                            "threshold": float(thr),
+                            "tp": tp,
+                            "fp": fp,
+                            "tn": tn,
+                            "fn": fn,
+                            "tpr": float(tpr),
+                            "fpr": float(fpr),
+                            "precision": float(prec),
+                            "recall": float(rec),
+                            "f1": float(f1),
+                        }
+                    )
+        except Exception as e:
+            logger.info("Failed to write threshold_sweep_adv.csv: %s", repr(e))
 
         # Save any plots returned by the pipeline to images/
         logger.info("Stage: save plots to %s", str(folders["images"]))
@@ -932,6 +1051,29 @@ def run_one_config(
                 if obj is None:
                     continue
                 _try_save_plot(obj, folders["images"] / f"ood_{k}.png", logger)
+
+        # Additional runner-side plots (best-effort): PR curve for adv detection.
+        try:
+            import matplotlib.pyplot as plt  # type: ignore
+
+            m = res.eval.metrics or {}
+            pr_p = m.get("pr_precision", None)
+            pr_r = m.get("pr_recall", None)
+            if pr_p is not None and pr_r is not None:
+                p = np.asarray(pr_p, dtype=float).ravel()
+                r = np.asarray(pr_r, dtype=float).ravel()
+                fig = plt.figure(figsize=(4.2, 3.4))
+                ax = fig.add_subplot(1, 1, 1)
+                ax.plot(r, p, linewidth=1.6)
+                ax.set_xlabel("Recall")
+                ax.set_ylabel("Precision")
+                ax.set_title("Precision–Recall curve (adv)")
+                ax.grid(True, alpha=0.25)
+                fig.tight_layout()
+                fig.savefig(str(folders["images"] / "adv_pr_curve.png"), dpi=200, bbox_inches="tight")
+                plt.close(fig)
+        except Exception as e:
+            logger.info("Failed to write adv_pr_curve.png: %s", repr(e))
 
         # Success counts (primary: from RunResult)
         print("[METR] computing adversarial/OOD success counts")
@@ -1194,7 +1336,7 @@ def build_arg_parser(*, default_config_root: str = "config", default_output_root
         action="store_false",
         help=(
             "Disable filtering the clean evaluation set to model-correct points. "
-            "By default the runner matches the notebook and filters clean points to those the model "
+            "By default the runner filters clean points to those the model "
             "classifies correctly."
         ),
     )

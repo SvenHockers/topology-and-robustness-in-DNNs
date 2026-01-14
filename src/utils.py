@@ -152,6 +152,18 @@ class DetectorConfig:
     topo_cov_shrinkage: float = 1e-3  # diagonal shrinkage for covariance stabilization
     topo_percentile: float = 95.0  # clean-score percentile threshold (FPR target ~ 5%)
 
+    # --- Class-conditional topology scoring (optional) ---
+    # Motivation: pooled (all-class) Gaussian scoring can be a poor approximation when
+    # topology features are multi-modal across classes. Enabling this fits one Gaussian
+    # per class on clean samples and scores using either:
+    #   - 'min_over_classes' (default): min Mahalanobis distance over classes
+    #   - 'predicted_class': Mahalanobis distance to the classifier's predicted class
+    #
+    # Defaults preserve current behavior (pooled scoring).
+    topo_class_conditional: bool = False
+    topo_class_scoring_mode: str = "min_over_classes"  # 'min_over_classes' | 'predicted_class' | 'true_class'
+    topo_min_clean_per_class: int = 5  # below this, class covariance falls back to diagonal+shrinkage
+
 
 @dataclass
 class ExperimentConfig:

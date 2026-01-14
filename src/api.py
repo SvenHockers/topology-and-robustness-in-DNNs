@@ -25,7 +25,12 @@ from .adv_attacks import (
 )
 from .OOD import generate_ood_examples, generate_ood_examples_images
 from .data import DATASET_REGISTRY, DatasetBundle, create_data_loaders
-from .detectors import TopologyScoreDetector, predict_graph_detector, train_graph_detector
+from .detectors import (
+    TopologyScoreDetector,
+    ClassConditionalTopologyScoreDetector,
+    predict_graph_detector,
+    train_graph_detector,
+)
 from .evaluation import evaluate_detector
 from .graph_scoring import compute_graph_scores
 from .models import (
@@ -455,21 +460,33 @@ def fit_detector(
     scores: Dict[str, np.ndarray],
     labels: np.ndarray,
     cfg: ExperimentConfig,
-) -> TopologyScoreDetector:
+    *,
+    y_true: Optional[np.ndarray] = None,
+    y_pred: Optional[np.ndarray] = None,
+) -> Any:
     """Fit/calibrate the detector on (scores, labels) using existing detector training."""
-    det = train_graph_detector(scores, np.asarray(labels, dtype=int), cast(Any, cfg.detector))
-    if not isinstance(det, TopologyScoreDetector):
-        # In this repo, `train_graph_detector` standardizes to TopologyScoreDetector.
-        raise TypeError(f"Unexpected detector type: {type(det)}")
-    return det
+    det = train_graph_detector(
+        scores,
+        np.asarray(labels, dtype=int),
+        cast(Any, cfg.detector),
+        y_true=None if y_true is None else np.asarray(y_true, dtype=int),
+        y_pred=None if y_pred is None else np.asarray(y_pred, dtype=int),
+    )
+    # Standard detectors in this repo:
+    if isinstance(det, (TopologyScoreDetector, ClassConditionalTopologyScoreDetector)):
+        return cast(Any, det)
+    raise TypeError(f"Unexpected detector type: {type(det)}")
 
 
 def detect(
     detector: Any,
     scores: Dict[str, np.ndarray],
+    *,
+    y_pred: Optional[np.ndarray] = None,
+    y_true: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Return (predictions, probability_proxy) using the existing detector inference helper."""
-    return predict_graph_detector(detector, scores)
+    return predict_graph_detector(detector, scores, y_pred=y_pred, y_true=y_true)
 
 
 def evaluate_detection(
@@ -697,7 +714,22 @@ def run_pipeline(
         [np.zeros(len(scores_val_clean[any_key]), dtype=int), np.ones(len(scores_val_adv[any_key]), dtype=int)]
     )
 
-    detector = fit_detector(scores_val_all, labels_val, cfg)
+    # For class-conditional topology scoring, we also provide class labels aligned with scores.
+    # Ordering mirrors concat_scores(): clean first, then adversarial.
+    y_val_all = np.concatenate(
+        [np.asarray(y_val_clean_used, dtype=int), np.asarray(y_val_adv_used, dtype=int)], axis=0
+    )
+    y_pred_val_all: Optional[np.ndarray] = None
+    det_cfg = cast(Any, cfg.detector)
+    use_pred_class = bool(getattr(det_cfg, "topo_class_conditional", False)) and str(
+        getattr(det_cfg, "topo_class_scoring_mode", "min_over_classes")
+    ).strip().lower() in {"predicted_class", "pred"}
+    if use_pred_class:
+        y_pred_val_clean = get_model_predictions(trained, np.asarray(X_val_clean_used), device=str(cfg.device), return_probs=False)
+        y_pred_val_adv = get_model_predictions(trained, np.asarray(X_val_adv_used), device=str(cfg.device), return_probs=False)
+        y_pred_val_all = np.concatenate([np.asarray(y_pred_val_clean, dtype=int), np.asarray(y_pred_val_adv, dtype=int)], axis=0)
+
+    detector = fit_detector(scores_val_all, labels_val, cfg, y_true=y_val_all, y_pred=y_pred_val_all)
 
     scores_test_all = concat_scores(scores_test_clean, scores_test_adv)
     any_key_t = next(iter(scores_test_all.keys()))
@@ -705,7 +737,16 @@ def run_pipeline(
         [np.zeros(len(scores_test_clean[any_key_t]), dtype=int), np.ones(len(scores_test_adv[any_key_t]), dtype=int)]
     )
 
-    raw_scores_test = np.asarray(detector.score(scores_test_all), dtype=float)
+    y_pred_test_all: Optional[np.ndarray] = None
+    if use_pred_class:
+        y_pred_test_clean = get_model_predictions(trained, np.asarray(X_test_clean_used), device=str(cfg.device), return_probs=False)
+        y_pred_test_adv = get_model_predictions(trained, np.asarray(X_test_adv_used), device=str(cfg.device), return_probs=False)
+        y_pred_test_all = np.concatenate([np.asarray(y_pred_test_clean, dtype=int), np.asarray(y_pred_test_adv, dtype=int)], axis=0)
+
+    if isinstance(detector, ClassConditionalTopologyScoreDetector) and use_pred_class:
+        raw_scores_test = np.asarray(detector.score(scores_test_all, y_pred=y_pred_test_all), dtype=float)
+    else:
+        raw_scores_test = np.asarray(detector.score(scores_test_all), dtype=float)
     # Include threshold-based binary metrics as well (confusion matrix, etc.).
     thr_val = getattr(detector, "threshold", None)
     if thr_val is None:
@@ -745,15 +786,23 @@ def run_pipeline(
                 plots["roc_fig"] = roc_fig
                 plots["roc_ax"] = roc_ax
 
-                y_pred_test = np.asarray(detector.predict(scores_test_all), dtype=int)
+                if isinstance(detector, ClassConditionalTopologyScoreDetector) and use_pred_class:
+                    y_pred_test = np.asarray(detector.predict(scores_test_all, y_pred=y_pred_test_all), dtype=int)
+                else:
+                    y_pred_test = np.asarray(detector.predict(scores_test_all), dtype=int)
                 cm_out = plot_confusion_matrix(labels_test, y_pred=y_pred_test, show=False)
                 plots["confusion"] = cm_out
                 plots["confusion_fig"] = cm_out.get("fig")
                 plots["confusion_axes"] = cm_out.get("axes")
 
                 # Score distributions (clean vs adversarial) using the detector's raw score.
-                s_clean = np.asarray(detector.score(scores_test_clean), dtype=float)
-                s_adv = np.asarray(detector.score(scores_test_adv), dtype=float)
+                if isinstance(detector, ClassConditionalTopologyScoreDetector) and use_pred_class:
+                    # Supply per-split predictions so scoring aligns with the chosen mode.
+                    s_clean = np.asarray(detector.score(scores_test_clean, y_pred=np.asarray(y_pred_test_clean, dtype=int)), dtype=float)
+                    s_adv = np.asarray(detector.score(scores_test_adv, y_pred=np.asarray(y_pred_test_adv, dtype=int)), dtype=float)
+                else:
+                    s_clean = np.asarray(detector.score(scores_test_clean), dtype=float)
+                    s_adv = np.asarray(detector.score(scores_test_adv), dtype=float)
                 dist_fig, dist_ax = plot_score_distributions_figure(
                     s_clean,
                     s_adv,
@@ -870,7 +919,13 @@ def run_pipeline(
                 np.ones(len(scores_test_ood[any_key_ood]), dtype=int),
             ]
         )
-        raw_scores_test_ood = np.asarray(detector.score(scores_test_ood_all), dtype=float)
+        if isinstance(detector, ClassConditionalTopologyScoreDetector) and use_pred_class:
+            y_pred_clean_ood = get_model_predictions(trained, np.asarray(X_test_clean_used), device=str(cfg.device), return_probs=False)
+            y_pred_ood = get_model_predictions(trained, np.asarray(X_test_ood_used), device=str(cfg.device), return_probs=False)
+            y_pred_test_ood_all = np.concatenate([np.asarray(y_pred_clean_ood, dtype=int), np.asarray(y_pred_ood, dtype=int)], axis=0)
+            raw_scores_test_ood = np.asarray(detector.score(scores_test_ood_all, y_pred=y_pred_test_ood_all), dtype=float)
+        else:
+            raw_scores_test_ood = np.asarray(detector.score(scores_test_ood_all), dtype=float)
         metrics_ood = evaluate_detector(labels_test_ood, raw_scores_test_ood, threshold=threshold)
 
         plots_ood: Dict[str, Any] = {}
@@ -904,8 +959,12 @@ def run_pipeline(
                     plots_ood["confusion_fig"] = cm_out_ood.get("fig")
                     plots_ood["confusion_axes"] = cm_out_ood.get("axes")
 
-                    s_clean_ood = np.asarray(detector.score(scores_test_clean), dtype=float)
-                    s_ood = np.asarray(detector.score(scores_test_ood), dtype=float)
+                    if isinstance(detector, ClassConditionalTopologyScoreDetector) and use_pred_class:
+                        s_clean_ood = np.asarray(detector.score(scores_test_clean, y_pred=np.asarray(y_pred_clean_ood, dtype=int)), dtype=float)
+                        s_ood = np.asarray(detector.score(scores_test_ood, y_pred=np.asarray(y_pred_ood, dtype=int)), dtype=float)
+                    else:
+                        s_clean_ood = np.asarray(detector.score(scores_test_clean), dtype=float)
+                        s_ood = np.asarray(detector.score(scores_test_ood), dtype=float)
                     dist_fig_ood, dist_ax_ood = plot_score_distributions_figure(
                         s_clean_ood,
                         s_ood,

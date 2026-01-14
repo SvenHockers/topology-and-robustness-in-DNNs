@@ -36,6 +36,11 @@ class DataConfig:
     train_ratio: float = 0.6
     val_ratio: float = 0.2
     test_ratio: float = 0.2
+    # VECTOR dataset variant (used by `GeometricalPointCloudDatasetSpec`).
+    # Examples: "torus_one_hole", "torus_two_holes", "nested_spheres", "Blobs"
+    dataset_type: str = "torus_one_hole"
+    # Optional: explicit point count for generated point-cloud datasets.
+    n_points: Optional[int] = None
     # Optional: root directory for external datasets (e.g. torchvision IMAGE/CIFAR).
     root: str = "./data"
     # Optional: whether to download external datasets if missing.

@@ -152,7 +152,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--model-name", required=True, help='Model name passed to src.api.run_pipeline (e.g. "MLP").')
     p.add_argument("--space", required=True, help="Search space spec file (.json/.yaml) used for all studies.")
 
-    p.add_argument("--metric-path", default="metrics_adv.roc_auc", help="Objective metric dotted path (see optimiser/README.md).")
+    p.add_argument(
+        "--metric-path",
+        default="metrics_adv.roc_auc",
+        help=(
+            "Objective metric dotted path (see optimiser/README.md). "
+            'Special value: "auto" chooses metrics_ood.roc_auc for configs named "ood_*.yaml" '
+            "or located under an OOD/ folder, otherwise metrics_adv.roc_auc."
+        ),
+    )
     p.add_argument("--minimize", action="store_true", help="Minimize the metric instead of maximizing it.")
 
     p.add_argument(
@@ -205,6 +213,23 @@ def _parse_extensions(ext_csv: str) -> List[str]:
     return [e.strip().lstrip(".") for e in str(ext_csv).split(",") if e.strip()]
 
 
+def _auto_metric_path_for_config(cfg_path: Path) -> str:
+    """
+    Auto objective selection for mixed batches.
+
+    Rule:
+      - if filename starts with "ood_" OR the config lives under an "OOD/" folder:
+          -> metrics_ood.roc_auc
+      - else:
+          -> metrics_adv.roc_auc
+    """
+    name = cfg_path.name.lower()
+    parts = [p.lower() for p in cfg_path.parts]
+    if name.startswith("ood_") or "ood" in parts:
+        return "metrics_ood.roc_auc"
+    return "metrics_adv.roc_auc"
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     args = build_arg_parser().parse_args(argv)
 
@@ -222,7 +247,6 @@ def main(argv: Optional[List[str]] = None) -> None:
     space_spec = _load_any_spec(Path(str(args.space)).resolve())
     space = specs_from_dict(space_spec)
 
-    objective = ObjectiveSpec(metric_path=str(args.metric_path), maximize=not bool(args.minimize))
     opt_cfg = OptimiserConfig(
         n_trials=int(args.n_trials),
         n_initial=int(args.n_initial),
@@ -262,10 +286,15 @@ def main(argv: Optional[List[str]] = None) -> None:
         rel = str(cfg_path.resolve().relative_to(config_dir.resolve())).replace("\\", "/")
         study_dir = compute_study_dir(output_root=output_root, config_dir=config_dir, config_path=cfg_path)
 
+        metric_path = str(args.metric_path)
+        if metric_path.strip().lower() == "auto":
+            metric_path = _auto_metric_path_for_config(cfg_path)
+        objective = ObjectiveSpec(metric_path=metric_path, maximize=not bool(args.minimize))
+
         if bool(args.overwrite) and study_dir.exists():
             shutil.rmtree(study_dir, ignore_errors=True)
 
-        print(f"[{i:03d}/{len(cfgs):03d}] START {rel}")
+        print(f"[{i:03d}/{len(cfgs):03d}] START {rel} (metric={metric_path})")
         start = time.time()
         status = "success"
         err: Optional[str] = None

@@ -49,6 +49,15 @@ There are also **array-valued** entries (useful for plotting, not as an optimisa
 - `metrics_adv.confusion_matrix`
 and similarly under `metrics_ood.*` when present.
 
+#### Special value: `--metric-path auto`
+
+If you want to run a mixed batch of adversarial and OOD configs and choose the objective automatically:
+
+- Use `--metric-path auto`
+- Rule:
+  - if the YAML filename starts with **`ood_`** *or* the config is inside an **`OOD/`** folder → optimise `metrics_ood.roc_auc`
+  - otherwise → optimise `metrics_adv.roc_auc`
+
 ## Setup (Windows + venv)
 
 1) Create/activate your venv (examples):
@@ -178,7 +187,7 @@ And a batch aggregate summary:
   - `--space <path>`: search space spec (`.yaml/.yml/.json`) used for *all* YAMLs
 
 - **Objective**
-  - `--metric-path <dotted.path>`: metric path inside `metrics/metrics.json` (default: `metrics_adv.roc_auc`)
+  - `--metric-path <dotted.path|auto>`: metric path inside `metrics/metrics.json` (default: `metrics_adv.roc_auc`)
   - `--minimize`: minimize metric (default: maximize)
 
 - **Batch/output**
@@ -227,6 +236,21 @@ from the YAML. Use `--force-fixed-overrides` only if you explicitly want to clob
 
 Also note: this protection only applies to the **batch fixed overrides**. Parameters specified in your `--space` file (e.g. `graph.k`,
 `graph.topo_preprocess`) still vary per trial as usual.
+
+### OOD experiments with `cli_batch`
+
+Your OOD configs work with `cli_batch` as long as the YAML sets `ood.enabled: true` (as in your
+`config/final/tabular/OOD/*.yaml`). `runner_lib` will run OOD automatically when `ood.enabled` is set.
+
+- **Optimize adversarial detection on OOD-enabled YAMLs**: you can still use `metrics_adv.*` (OOD runs don’t remove adversarial eval).
+- **Optimize OOD detection**: set `--metric-path` to one of:
+  - `metrics_ood.roc_auc`
+  - `metrics_ood.pr_auc`
+  - `metrics_ood.fpr_at_tpr95` with `--minimize`
+
+Important: `metrics_ood.*` only exists when OOD evaluation runs. If you mix OOD-enabled and non-OOD YAMLs in one batch while optimizing
+`metrics_ood.*`, the non-OOD configs will not have that metric. In that case, run `cli_batch` on just the OOD folder (e.g.
+`--config-dir config/final/tabular/OOD`) or use `--ignore` patterns to filter.
 
 ### Visualising a finished optimisation
 

@@ -52,7 +52,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--metric-path",
         default="metrics_adv.roc_auc",
-        help='Metric dotted path inside run metrics.json (default: "metrics_adv.roc_auc")',
+        help=(
+            'Metric dotted path inside run metrics.json (default: "metrics_adv.roc_auc"). '
+            'Special value: "auto" chooses metrics_ood.roc_auc when the base config filename starts with "ood_" '
+            "or is located under an OOD/ folder; otherwise metrics_adv.roc_auc."
+        ),
     )
     p.add_argument("--minimize", action="store_true", help="Minimize the metric instead of maximizing it.")
 
@@ -105,7 +109,14 @@ def main(argv: Optional[list[str]] = None) -> None:
     space_spec = _load_any(Path(str(args.space)).resolve())
     space = specs_from_dict(space_spec)
 
-    objective = ObjectiveSpec(metric_path=str(args.metric_path), maximize=not bool(args.minimize))
+    metric_path = str(args.metric_path)
+    if metric_path.strip().lower() == "auto":
+        base_parts = [p.lower() for p in base_config.parts]
+        if base_config.name.lower().startswith("ood_") or "ood" in base_parts:
+            metric_path = "metrics_ood.roc_auc"
+        else:
+            metric_path = "metrics_adv.roc_auc"
+    objective = ObjectiveSpec(metric_path=str(metric_path), maximize=not bool(args.minimize))
 
     opt_cfg = OptimiserConfig(
         n_trials=int(args.n_trials),

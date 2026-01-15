@@ -1,7 +1,0 @@
-base: ../base.yaml
-ood:
-  enabled: true
-  method: blur
-  severity: 1
-  blur_kernel_size: 5
-  blur_sigma: 1

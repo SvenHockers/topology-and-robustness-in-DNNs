@@ -1,5 +1,0 @@
-base: ../base.yaml
-ood:
-  enabled: true
-  method: gaussian_noise
-  severity: 0.15

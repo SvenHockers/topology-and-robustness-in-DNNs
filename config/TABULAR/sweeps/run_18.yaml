@@ -1,5 +1,0 @@
-base: ../base.yaml
-ood:
-  enabled: true
-  method: feature_shuffle
-  severity: 1

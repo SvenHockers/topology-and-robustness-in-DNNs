@@ -1,5 +1,0 @@
-base: ../base.yaml
-ood:
-  enabled: true
-  method: extrapolate
-  severity: 0.5

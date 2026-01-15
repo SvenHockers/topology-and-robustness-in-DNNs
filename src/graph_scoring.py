@@ -4,13 +4,50 @@ Graph construction and manifold conformity score computation.
 
 import numpy as np
 import torch
-from scipy.spatial.distance import pdist
 from scipy.sparse.linalg import eigs
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
 from typing import Tuple, Optional, Dict, Sequence
 from .utils import GraphConfig
 from .topology_features import TopologyConfig, local_persistence_features
+
+
+def _estimate_sigma_knn_median(
+    Z_train: np.ndarray,
+    *,
+    k: int,
+    max_samples: int = 2048,
+    seed: int = 42,
+) -> float:
+    """
+    Estimate the Gaussian kernel scale (sigma) using a *kNN-distance median* heuristic.
+
+    IMPORTANT:
+    We do **not** compute all-pairs distances (e.g. via scipy.spatial.distance.pdist),
+    because that is O(n^2) memory and will crash on large datasets (e.g. IMAGE).
+    """
+    n = int(Z_train.shape[0])
+    if n <= 1:
+        return 1.0
+
+    k_eff = int(max(1, min(int(k), n - 1)))
+    rng = np.random.default_rng(int(seed))
+    if n > int(max_samples):
+        idx = rng.choice(n, size=int(max_samples), replace=False)
+        Z_query = Z_train[idx]
+    else:
+        Z_query = Z_train
+
+    nbrs = NearestNeighbors(n_neighbors=k_eff, metric="euclidean").fit(Z_train)
+    distances, _indices = nbrs.kneighbors(Z_query)
+    distances = np.asarray(distances, dtype=float)
+    pos = distances[distances > 0]
+    if pos.size == 0:
+        return 1.0
+    s = float(np.median(pos))
+    if not np.isfinite(s) or s <= 0:
+        return 1.0
+    return s
 
 
 def build_knn_graph(
@@ -91,9 +128,8 @@ def compute_degree_score(
     
     # Use median distance as sigma if not provided
     if sigma is None:
-        # Compute median distance among training points
-        train_distances = pdist(Z_train)
-        sigma = np.median(train_distances)
+        # Safe heuristic (kNN median) that does not allocate O(n^2) memory.
+        sigma = _estimate_sigma_knn_median(Z_train, k=k, seed=42)
     
     # Compute weights to neighbors
     weights = np.exp(-distances ** 2 / (2 * sigma ** 2))
@@ -136,8 +172,7 @@ def compute_laplacian_smoothness_score(
     
     # Use median distance as sigma if not provided
     if sigma is None:
-        train_distances = pdist(Z_train)
-        sigma = np.median(train_distances)
+        sigma = _estimate_sigma_knn_median(Z_train, k=k, seed=42)
     
     # Compute weights to neighbors
     weights = np.exp(-distances ** 2 / (2 * sigma ** 2))
@@ -220,8 +255,7 @@ def embed_new_point_diffusion(
     indices = indices[0]
     
     if sigma is None:
-        train_distances = pdist(Z_train)
-        sigma = np.median(train_distances)
+        sigma = _estimate_sigma_knn_median(Z_train, k=k, seed=42)
     
     # Compute weights
     weights = np.exp(-distances ** 2 / (2 * sigma ** 2))

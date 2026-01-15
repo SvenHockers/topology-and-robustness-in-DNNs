@@ -1,0 +1,19 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/test_out/VECTOR/configs/trials/trial_000005.json",
+  "config_relpath": "trials/trial_000005.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/test_out/VECTOR/runs/trials/trial_000005/config/trial_000005.json",
+    "copied_config_relpath": "config/trial_000005.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/test_out/VECTOR/configs/trials/trial_000005.json",
+    "original_config_relpath": "trials/trial_000005.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": null,
+  "export_features": "npy",
+  "git_commit": "a024b6e4ce0ab4c659e1f029591675265e69c499",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/test_out/VECTOR/runs/trials/trial_000005",
+  "status": "started",
+  "timestamp_utc": "2026-01-15T12:59:33+00:00"
+}

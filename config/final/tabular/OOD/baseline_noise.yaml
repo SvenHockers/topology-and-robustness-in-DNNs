@@ -1,0 +1,6 @@
+base: ../baseline/base_e_0.2.yaml
+ood:
+  enabled: true
+  method: gaussian_noise
+  severity: 1.0
+

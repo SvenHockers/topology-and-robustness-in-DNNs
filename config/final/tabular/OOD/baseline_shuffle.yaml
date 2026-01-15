@@ -1,0 +1,6 @@
+base: ../baseline/base_e_0.2.yaml
+ood:
+  enabled: true
+  method: feature_shuffle
+  severity: 1.0
+

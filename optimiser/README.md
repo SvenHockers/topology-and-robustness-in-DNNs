@@ -12,8 +12,12 @@ This package implements **Bayesian optimisation with a Gaussian Process surrogat
 
 ### Two CLIs
 
-- **Single-config optimisation**: `python -m optimiser.cli` (one base config → one study dir)
-- **Batch optimisation over many configs**: `python -m optimiser.cli_batch` (recursively runs one study per YAML)
+- **Single-config optimisation**:
+  - production entrypoint: `python -m optimizers.cli` (compatibility shim)
+  - implementation: `python -m optimiser.cli` (one base config → one study dir)
+- **Batch optimisation over many configs**:
+  - production entrypoint: `python -m optimisers.cli_batch` (compatibility shim)
+  - implementation: `python -m optimiser.cli_batch` (recursively runs one study per YAML)
 
 ### Metric path options (`--metric-path`)
 

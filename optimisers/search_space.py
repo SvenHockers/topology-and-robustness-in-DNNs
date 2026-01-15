@@ -91,7 +91,7 @@ class ParamSpec:
         hi = float(max(self.min, self.max))
         x = float(encoded)
         if self.log:
-            v = 10.0 ** x
+            v = 10.0**x
         else:
             v = x
         v = float(max(lo, min(hi, v)))

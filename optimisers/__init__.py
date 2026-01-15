@@ -1,11 +1,10 @@
 """
-Compatibility package.
+Canonical optimiser package: `optimisers`.
 
-This repository's optimiser implementation lives under `optimiser/`, but some callers
-expect the plural British spelling `optimisers/`.
+All optimiser endpoints and implementation live under this single package.
+Run via:
 
-This package provides import-path compatibility without changing behaviour.
+  python -m optimisers ...
 """
 
 from __future__ import annotations
-

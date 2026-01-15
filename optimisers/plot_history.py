@@ -6,10 +6,10 @@ Utility to visualize optimiser runs from `history.jsonl`.
 Designed to be dependency-light (numpy + matplotlib only).
 
 Example:
-  python -m optimiser.plot_history \
+  python -m optimisers.plot_history \
     --history test_out/shapes/history.jsonl \
     --outdir test_out/shapes/figs \
-    --space optimiser/spaces/topology_basic.yaml
+    --space optimizers/spaces/topology_basic.yaml
 """
 
 import argparse
@@ -77,7 +77,7 @@ def _encode_params(
 
     if space_spec_path is not None:
         # Use optimiser's search space spec to encode correctly (log/categorical).
-        from optimiser.search_space import specs_from_dict
+        from optimisers.search_space import specs_from_dict
 
         spec = _load_any_spec(space_spec_path)
         space = specs_from_dict(spec)
@@ -1011,7 +1011,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             "Missing plotting dependencies (numpy/matplotlib). "
             "Please run this script in the same environment you use for the repo, e.g.\n\n"
             "  pip install -r requirements.txt\n"
-            "  python -m optimiser.plot_history --history <path> --outdir <dir>\n\n"
+            "  python -m optimisers.plot_history --history <path> --outdir <dir>\n\n"
             f"Original import error: {type(e).__name__}: {e}"
         )
 

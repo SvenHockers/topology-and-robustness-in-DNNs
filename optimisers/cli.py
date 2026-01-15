@@ -5,10 +5,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
-from optimiser.gp import GpConfig
-from optimiser.gp_optimiser import OptimiserConfig, run_gp_optimisation
-from optimiser.runner_bridge import ObjectiveSpec
-from optimiser.search_space import specs_from_dict
+from optimisers.gp import GpConfig
+from optimisers.gp_optimiser import OptimiserConfig, run_gp_optimisation
+from optimisers.runner_bridge import ObjectiveSpec
+from optimisers.search_space import specs_from_dict
 
 
 def _load_any(path: Path) -> Mapping[str, Any]:
@@ -98,7 +98,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     args = build_arg_parser().parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
-    # Ensure imports resolve when running as a script: `python optimiser/cli.py ...`
+    # Ensure imports resolve when running as a script: `python optimisers/cli.py ...`
     import sys
 
     if str(repo_root) not in sys.path:

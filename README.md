@@ -3,9 +3,9 @@
 This repository contains:
 
 - **Core library**: `src/` (datasets, models, topology-based detectors, evaluation, plotting)
-- **Batch runners**: `runners/` (execute many configs under `config/` and write artifacts under `outputs/`)
-- **Bayesian optimisation**: `optimiser/` (Gaussian-process optimiser that reuses the runner pipeline)
-- **Configs**: `config/` (YAML configs used by runners/optimiser)
+- **Runner library (internal)**: `optimisers/runner_lib.py` (executes pipeline + writes artifacts)
+- **Bayesian optimisation**: `optimisers/` (Gaussian-process optimiser that reuses the runner library)
+- **Configs**: `config/` (YAML configs used by the optimiser)
 > Note: exploratory notebooks were removed as non-production artifacts.
 
 ## Installation
@@ -18,56 +18,52 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-## Production CLI entrypoints (kept stable)
+## CLI entrypoint
 
-These entrypoints are preserved as stable interfaces:
+Single command entrypoint:
 
-- **Single-config optimisation**: `python -m optimizers.cli ...`
-- **Batch optimisation**: `python -m optimisers.cli_batch ...`
+- `python -m optimisers ...`
 
-They are thin compatibility shims that delegate to the implementation in `optimiser/` (see “Compatibility notes”).
+It supports:
 
-### `optimizers.cli` (single-config GP optimisation)
+- Single-config optimisation (default): `python -m optimisers --base-config ...`
+- Batch optimisation: `python -m optimisers batch --config-dir ...`
+- Plotting: `python -m optimisers plot-history --history ...`
+
+### Single-config GP optimisation
 
 ```bash
-python -m optimizers.cli \
+python -m optimisers \
   --base-config config/final/tabular/base_e_0.1.yaml \
   --dataset-name TABULAR \
   --model-name MLP \
-  --space optimiser/spaces/constrains.yaml \
+  --space optimisers/spaces/constrains.yaml \
   --metric-path metrics_adv.roc_auc \
   --study-dir optimiser_outputs/study \
   --n-trials 30
 ```
 
-### `optimisers.cli_batch` (batch GP optimisation over a config directory)
+### Batch GP optimisation over a config directory
 
 ```bash
-python -m optimisers.cli_batch \
+python -m optimisers batch \
   --config-dir config/final/tabular \
   --dataset-name TABULAR \
   --model-name MLP \
-  --space optimiser/spaces/constrains.yaml \
+  --space optimisers/spaces/constrains.yaml \
   --metric-path metrics_adv.roc_auc \
   --output-root optimiser_outputs/final \
   --n-trials 30
 ```
 
-## Batch runners (execute configs → write artifacts)
+## Runner library (internal)
 
-For runner details and output layout, see `runners/README.md`.
-
-Quickstart:
-
-```bash
-python runners/run_all.py --dry-run
-python runners/run_all.py --max-workers 1
-```
+`optimisers/runner_lib.py` is the internal execution engine used by the optimiser to materialize per-trial configs,
+run `src.api.run_pipeline()`, and write artifacts (metrics, raw features, logs).
 
 ## Configuration
 
 - **Experiment configs**: `config/` (YAML; supports `base:` inheritance via `src.utils.ExperimentConfig.from_yaml`)
-- **Model selection rationale**: `model_config.md`
 
 ## Tests (smoke)
 
@@ -85,15 +81,5 @@ make test
 
 ## Compatibility notes (import paths)
 
-The optimiser implementation in this repo is named `optimiser/` (British spelling, singular). For deployment environments that expect:
-
-- `optimizers.cli`
-- `optimisers.cli_batch`
-
-this repo provides compatibility packages:
-
-- `optimizers/cli.py` → delegates to `optimiser/cli.py`
-- `optimisers/cli_batch.py` → delegates to `optimiser/cli_batch.py`
-
-No runtime logic is duplicated; behaviour is preserved by importing and calling the original `main()` functions.
+The canonical implementation in this repo is `optimisers/`.
 

@@ -44,12 +44,12 @@ def run_trial_via_runner_lib(
     max_points_for_scoring: Optional[int],
 ) -> Tuple[str, Optional[float], Optional[float], str, Optional[str], float]:
     """
-    Materialize a per-trial config and execute it using `runners.runner_lib.run_one_config`.
+    Materialize a per-trial config and execute it using the runner library.
 
     Returns:
       (status, metric_value, objective_value, run_dir, error, duration_s)
     """
-    from runners import runner_lib
+    from optimisers import runner_lib
 
     start = time.time()
 

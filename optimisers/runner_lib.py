@@ -1,20 +1,14 @@
 """
-Batch runner utilities for executing the repo pipeline across many configs.
+Internal runner utilities used by the optimiser to execute the repo pipeline.
 
-Design goals:
-  - Mirror the `config/` directory structure under an `outputs/` root.
-  - For each config file, create a run folder with a consistent artifact layout.
-  - Persist *raw* detector feature arrays (score dict arrays) unmodified.
-  - Extract adversarial/OOD "success" counts robustly:
-      - Prefer in-memory outputs from `src.api.run_pipeline()`.
-      - Fall back to a best-effort shim that parses common artifacts if present.
-  - Never let one failed run stop the batch; failures are recorded in metadata + aggregate.
-
-The repo already depends on NumPy; we use it for `.npy` output (default).
-Parquet export is optional; if requested but unavailable, we log a warning and continue.
+This module is the canonical home for the runner implementation.
 """
 
 from __future__ import annotations
+
+# NOTE: This file intentionally mirrors the previous implementation that lived in
+# `runners/runner_lib.py`. Keep behavior identical: do not change defaults, output
+# formats, paths, logs, or side effects.
 
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
@@ -257,7 +251,7 @@ def _setup_run_logger(log_dir: Path, *, verbose: bool) -> logging.Logger:
     return logger
 
 
-def load_config_any(path: Path) -> ExperimentConfig:
+def load_config_any(path: Path) -> "ExperimentConfig":
     """
     Load a config from YAML/YML/JSON into ExperimentConfig.
 
@@ -347,7 +341,7 @@ def run_pipeline_from_config(
     max_points_for_scoring: Optional[int] = None,
     make_plots: bool = True,
     run_ood: Optional[bool] = None,
-) -> RunResult:
+) -> "RunResult":
     """
     Runner-facing pipeline interface.
 
@@ -518,7 +512,7 @@ def _save_score_dict_as_npy(
     return meta
 
 
-def extract_success_counts_from_result(res: RunResult) -> SuccessCounts:
+def extract_success_counts_from_result(res: "RunResult") -> SuccessCounts:
     """
     Primary path: derive success counts from in-memory pipeline outputs.
 
@@ -766,6 +760,7 @@ def write_sample_records_jsonl(run_dir: Path, res: "RunResult", logger: logging.
                 wrote += 1
 
     logger.info("Wrote %d per-sample records to %s", wrote, str(out_path))
+
 
 def write_success_counts(run_dir: Path, counts: SuccessCounts) -> None:
     metrics_dir = run_dir / "metrics"
@@ -1312,7 +1307,7 @@ def build_arg_parser(*, default_config_root: str = "config", default_output_root
         "--device",
         choices=["cpu", "cuda", "auto"],
         default=None,
-        help='Override device for all runs (choices: cpu,cuda,auto). If omitted, uses config value.',
+        help='Override device for all runs (choices: cpu,cuda,auto). If omitted, uses the config value.',
     )
     p.add_argument(
         "--enable-latex",

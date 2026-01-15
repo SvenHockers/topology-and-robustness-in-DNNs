@@ -7,10 +7,10 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 import random
 import time
 
-from optimiser.gp import GaussianProcessSurrogate, GpConfig, propose_by_random_ei
-from optimiser.search_space import SearchSpace
-from optimiser.study import StudyStore, TrialRecord
-from optimiser.runner_bridge import ObjectiveSpec, run_trial_via_runner_lib
+from optimisers.gp import GaussianProcessSurrogate, GpConfig, propose_by_random_ei
+from optimisers.search_space import SearchSpace
+from optimisers.study import StudyStore, TrialRecord
+from optimisers.runner_bridge import ObjectiveSpec, run_trial_via_runner_lib
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ def run_gp_optimisation(
     """
     Run Bayesian optimisation with a GP surrogate.
 
-    Trials are executed through `runners.runner_lib` so datasets/models/artifacts match your
+    Trials are executed through `optimisers.runner_lib` so datasets/models/artifacts match your
     existing runner pipeline.
     """
     store = StudyStore(study_dir)

@@ -1,5 +1,5 @@
-seed: 42
-device: cpu
+seed: 30
+device: auto
 data:
   # Options: torus_one_hole, torus_two_holes, nested_spheres, Blobs
   dataset_type: torus_one_hole

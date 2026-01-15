@@ -1,5 +1,5 @@
-seed: 42
-device: cpu
+seed: 30
+device: auto
 data:
   root: ./data
   download: false

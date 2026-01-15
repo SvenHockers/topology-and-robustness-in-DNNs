@@ -1,5 +1,5 @@
-seed: 42
-device: cpu
+seed: 30
+device: auto
 data:
   n_samples: 1000
   train_ratio: 0.6

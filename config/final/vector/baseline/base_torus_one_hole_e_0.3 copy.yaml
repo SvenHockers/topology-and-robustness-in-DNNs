@@ -12,14 +12,14 @@ model:
   batch_size: 64
 attack:
   attack_type: pgd
-  epsilon: 0.2
+  epsilon: 0.3
   num_steps: 50
   step_size: 0.03
   random_start: true
 graph:
   space: input
   feature_layer: penultimate
-  use_topology: true
+  use_topology: false
   use_tangent: false
   k: 150
   tangent_k: 150
@@ -30,5 +30,7 @@ graph:
   topo_min_persistence: 1e-06
 detector:
   detector_type: topology_score
+  topo_feature_keys: [degree, laplacian]
   topo_percentile: 95
   topo_cov_shrinkage: 0.001
+

@@ -1,8 +1,7 @@
 """
-Gaussian-process Bayesian optimisation for this repo's runner pipeline.
+Compatibility shim: allow `python -m optimiser ...` to work.
 
-The optimiser reuses `runners/runner_lib.py` to execute trials so dataset/model
-construction and artifact writing stay consistent with existing runners.
+The canonical package in this repo is `optimisers` (plural).
 """
 
 from __future__ import annotations

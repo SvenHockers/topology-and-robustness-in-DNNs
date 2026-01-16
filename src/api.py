@@ -983,8 +983,22 @@ def run_pipeline(
         ood_val = OODResult(
             X_ood=np.asarray(X_ood_val),
             meta={
-                "method": str(ood_method),
-                "severity": float(ood_severity),
+                # Record the *effective* OOD settings used. Note that `ood_method` /
+                # `ood_severity` args can be None (meaning: use cfg.ood defaults).
+                "method": str(
+                    ood_method
+                    if ood_method is not None
+                    else getattr(getattr(cfg, "ood", None), "method", "feature_shuffle")
+                ),
+                "severity": float(
+                    ood_severity
+                    if ood_severity is not None
+                    else (
+                        getattr(getattr(cfg, "ood", None), "severity", 1.0)
+                        if getattr(getattr(cfg, "ood", None), "severity", 1.0) is not None
+                        else 1.0
+                    )
+                ),
                 "seed": int(s + 10_001),
                 "y_ref": np.asarray(bundle.y_val, dtype=int),
             },
@@ -992,8 +1006,20 @@ def run_pipeline(
         ood_test = OODResult(
             X_ood=np.asarray(X_ood_test),
             meta={
-                "method": str(ood_method),
-                "severity": float(ood_severity),
+                "method": str(
+                    ood_method
+                    if ood_method is not None
+                    else getattr(getattr(cfg, "ood", None), "method", "feature_shuffle")
+                ),
+                "severity": float(
+                    ood_severity
+                    if ood_severity is not None
+                    else (
+                        getattr(getattr(cfg, "ood", None), "severity", 1.0)
+                        if getattr(getattr(cfg, "ood", None), "severity", 1.0) is not None
+                        else 1.0
+                    )
+                ),
                 "seed": int(s + 10_002),
                 "y_ref": np.asarray(bundle.y_test, dtype=int),
             },

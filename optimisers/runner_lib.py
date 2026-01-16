@@ -951,11 +951,17 @@ def run_one_config(
         # Save a compact metrics.json (repo already has richer reporting utilities; we keep it simple).
         print(f"[SAVE ] metrics/logs -> {folders['metrics']} , {folders['logs']}")
         logger.info("Stage: write metrics.json to %s", str(folders["metrics"]))
+        # `threshold` can legitimately be None if the detector was not calibrated
+        # (e.g., an early-exit path or a run that skips fitting). Be robust when
+        # serializing metrics.
+        _thr = getattr(res.detector, "threshold", None)
+        _thr_f = float(_thr) if _thr is not None else math.nan
+
         metrics_payload: Dict[str, Any] = {
             "config_path": str(config_path),
             "dataset_name": str(dataset_name),
             "model_name": str(model_name),
-            "threshold": float(getattr(res.detector, "threshold", math.nan)),
+            "threshold": _thr_f,
             # Make metrics JSON-readable (arrays -> lists, numpy scalars -> python scalars).
             "metrics_adv": _json_safe(res.eval.metrics),
             "metrics_ood": None if res.eval_ood is None else _json_safe(res.eval_ood.metrics),
@@ -978,7 +984,7 @@ def run_one_config(
                 str(folders["raw"] / "scores_adv_split.npz"),
                 test_clean_scores=sc[lab == 0],
                 test_adv_scores=sc[lab == 1],
-                threshold=float(getattr(res.detector, "threshold", math.nan)),
+                threshold=_thr_f,
             )
         except Exception as e:
             logger.info("Failed to write scores_adv_split.npz: %s", repr(e))

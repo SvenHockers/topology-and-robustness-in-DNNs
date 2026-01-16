@@ -815,6 +815,54 @@ def run_pipeline(
                 plots["score_dist_fig"] = dist_fig
                 plots["score_dist_ax"] = dist_ax
 
+                # Persistence diagram figures (per-run examples).
+                #
+                # These are intentionally lightweight: we generate PDs for a single
+                # representative clean and adversarial test point (if available),
+                # using the same graph/topology configuration as scoring.
+                if bool(getattr(cfg.graph, "use_topology", False)):
+                    try:
+                        from .graph_scoring import compute_graph_scores_with_diagrams
+
+                        # Reconstruct training representations and f_train (mirrors compute_scores)
+                        gc = cast(Any, cfg.graph)
+                        if gc.space == "feature":
+                            layer = str(getattr(gc, "feature_layer", "penultimate"))
+                            Z_train = extract_features_batch(
+                                trained, bundle.X_train, layer=layer, device=str(cfg.device)
+                            )
+                        else:
+                            Z_train = bundle.X_train
+                        logits_train = get_model_logits(trained, bundle.X_train, device=str(cfg.device))
+                        probs_train = _softmax_probs(logits_train)
+                        f_train = _scalar_f_from_probs(probs_train)
+
+                        def _add_pd_figs(prefix: str, X_point: np.ndarray, label: str) -> None:
+                            _feats, diagrams, _cloud = compute_graph_scores_with_diagrams(
+                                np.asarray(X_point, dtype=float),
+                                trained,
+                                Z_train=np.asarray(Z_train),
+                                f_train=np.asarray(f_train),
+                                graph_params=gc,
+                                device=str(cfg.device),
+                            )
+                            for dim, diag in enumerate(list(diagrams)[:2]):  # H0/H1 only
+                                ax_pd = plot_persistence_diagram(
+                                    np.asarray(diag),
+                                    dimension=int(dim),
+                                    title=f"{label} H{dim} persistence diagram",
+                                    ax=None,
+                                )
+                                plots[f"{prefix}_pd_h{dim}_fig"] = ax_pd.figure
+
+                        if len(X_test_clean_used) > 0:
+                            _add_pd_figs("clean", np.asarray(X_test_clean_used[0]), "Clean sample")
+                        if len(X_test_adv_used) > 0:
+                            _add_pd_figs("adv", np.asarray(X_test_adv_used[0]), "Adversarial sample")
+                    except Exception as e:
+                        # Never break the pipeline due to PH plotting.
+                        plots["pd_plot_error"] = repr(e)
+
                 # Optional, richer visualizations for research reporting.
                 if bool(all_vis) and bool(getattr(cfg.graph, "use_topology", False)):
                     plots["all_vis"] = {}
@@ -977,6 +1025,48 @@ def run_pipeline(
                     )
                     plots_ood["score_dist_fig"] = dist_fig_ood
                     plots_ood["score_dist_ax"] = dist_ax_ood
+
+                    # Persistence diagram figures (per-run examples) for OOD runs.
+                    if bool(getattr(cfg.graph, "use_topology", False)):
+                        try:
+                            from .graph_scoring import compute_graph_scores_with_diagrams
+
+                            gc = cast(Any, cfg.graph)
+                            if gc.space == "feature":
+                                layer = str(getattr(gc, "feature_layer", "penultimate"))
+                                Z_train = extract_features_batch(
+                                    trained, bundle.X_train, layer=layer, device=str(cfg.device)
+                                )
+                            else:
+                                Z_train = bundle.X_train
+                            logits_train = get_model_logits(trained, bundle.X_train, device=str(cfg.device))
+                            probs_train = _softmax_probs(logits_train)
+                            f_train = _scalar_f_from_probs(probs_train)
+
+                            def _add_pd_figs_ood(prefix: str, X_point: np.ndarray, label: str) -> None:
+                                _feats, diagrams, _cloud = compute_graph_scores_with_diagrams(
+                                    np.asarray(X_point, dtype=float),
+                                    trained,
+                                    Z_train=np.asarray(Z_train),
+                                    f_train=np.asarray(f_train),
+                                    graph_params=gc,
+                                    device=str(cfg.device),
+                                )
+                                for dim, diag in enumerate(list(diagrams)[:2]):  # H0/H1 only
+                                    ax_pd = plot_persistence_diagram(
+                                        np.asarray(diag),
+                                        dimension=int(dim),
+                                        title=f"{label} H{dim} persistence diagram",
+                                        ax=None,
+                                    )
+                                    plots_ood[f"{prefix}_pd_h{dim}_fig"] = ax_pd.figure
+
+                            if len(X_test_clean_used) > 0:
+                                _add_pd_figs_ood("clean", np.asarray(X_test_clean_used[0]), "Clean sample")
+                            if len(X_test_ood_used) > 0:
+                                _add_pd_figs_ood("ood", np.asarray(X_test_ood_used[0]), "OOD sample")
+                        except Exception as e:
+                            plots_ood["pd_plot_error"] = repr(e)
             except Exception as e:
                 plots_ood["plot_error"] = repr(e)
 

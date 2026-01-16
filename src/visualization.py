@@ -1223,8 +1223,12 @@ def plot_persistence_diagram(
         Matplotlib axes
     """
     _ensure_style()
+    created_fig = False
     if ax is None:
         fig, ax = new_figure(kind="single", aspect=1.0)
+        created_fig = True
+    else:
+        fig = ax.figure
 
     pal = get_palette()
 
@@ -1305,7 +1309,8 @@ def plot_persistence_diagram(
     )
     
     # Colorbar
-    cbar = plt.colorbar(scatter, ax=ax)
+    # Use explicit sizing so the colorbar doesn't collide with the title in saved figures.
+    cbar = fig.colorbar(scatter, ax=ax, pad=0.03, fraction=0.055, shrink=0.92)
     cbar.set_label(_as_latex("Persistence (lifetime)"))
 
     finalize_axes(
@@ -1315,7 +1320,16 @@ def plot_persistence_diagram(
         title=title or f"H{dimension} Persistence Diagram",
         legend=True,
     )
+    # Give the title a bit more breathing room from the top spine.
+    ax.set_title(ax.get_title(), pad=12)
     ax.set_aspect('equal')
+
+    # When we own the figure, reserve a touch more space for the colorbar and title.
+    if created_fig:
+        try:
+            fig.subplots_adjust(right=0.86, top=0.90)
+        except Exception:
+            pass
     
     return ax
 

@@ -76,7 +76,8 @@ run-tabular:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-mnist:
 	$(PYTHON) -m optimisers batch \
@@ -88,7 +89,8 @@ run-mnist:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-synthetic-shapes:
 	$(PYTHON) -m optimisers batch \
@@ -100,7 +102,8 @@ run-synthetic-shapes:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 # Pointcloud datasets use the VECTOR dataset loader; dataset_type is set inside each YAML.
 run-blobs:
@@ -113,7 +116,8 @@ run-blobs:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-nested-spheres:
 	$(PYTHON) -m optimisers batch \
@@ -125,7 +129,8 @@ run-nested-spheres:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-torus-one-hole:
 	$(PYTHON) -m optimisers batch \
@@ -137,7 +142,8 @@ run-torus-one-hole:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-torus-two-holes:
 	$(PYTHON) -m optimisers batch \
@@ -149,6 +155,7 @@ run-torus-two-holes:
 	  --output-root $(OUT) \
 	  --n-trials $(RUN_TRIALS) \
 	  --n-initial $(RUN_INITIAL) \
-	  --seed $(RUN_SEED)
+	  --seed $(RUN_SEED) \
+	  --make-plots
 
 run-all-final: run-tabular run-mnist run-synthetic-shapes run-blobs run-nested-spheres run-torus-one-hole run-torus-two-holes

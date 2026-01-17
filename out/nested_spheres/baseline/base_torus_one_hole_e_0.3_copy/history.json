@@ -1,0 +1,310 @@
+{
+  "best": {
+    "duration_s": 48.32760190963745,
+    "error": null,
+    "metric_value": 0.6521855725395549,
+    "notes": "suggest=gp_ei",
+    "objective_value": 0.6521855725395549,
+    "params": {
+      "detector.topo_cov_shrinkage": 0.00017374860901299836,
+      "detector.topo_percentile": 87.01878043950703,
+      "graph.k": 63,
+      "graph.topo_k": 60,
+      "graph.topo_min_persistence": 0.0006259896510445709,
+      "graph.topo_pca_dim": 8,
+      "graph.topo_preprocess": "none"
+    },
+    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000009",
+    "status": "success",
+    "trial_id": 9
+  },
+  "trial_count": 15,
+  "trials": [
+    {
+      "duration_s": 59.54969501495361,
+      "error": null,
+      "metric_value": 0.6472691516939304,
+      "notes": "suggest=random",
+      "objective_value": 0.6472691516939304,
+      "params": {
+        "detector.topo_cov_shrinkage": 1.1221307865564859e-05,
+        "detector.topo_percentile": 84.88826252461257,
+        "graph.k": 83,
+        "graph.topo_k": 8,
+        "graph.topo_min_persistence": 1.8542947532167176e-05,
+        "graph.topo_pca_dim": 41,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000001",
+      "status": "success",
+      "trial_id": 1
+    },
+    {
+      "duration_s": 43.00853180885315,
+      "error": null,
+      "metric_value": 0.6502488006912786,
+      "notes": "suggest=random",
+      "objective_value": 0.6502488006912786,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.00020307901595695388,
+        "detector.topo_percentile": 98.87621514443171,
+        "graph.k": 53,
+        "graph.topo_k": 87,
+        "graph.topo_min_persistence": 0.0008791359747913882,
+        "graph.topo_pca_dim": 10,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000002",
+      "status": "success",
+      "trial_id": 2
+    },
+    {
+      "duration_s": 18.38078474998474,
+      "error": null,
+      "metric_value": 0.633920324185811,
+      "notes": "suggest=random",
+      "objective_value": 0.633920324185811,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.01203642655937434,
+        "detector.topo_percentile": 90.08565609478795,
+        "graph.k": 8,
+        "graph.topo_k": 14,
+        "graph.topo_min_persistence": 0.0003488865093860712,
+        "graph.topo_pca_dim": 12,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000003",
+      "status": "success",
+      "trial_id": 3
+    },
+    {
+      "duration_s": 74.57255029678345,
+      "error": null,
+      "metric_value": 0.6440213342868211,
+      "notes": "suggest=random",
+      "objective_value": 0.6440213342868211,
+      "params": {
+        "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+        "detector.topo_percentile": 80.44669119807885,
+        "graph.k": 111,
+        "graph.topo_k": 88,
+        "graph.topo_min_persistence": 4.7426809639156375e-06,
+        "graph.topo_pca_dim": 24,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004",
+      "status": "success",
+      "trial_id": 4
+    },
+    {
+      "duration_s": 69.16141605377197,
+      "error": null,
+      "metric_value": 0.6440511307767944,
+      "notes": "suggest=random",
+      "objective_value": 0.6440511307767944,
+      "params": {
+        "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+        "detector.topo_percentile": 90.6833985373999,
+        "graph.k": 102,
+        "graph.topo_k": 59,
+        "graph.topo_min_persistence": 3.0021620018823e-08,
+        "graph.topo_pca_dim": 38,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000005",
+      "status": "success",
+      "trial_id": 5
+    },
+    {
+      "duration_s": 59.555947065353394,
+      "error": null,
+      "metric_value": 0.6471797622240101,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6471797622240101,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.014019244678379866,
+        "detector.topo_percentile": 96.66446272971305,
+        "graph.k": 83,
+        "graph.topo_k": 68,
+        "graph.topo_min_persistence": 3.51536365644515e-07,
+        "graph.topo_pca_dim": 61,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006",
+      "status": "success",
+      "trial_id": 6
+    },
+    {
+      "duration_s": 53.92435097694397,
+      "error": null,
+      "metric_value": 0.6498316498316499,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6498316498316499,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.0002187423025782466,
+        "detector.topo_percentile": 88.60205847693214,
+        "graph.k": 73,
+        "graph.topo_k": 85,
+        "graph.topo_min_persistence": 1.913011274191983e-06,
+        "graph.topo_pca_dim": 42,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000007",
+      "status": "success",
+      "trial_id": 7
+    },
+    {
+      "duration_s": 40.88133502006531,
+      "error": null,
+      "metric_value": 0.6515002532701648,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6515002532701648,
+      "params": {
+        "detector.topo_cov_shrinkage": 5.581180999702963e-05,
+        "detector.topo_percentile": 86.02674605890277,
+        "graph.k": 48,
+        "graph.topo_k": 69,
+        "graph.topo_min_persistence": 1.0417913335784477e-08,
+        "graph.topo_pca_dim": 2,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000008",
+      "status": "success",
+      "trial_id": 8
+    },
+    {
+      "duration_s": 48.32760190963745,
+      "error": null,
+      "metric_value": 0.6521855725395549,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6521855725395549,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.00017374860901299836,
+        "detector.topo_percentile": 87.01878043950703,
+        "graph.k": 63,
+        "graph.topo_k": 60,
+        "graph.topo_min_persistence": 0.0006259896510445709,
+        "graph.topo_pca_dim": 8,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000009",
+      "status": "success",
+      "trial_id": 9
+    },
+    {
+      "duration_s": 70.1888210773468,
+      "error": null,
+      "metric_value": 0.6442895026965823,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6442895026965823,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.0021703551752021138,
+        "detector.topo_percentile": 85.91421600854376,
+        "graph.k": 104,
+        "graph.topo_k": 54,
+        "graph.topo_min_persistence": 3.792775663852008e-07,
+        "graph.topo_pca_dim": 38,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000010",
+      "status": "success",
+      "trial_id": 10
+    },
+    {
+      "duration_s": 47.871931076049805,
+      "error": null,
+      "metric_value": 0.6504871726110665,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6504871726110665,
+      "params": {
+        "detector.topo_cov_shrinkage": 1.413410234558182e-05,
+        "detector.topo_percentile": 93.76572875104048,
+        "graph.k": 62,
+        "graph.topo_k": 57,
+        "graph.topo_min_persistence": 8.74112439315304e-05,
+        "graph.topo_pca_dim": 14,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000011",
+      "status": "success",
+      "trial_id": 11
+    },
+    {
+      "duration_s": 60.16901516914368,
+      "error": null,
+      "metric_value": 0.6491761270522333,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6491761270522333,
+      "params": {
+        "detector.topo_cov_shrinkage": 3.82854506837102e-06,
+        "detector.topo_percentile": 86.35018387317248,
+        "graph.k": 85,
+        "graph.topo_k": 10,
+        "graph.topo_min_persistence": 0.0003956881796670063,
+        "graph.topo_pca_dim": 44,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000012",
+      "status": "success",
+      "trial_id": 12
+    },
+    {
+      "duration_s": 27.195727109909058,
+      "error": null,
+      "metric_value": 0.6511426953904829,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6511426953904829,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.0014237205535132585,
+        "detector.topo_percentile": 87.35986829999683,
+        "graph.k": 23,
+        "graph.topo_k": 116,
+        "graph.topo_min_persistence": 9.354574113537962e-06,
+        "graph.topo_pca_dim": 56,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000013",
+      "status": "success",
+      "trial_id": 13
+    },
+    {
+      "duration_s": 27.080506086349487,
+      "error": null,
+      "metric_value": 0.6511426953904829,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6511426953904829,
+      "params": {
+        "detector.topo_cov_shrinkage": 6.889931968602403e-06,
+        "detector.topo_percentile": 92.35985121703906,
+        "graph.k": 23,
+        "graph.topo_k": 72,
+        "graph.topo_min_persistence": 0.0005287258571570786,
+        "graph.topo_pca_dim": 10,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000014",
+      "status": "success",
+      "trial_id": 14
+    },
+    {
+      "duration_s": 47.53626084327698,
+      "error": null,
+      "metric_value": 0.6504871726110665,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.6504871726110665,
+      "params": {
+        "detector.topo_cov_shrinkage": 2.9630282498228077e-05,
+        "detector.topo_percentile": 97.0140338331666,
+        "graph.k": 62,
+        "graph.topo_k": 68,
+        "graph.topo_min_persistence": 2.5475156438759644e-07,
+        "graph.topo_pca_dim": 38,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000015",
+      "status": "success",
+      "trial_id": 15
+    }
+  ],
+  "updated_unix_s": 1768595735.328446
+}

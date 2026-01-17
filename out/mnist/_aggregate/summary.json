@@ -1,0 +1,95 @@
+{
+  "config_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\config\\final\\mnist",
+  "dataset_name": "IMAGE",
+  "elapsed_s": 75040.33756566048,
+  "metric_path": "auto",
+  "minimize": false,
+  "model_name": "CNN",
+  "n_initial": 5,
+  "n_trials": 15,
+  "runs": [
+    {
+      "best": {
+        "duration_s": 1174.1016581058502,
+        "error": null,
+        "metric_value": 0.8708374999999999,
+        "notes": "suggest=gp_ei",
+        "objective_value": 0.8708374999999999,
+        "params": {
+          "detector.topo_cov_shrinkage": 0.039592649639561446,
+          "detector.topo_percentile": 86.28593768478387,
+          "graph.k": 79,
+          "graph.topo_k": 113,
+          "graph.topo_min_persistence": 1.5571836358277307e-08,
+          "graph.topo_pca_dim": 64,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.1\\runs\\trials\\trial_000012",
+        "status": "success",
+        "trial_id": 12
+      },
+      "config_path": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\config\\final\\mnist\\base_e_0.1.yaml",
+      "config_relpath": "base_e_0.1.yaml",
+      "duration_s": 19586.649990081787,
+      "error": null,
+      "status": "success",
+      "study_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.1"
+    },
+    {
+      "best": {
+        "duration_s": 4809.666949748993,
+        "error": null,
+        "metric_value": 0.8708374999999999,
+        "notes": "suggest=gp_ei",
+        "objective_value": 0.8708374999999999,
+        "params": {
+          "detector.topo_cov_shrinkage": 0.039592649639561446,
+          "detector.topo_percentile": 86.28593768478387,
+          "graph.k": 79,
+          "graph.topo_k": 113,
+          "graph.topo_min_persistence": 1.5571836358277307e-08,
+          "graph.topo_pca_dim": 64,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.2\\runs\\trials\\trial_000012",
+        "status": "success",
+        "trial_id": 12
+      },
+      "config_path": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\config\\final\\mnist\\base_e_0.2.yaml",
+      "config_relpath": "base_e_0.2.yaml",
+      "duration_s": 38313.80228805542,
+      "error": null,
+      "status": "success",
+      "study_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.2"
+    },
+    {
+      "best": {
+        "duration_s": 1008.102956533432,
+        "error": null,
+        "metric_value": 0.90190625,
+        "notes": "suggest=gp_ei",
+        "objective_value": 0.90190625,
+        "params": {
+          "detector.topo_cov_shrinkage": 3.8511412427670104e-05,
+          "detector.topo_percentile": 98.2456789175544,
+          "graph.k": 24,
+          "graph.topo_k": 5,
+          "graph.topo_min_persistence": 1.6280707433401332e-05,
+          "graph.topo_pca_dim": 57,
+          "graph.topo_preprocess": "none"
+        },
+        "run_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.3\\runs\\trials\\trial_000013",
+        "status": "success",
+        "trial_id": 13
+      },
+      "config_path": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\config\\final\\mnist\\base_e_0.3.yaml",
+      "config_relpath": "base_e_0.3.yaml",
+      "duration_s": 17139.849554538727,
+      "error": null,
+      "status": "success",
+      "study_dir": "C:\\Users\\pstav\\Documents\\Artificial Intelligence Master\\Project AI 1\\Tabular_Testing\\topology-and-robustness-in-DNNs\\out\\mnist\\base_e_0.3"
+    }
+  ],
+  "seed": 30,
+  "timestamp_unix_s": 1768650470.9102643
+}

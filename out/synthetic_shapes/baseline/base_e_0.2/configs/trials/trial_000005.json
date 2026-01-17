@@ -1,0 +1,88 @@
+{
+  "attack": {
+    "attack_type": "pgd",
+    "epsilon": 0.2,
+    "num_steps": 20,
+    "random_start": true,
+    "step_size": 0.01
+  },
+  "data": {
+    "dataset_type": "torus_one_hole",
+    "download": false,
+    "n_points": null,
+    "n_samples": 1000,
+    "noise": 0.1,
+    "random_state": 42,
+    "root": "./data",
+    "test_ratio": 0.2,
+    "train_ratio": 0.6,
+    "val_ratio": 0.2
+  },
+  "detector": {
+    "alpha": 0.5,
+    "beta": 0.5,
+    "calibration_method": "isotonic",
+    "detector_type": "topology_score",
+    "score_type": "combined",
+    "topo_class_conditional": false,
+    "topo_class_scoring_mode": "min_over_classes",
+    "topo_cov_shrinkage": 2.466885644494058e-05,
+    "topo_feature_keys": [
+      "degree",
+      "laplacian"
+    ],
+    "topo_min_clean_per_class": 5,
+    "topo_percentile": 90.6833985373999
+  },
+  "device": "cpu",
+  "graph": {
+    "diffusion_components": 10,
+    "feature_layer": "penultimate",
+    "k": 102,
+    "normalized_laplacian": true,
+    "sigma": null,
+    "space": "feature",
+    "tangent_dim": null,
+    "tangent_dim_max": null,
+    "tangent_dim_min": 2,
+    "tangent_k": 40,
+    "tangent_var_threshold": 0.9,
+    "topo_k": 59,
+    "topo_maxdim": 1,
+    "topo_metric": "euclidean",
+    "topo_min_persistence": 3.0021620018823e-08,
+    "topo_pca_dim": 38,
+    "topo_preprocess": "pca",
+    "topo_thresh": null,
+    "use_baseline_scores": true,
+    "use_diffusion": false,
+    "use_tangent": false,
+    "use_topology": false
+  },
+  "model": {
+    "activation": "relu",
+    "batch_size": 64,
+    "epochs": 20,
+    "hidden_dims": [
+      64,
+      32
+    ],
+    "input_dim": 2,
+    "learning_rate": 0.001,
+    "output_dim": 2,
+    "random_state": 42,
+    "weight_decay": 0.0001
+  },
+  "ood": {
+    "batch_size": 128,
+    "blur_kernel_size": 5,
+    "blur_sigma": 1.0,
+    "enabled": false,
+    "method": "feature_shuffle",
+    "patch_size": 4,
+    "saltpepper_p": 0.05,
+    "seed": null,
+    "severity": 1.0
+  },
+  "seed": 30
+}

@@ -333,7 +333,8 @@ def compute_graph_scores(
     from .models import get_model_logits, extract_features_batch
     
     n_points = X_points.shape[0]
-    scores = {}
+    scores: Dict[str, np.ndarray] = {}
+    use_baseline = bool(getattr(graph_params, "use_baseline_scores", True))
     
     # Extract representations if needed
     if graph_params.space == 'feature':
@@ -343,116 +344,115 @@ def compute_graph_scores(
         Z_points = extract_features_batch(model, X_points, layer=layer, device=device)
     else:
         Z_points = X_points
-    
-    # Get model outputs for points
-    #
-    # For binary classification, we use P(class=1) as the scalar function f(x).
-    # For multi-class, we use max softmax probability as a generic confidence scalar.
-    # This scalar is only used by some graph scores (e.g., Laplacian smoothness);
-    # topology features are computed purely from geometry in Z-space.
-    logits = get_model_logits(model, X_points, device=device)
-    probs = torch.softmax(torch.as_tensor(logits, dtype=torch.float32), dim=1).cpu().numpy()
-    if probs.ndim != 2 or probs.shape[1] < 2:
-        raise ValueError(f"Expected model outputs to be (N,C) with C>=2; got probs shape={probs.shape}")
-    if probs.shape[1] == 2:
-        f_points = probs[:, 1]  # Probability of class 1
-    else:
-        f_points = probs.max(axis=1)  # Confidence proxy
-    
-    # Compute degree scores
-    degree_scores = np.zeros(n_points)
-    for i in range(n_points):
-        degree_scores[i] = compute_degree_score(
-            Z_points[i], Z_train, k=graph_params.k, sigma=graph_params.sigma
-        )
-    scores['degree'] = degree_scores
-    
-    # Compute Laplacian smoothness scores
-    laplacian_scores = np.zeros(n_points)
-    for i in range(n_points):
-        laplacian_scores[i] = compute_laplacian_smoothness_score(
-            Z_points[i], f_points[i], Z_train, f_train,
-            k=graph_params.k, sigma=graph_params.sigma
-        )
-    scores['laplacian'] = laplacian_scores
+    if use_baseline:
+        # Get model outputs for points
+        #
+        # For binary classification, we use P(class=1) as the scalar function f(x).
+        # For multi-class, we use max softmax probability as a generic confidence scalar.
+        # This scalar is only used by some graph scores (e.g., Laplacian smoothness);
+        # topology features are computed purely from geometry in Z-space.
+        logits = get_model_logits(model, X_points, device=device)
+        probs = torch.softmax(torch.as_tensor(logits, dtype=torch.float32), dim=1).cpu().numpy()
+        if probs.ndim != 2 or probs.shape[1] < 2:
+            raise ValueError(f"Expected model outputs to be (N,C) with C>=2; got probs shape={probs.shape}")
+        if probs.shape[1] == 2:
+            f_points = probs[:, 1]  # Probability of class 1
+        else:
+            f_points = probs.max(axis=1)  # Confidence proxy
 
-    # Local tangent-space residual score (manifold membership test)
-    # Intuition: if clean data lies on/near a low-dim manifold in Z-space, then
-    # projecting onto the local tangent space should have small residual norm.
-    # Backward-compatible defaults: if older GraphConfig objects are in memory (e.g. notebook
-    # kernel not restarted), these attributes may be missing. We default to computing
-    # tangent-based scores in that case.
-    if getattr(graph_params, 'use_tangent', True):
-        tangent_scores = np.zeros(n_points)
-        tangent_z_scores = np.zeros(n_points)
-        tangent_k = int(getattr(graph_params, 'tangent_k', 20))
-        nbrs_tangent = NearestNeighbors(
-            n_neighbors=min(tangent_k, len(Z_train)),
-            metric='euclidean'
-        ).fit(Z_train)
-
-        # If tangent_dim is not provided, pick it adaptively from local PCA explained variance.
-        # This is important in feature space where the manifold may not be 2D after embedding.
-        tangent_dim = getattr(graph_params, 'tangent_dim', None)
-        var_thr = float(getattr(graph_params, 'tangent_var_threshold', 0.9))
-        dim_min = int(getattr(graph_params, 'tangent_dim_min', 2))
-        dim_max = getattr(graph_params, 'tangent_dim_max', None)
-
+        # Compute degree scores
+        degree_scores = np.zeros(n_points)
         for i in range(n_points):
-            _, idx = nbrs_tangent.kneighbors(Z_points[i].reshape(1, -1))
-            neighborhood = Z_train[idx[0]]
-            center = neighborhood.mean(axis=0, keepdims=True)
-            Xc = neighborhood - center
+            degree_scores[i] = compute_degree_score(
+                Z_points[i], Z_train, k=graph_params.k, sigma=graph_params.sigma
+            )
+        scores['degree'] = degree_scores
 
-            # Fit PCA on neighborhood
-            # max components is limited by rank: min(n-1, d)
-            max_components = max(1, min(Xc.shape[0] - 1, Xc.shape[1]))
-            if tangent_dim is None:
-                pca = PCA(n_components=max_components)
-                pca.fit(Xc)
-                cum = np.cumsum(pca.explained_variance_ratio_)
-                r = int(np.searchsorted(cum, var_thr) + 1)
-                r = max(dim_min, min(r, max_components))
-                if dim_max is not None:
-                    r = min(int(dim_max), r)
-            else:
-                r = max(1, min(int(tangent_dim), max_components))
-                pca = PCA(n_components=r)
-                pca.fit(Xc)
+        # Compute Laplacian smoothness scores
+        laplacian_scores = np.zeros(n_points)
+        for i in range(n_points):
+            laplacian_scores[i] = compute_laplacian_smoothness_score(
+                Z_points[i], f_points[i], Z_train, f_train,
+                k=graph_params.k, sigma=graph_params.sigma
+            )
+        scores['laplacian'] = laplacian_scores
 
-            # Use the first r components as the local tangent basis (rows)
-            V = pca.components_[:r]  # (r, d)
-            zc = (Z_points[i].reshape(1, -1) - center)
-            z_proj = (zc @ V.T) @ V
-            resid = zc - z_proj
-            resid2 = float(np.sum(resid ** 2))
-            tangent_scores[i] = resid2
+        # Local tangent-space residual score (manifold membership test)
+        # Intuition: if clean data lies on/near a low-dim manifold in Z-space, then
+        # projecting onto the local tangent space should have small residual norm.
+        # Backward-compatible defaults: if older GraphConfig objects are in memory (e.g. notebook
+        # kernel not restarted), these attributes may be missing. We default to computing
+        # tangent-based scores in that case.
+        if getattr(graph_params, 'use_tangent', True):
+            tangent_scores = np.zeros(n_points)
+            tangent_z_scores = np.zeros(n_points)
+            tangent_k = int(getattr(graph_params, 'tangent_k', 20))
+            nbrs_tangent = NearestNeighbors(
+                n_neighbors=min(tangent_k, len(Z_train)),
+                metric='euclidean'
+            ).fit(Z_train)
 
-            # Local normalization: z-score relative to neighborhood residual distribution.
-            # This helps for small eps where absolute residuals can be tiny but still
-            # atypical compared to local clean variation.
-            Xc_proj = (Xc @ V.T) @ V
-            Xc_resid = Xc - Xc_proj
-            neigh_resid2 = np.sum(Xc_resid ** 2, axis=1)
-            mu = float(neigh_resid2.mean())
-            sigma = float(neigh_resid2.std() + 1e-12)
-            tangent_z_scores[i] = (resid2 - mu) / sigma
+            # If tangent_dim is not provided, pick it adaptively from local PCA explained variance.
+            # This is important in feature space where the manifold may not be 2D after embedding.
+            tangent_dim = getattr(graph_params, 'tangent_dim', None)
+            var_thr = float(getattr(graph_params, 'tangent_var_threshold', 0.9))
+            dim_min = int(getattr(graph_params, 'tangent_dim_min', 2))
+            dim_max = getattr(graph_params, 'tangent_dim_max', None)
 
-        scores['tangent_residual'] = tangent_scores
-        scores['tangent_residual_z'] = tangent_z_scores
+            for i in range(n_points):
+                _, idx = nbrs_tangent.kneighbors(Z_points[i].reshape(1, -1))
+                neighborhood = Z_train[idx[0]]
+                center = neighborhood.mean(axis=0, keepdims=True)
+                Xc = neighborhood - center
 
-        # Also provide a simple kNN radius score (density proxy)
-        # Higher mean neighbor distance => lower local density => more suspicious.
-        radius_scores = np.zeros(n_points)
-        nbrs_radius = NearestNeighbors(
-            n_neighbors=min(graph_params.k, len(Z_train)),
-            metric='euclidean'
-        ).fit(Z_train)
-        dists, _ = nbrs_radius.kneighbors(Z_points)
-        # exclude the first distance if it is 0 due to self-match (shouldn't happen for new points,
-        # but keep robust)
-        radius_scores = dists[:, 1:].mean(axis=1) if dists.shape[1] > 1 else dists[:, 0]
-        scores['knn_radius'] = radius_scores
+                # Fit PCA on neighborhood
+                # max components is limited by rank: min(n-1, d)
+                max_components = max(1, min(Xc.shape[0] - 1, Xc.shape[1]))
+                if tangent_dim is None:
+                    pca = PCA(n_components=max_components)
+                    pca.fit(Xc)
+                    cum = np.cumsum(pca.explained_variance_ratio_)
+                    r = int(np.searchsorted(cum, var_thr) + 1)
+                    r = max(dim_min, min(r, max_components))
+                    if dim_max is not None:
+                        r = min(int(dim_max), r)
+                else:
+                    r = max(1, min(int(tangent_dim), max_components))
+                    pca = PCA(n_components=r)
+                    pca.fit(Xc)
+
+                # Use the first r components as the local tangent basis (rows)
+                V = pca.components_[:r]  # (r, d)
+                zc = (Z_points[i].reshape(1, -1) - center)
+                z_proj = (zc @ V.T) @ V
+                resid = zc - z_proj
+                resid2 = float(np.sum(resid ** 2))
+                tangent_scores[i] = resid2
+
+                # Local normalization: z-score relative to neighborhood residual distribution.
+                # This helps for small eps where absolute residuals can be tiny but still
+                # atypical compared to local clean variation.
+                Xc_proj = (Xc @ V.T) @ V
+                Xc_resid = Xc - Xc_proj
+                neigh_resid2 = np.sum(Xc_resid ** 2, axis=1)
+                mu = float(neigh_resid2.mean())
+                sigma = float(neigh_resid2.std() + 1e-12)
+                tangent_z_scores[i] = (resid2 - mu) / sigma
+
+            scores['tangent_residual'] = tangent_scores
+            scores['tangent_residual_z'] = tangent_z_scores
+
+            # Also provide a simple kNN radius score (density proxy)
+            # Higher mean neighbor distance => lower local density => more suspicious.
+            nbrs_radius = NearestNeighbors(
+                n_neighbors=min(graph_params.k, len(Z_train)),
+                metric='euclidean'
+            ).fit(Z_train)
+            dists, _ = nbrs_radius.kneighbors(Z_points)
+            # exclude the first distance if it is 0 due to self-match (shouldn't happen for new points,
+            # but keep robust)
+            radius_scores = dists[:, 1:].mean(axis=1) if dists.shape[1] > 1 else dists[:, 0]
+            scores['knn_radius'] = np.asarray(radius_scores, dtype=float)
 
     # --- Topology features (persistent homology on local neighborhoods) ---
     if getattr(graph_params, 'use_topology', False):
@@ -490,18 +490,18 @@ def compute_graph_scores(
         for k in all_keys:
             scores[k] = np.array([d.get(k, 0.0) for d in topo_feat_dicts], dtype=float)
     
-    # Optional: diffusion scores
-    if graph_params.use_diffusion:
+    # Optional: diffusion scores (baseline family)
+    if use_baseline and graph_params.use_diffusion:
         # Build training graph
         W_train, _, _ = build_knn_graph(
             Z_train, k=graph_params.k, sigma=graph_params.sigma
         )
-        
+
         # Compute diffusion embedding
         _, eigenvectors = compute_diffusion_embedding(
             W_train, n_components=graph_params.diffusion_components
         )
-        
+
         # Compute diffusion distance scores
         diffusion_scores = np.zeros(n_points)
         for i in range(n_points):

@@ -1,0 +1,101 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/configs/trials/trial_000010.json",
+  "config_relpath": "trials/trial_000010.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/config/trial_000010.json",
+    "copied_config_relpath": "config/trial_000010.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/configs/trials/trial_000010.json",
+    "original_config_relpath": "trials/trial_000010.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": 57.771225929260254,
+  "export_features": "npy",
+  "feature_file_count": 8,
+  "feature_files": [
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/val_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/val_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 156,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/val_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        156
+      ]
+    },
+    {
+      "count": 156,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/val_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        156
+      ]
+    },
+    {
+      "count": 295,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/test_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        295
+      ]
+    },
+    {
+      "count": 295,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/test_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        295
+      ]
+    },
+    {
+      "count": 60,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/test_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        60
+      ]
+    },
+    {
+      "count": 60,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010/raw/features/test_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        60
+      ]
+    }
+  ],
+  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000010",
+  "status": "success",
+  "success_counts": {
+    "adversarial_success": 60,
+    "adversarial_total": 300,
+    "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success unavailable (no eval_ood in result)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-16T17:14:36+00:00"
+}

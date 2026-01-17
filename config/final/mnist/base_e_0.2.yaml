@@ -2,7 +2,7 @@ seed: 30
 device: auto
 data:
   root: ./data
-  download: false
+  download: true
   train_ratio: 0.9
   val_ratio: 0.1
 model:

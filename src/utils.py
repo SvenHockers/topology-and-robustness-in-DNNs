@@ -104,6 +104,13 @@ class OODConfig:
 @dataclass
 class GraphConfig:
     """Configuration for graph construction and manifold scores."""
+    # If False, skip computing baseline (non-topological) graph scores like:
+    # - degree, laplacian
+    # - tangent residuals, knn radius
+    # - diffusion scores
+    #
+    # This is useful to *isolate* topology-only performance (PH summaries only).
+    use_baseline_scores: bool = True
     k: int = 10  # number of nearest neighbors
     sigma: Optional[float] = None  # if None, will use median distance heuristic
     space: str = 'feature'  # 'input' or 'feature'

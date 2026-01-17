@@ -1,0 +1,101 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/configs/trials/trial_000006.json",
+  "config_relpath": "trials/trial_000006.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/config/trial_000006.json",
+    "copied_config_relpath": "config/trial_000006.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/configs/trials/trial_000006.json",
+    "original_config_relpath": "trials/trial_000006.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": 31.41217017173767,
+  "export_features": "npy",
+  "feature_file_count": 8,
+  "feature_files": [
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/val_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/val_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 16,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/val_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        16
+      ]
+    },
+    {
+      "count": 16,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/val_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        16
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/test_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/test_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 6,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/test_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        6
+      ]
+    },
+    {
+      "count": 6,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006/raw/features/test_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        6
+      ]
+    }
+  ],
+  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000006",
+  "status": "success",
+  "success_counts": {
+    "adversarial_success": 6,
+    "adversarial_total": 240,
+    "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success unavailable (no eval_ood in result)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-16T23:55:34+00:00"
+}

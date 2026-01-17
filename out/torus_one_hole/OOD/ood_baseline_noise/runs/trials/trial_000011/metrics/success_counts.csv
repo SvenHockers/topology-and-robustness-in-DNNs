@@ -1,0 +1,2 @@
+adversarial_total,adversarial_success,ood_total,ood_success,notes
+240,1,240,192,adversarial_success derived from attack_test.meta.adv_mask; ood_success derived from eval_ood labels/raw_scores + detector.threshold

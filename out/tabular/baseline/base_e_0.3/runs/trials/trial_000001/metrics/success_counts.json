@@ -1,0 +1,7 @@
+{
+  "adversarial_success": 16,
+  "adversarial_total": 114,
+  "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success unavailable (no eval_ood in result)",
+  "ood_success": null,
+  "ood_total": null
+}

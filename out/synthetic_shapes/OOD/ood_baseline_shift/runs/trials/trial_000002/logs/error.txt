@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/optimisers/runner_lib.py", line 886, in run_one_config
+    res = run_pipeline_from_config(
+  File "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/optimisers/runner_lib.py", line 413, in run_pipeline_from_config
+    return run_pipeline(
+  File "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/src/api.py", line 924, in run_pipeline
+    X_ood_val = generate_ood(
+  File "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/src/api.py", line 397, in generate_ood
+    return generate_ood_examples_images(
+  File "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/src/OOD.py", line 245, in generate_ood_examples_images
+    raise ValueError(f"Unknown OOD method for images: {config.method!r}")
+ValueError: Unknown OOD method for images: 'uniform_wide'

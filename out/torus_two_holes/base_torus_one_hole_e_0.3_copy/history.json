@@ -1,0 +1,120 @@
+{
+  "best": {
+    "duration_s": 77.77735996246338,
+    "error": null,
+    "metric_value": 0.9333333333333333,
+    "notes": "suggest=random",
+    "objective_value": 0.9333333333333333,
+    "params": {
+      "detector.topo_cov_shrinkage": 0.00020307901595695388,
+      "detector.topo_percentile": 98.87621514443171,
+      "graph.k": 53,
+      "graph.topo_k": 87,
+      "graph.topo_min_persistence": 0.0008791359747913882,
+      "graph.topo_pca_dim": 10,
+      "graph.topo_preprocess": "pca"
+    },
+    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000002",
+    "status": "success",
+    "trial_id": 2
+  },
+  "trial_count": 5,
+  "trials": [
+    {
+      "duration_s": 66.27637195587158,
+      "error": null,
+      "metric_value": 0.8916666666666666,
+      "notes": "suggest=random",
+      "objective_value": 0.8916666666666666,
+      "params": {
+        "detector.topo_cov_shrinkage": 1.1221307865564859e-05,
+        "detector.topo_percentile": 84.88826252461257,
+        "graph.k": 83,
+        "graph.topo_k": 8,
+        "graph.topo_min_persistence": 1.8542947532167176e-05,
+        "graph.topo_pca_dim": 41,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000001",
+      "status": "success",
+      "trial_id": 1
+    },
+    {
+      "duration_s": 77.77735996246338,
+      "error": null,
+      "metric_value": 0.9333333333333333,
+      "notes": "suggest=random",
+      "objective_value": 0.9333333333333333,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.00020307901595695388,
+        "detector.topo_percentile": 98.87621514443171,
+        "graph.k": 53,
+        "graph.topo_k": 87,
+        "graph.topo_min_persistence": 0.0008791359747913882,
+        "graph.topo_pca_dim": 10,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000002",
+      "status": "success",
+      "trial_id": 2
+    },
+    {
+      "duration_s": 34.15046787261963,
+      "error": null,
+      "metric_value": 0.8125,
+      "notes": "suggest=random",
+      "objective_value": 0.8125,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.01203642655937434,
+        "detector.topo_percentile": 90.08565609478795,
+        "graph.k": 8,
+        "graph.topo_k": 14,
+        "graph.topo_min_persistence": 0.0003488865093860712,
+        "graph.topo_pca_dim": 12,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000003",
+      "status": "success",
+      "trial_id": 3
+    },
+    {
+      "duration_s": 96.94390511512756,
+      "error": null,
+      "metric_value": 0.9333333333333333,
+      "notes": "suggest=random",
+      "objective_value": 0.9333333333333333,
+      "params": {
+        "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+        "detector.topo_percentile": 80.44669119807885,
+        "graph.k": 111,
+        "graph.topo_k": 88,
+        "graph.topo_min_persistence": 4.7426809639156375e-06,
+        "graph.topo_pca_dim": 24,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004",
+      "status": "success",
+      "trial_id": 4
+    },
+    {
+      "duration_s": 82.3445770740509,
+      "error": null,
+      "metric_value": 0.9208333333333334,
+      "notes": "suggest=random",
+      "objective_value": 0.9208333333333334,
+      "params": {
+        "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+        "detector.topo_percentile": 90.6833985373999,
+        "graph.k": 102,
+        "graph.topo_k": 59,
+        "graph.topo_min_persistence": 3.0021620018823e-08,
+        "graph.topo_pca_dim": 38,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000005",
+      "status": "success",
+      "trial_id": 5
+    }
+  ],
+  "updated_unix_s": 1768810682.4218721
+}

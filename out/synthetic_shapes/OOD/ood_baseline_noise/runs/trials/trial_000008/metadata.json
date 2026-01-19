@@ -9,7 +9,7 @@
   },
   "dataset_name": "synthetic_shapes_2class",
   "device": null,
-  "duration_s": 36.9774968624115,
+  "duration_s": 36.45655083656311,
   "export_features": "npy",
   "feature_file_count": 12,
   "feature_files": [
@@ -122,7 +122,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "CNN",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/OOD/ood_baseline_noise/runs/trials/trial_000008",
   "status": "success",
@@ -133,5 +133,5 @@
     "ood_success": 123,
     "ood_total": 200
   },
-  "timestamp_utc": "2026-01-16T16:05:24+00:00"
+  "timestamp_utc": "2026-01-18T20:02:11+00:00"
 }

@@ -9,7 +9,7 @@
   },
   "dataset_name": "TABULAR",
   "device": null,
-  "duration_s": 6.135883092880249,
+  "duration_s": 5.588270902633667,
   "export_features": "npy",
   "feature_file_count": 12,
   "feature_files": [
@@ -122,7 +122,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "MLP",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000001",
   "status": "success",
@@ -133,5 +133,5 @@
     "ood_success": 39,
     "ood_total": 114
   },
-  "timestamp_utc": "2026-01-16T14:23:49+00:00"
+  "timestamp_utc": "2026-01-18T19:02:10+00:00"
 }

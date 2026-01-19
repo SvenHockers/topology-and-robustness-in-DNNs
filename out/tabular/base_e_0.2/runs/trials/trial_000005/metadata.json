@@ -9,7 +9,7 @@
   },
   "dataset_name": "TABULAR",
   "device": null,
-  "duration_s": 7.230809211730957,
+  "duration_s": 7.678741931915283,
   "export_features": "npy",
   "feature_file_count": 48,
   "feature_files": [
@@ -446,7 +446,7 @@
       ]
     }
   ],
-  "git_commit": "1e9f9cb90006a22929f6c7a49209be1e1f2a109a",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "MLP",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/base_e_0.2/runs/trials/trial_000005",
   "status": "success",
@@ -457,5 +457,5 @@
     "ood_success": null,
     "ood_total": null
   },
-  "timestamp_utc": "2026-01-16T14:06:59+00:00"
+  "timestamp_utc": "2026-01-18T18:47:30+00:00"
 }

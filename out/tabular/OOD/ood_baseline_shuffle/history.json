@@ -1,27 +1,27 @@
 {
   "best": {
-    "duration_s": 3.5179152488708496,
+    "duration_s": 3.599945068359375,
     "error": null,
-    "metric_value": 0.725518341307815,
-    "notes": "suggest=gp_ei",
-    "objective_value": 0.725518341307815,
+    "metric_value": 0.6917065390749602,
+    "notes": "suggest=random",
+    "objective_value": 0.6917065390749602,
     "params": {
-      "detector.topo_cov_shrinkage": 0.002698747568634869,
-      "detector.topo_percentile": 95.98098247254458,
-      "graph.k": 5,
-      "graph.topo_k": 32,
-      "graph.topo_min_persistence": 6.246206758528134e-08,
-      "graph.topo_pca_dim": 43,
-      "graph.topo_preprocess": "pca"
+      "detector.topo_cov_shrinkage": 0.01203642655937434,
+      "detector.topo_percentile": 90.08565609478795,
+      "graph.k": 8,
+      "graph.topo_k": 14,
+      "graph.topo_min_persistence": 0.0003488865093860712,
+      "graph.topo_pca_dim": 12,
+      "graph.topo_preprocess": "none"
     },
-    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000014",
+    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000003",
     "status": "success",
-    "trial_id": 14
+    "trial_id": 3
   },
-  "trial_count": 15,
+  "trial_count": 10,
   "trials": [
     {
-      "duration_s": 6.157146215438843,
+      "duration_s": 5.608566045761108,
       "error": null,
       "metric_value": 0.49872408293460935,
       "notes": "suggest=random",
@@ -40,7 +40,7 @@
       "trial_id": 1
     },
     {
-      "duration_s": 5.391085863113403,
+      "duration_s": 6.569406986236572,
       "error": null,
       "metric_value": 0.5168261562998405,
       "notes": "suggest=random",
@@ -59,7 +59,7 @@
       "trial_id": 2
     },
     {
-      "duration_s": 4.219062089920044,
+      "duration_s": 3.599945068359375,
       "error": null,
       "metric_value": 0.6917065390749602,
       "notes": "suggest=random",
@@ -78,7 +78,7 @@
       "trial_id": 3
     },
     {
-      "duration_s": 6.348390817642212,
+      "duration_s": 5.8497700691223145,
       "error": null,
       "metric_value": 0.517224880382775,
       "notes": "suggest=random",
@@ -97,7 +97,7 @@
       "trial_id": 4
     },
     {
-      "duration_s": 6.373389005661011,
+      "duration_s": 5.846182823181152,
       "error": null,
       "metric_value": 0.511164274322169,
       "notes": "suggest=random",
@@ -116,7 +116,7 @@
       "trial_id": 5
     },
     {
-      "duration_s": 5.957871913909912,
+      "duration_s": 5.5585737228393555,
       "error": null,
       "metric_value": 0.49864433811802233,
       "notes": "suggest=gp_ei",
@@ -135,7 +135,7 @@
       "trial_id": 6
     },
     {
-      "duration_s": 5.5583271980285645,
+      "duration_s": 5.390635013580322,
       "error": null,
       "metric_value": 0.5021531100478468,
       "notes": "suggest=gp_ei",
@@ -154,7 +154,7 @@
       "trial_id": 7
     },
     {
-      "duration_s": 5.090642213821411,
+      "duration_s": 4.940997838973999,
       "error": null,
       "metric_value": 0.5247208931419457,
       "notes": "suggest=gp_ei",
@@ -173,7 +173,7 @@
       "trial_id": 8
     },
     {
-      "duration_s": 5.340417861938477,
+      "duration_s": 5.411134958267212,
       "error": null,
       "metric_value": 0.5086921850079744,
       "notes": "suggest=gp_ei",
@@ -192,7 +192,7 @@
       "trial_id": 9
     },
     {
-      "duration_s": 5.97782301902771,
+      "duration_s": 5.866293907165527,
       "error": null,
       "metric_value": 0.5114035087719299,
       "notes": "suggest=gp_ei",
@@ -209,102 +209,7 @@
       "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000010",
       "status": "success",
       "trial_id": 10
-    },
-    {
-      "duration_s": 3.893803119659424,
-      "error": null,
-      "metric_value": 0.6760765550239234,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6760765550239234,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.09397219477122885,
-        "detector.topo_percentile": 92.15098063268823,
-        "graph.k": 10,
-        "graph.topo_k": 15,
-        "graph.topo_min_persistence": 4.305193423497421e-06,
-        "graph.topo_pca_dim": 24,
-        "graph.topo_preprocess": "none"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000011",
-      "status": "success",
-      "trial_id": 11
-    },
-    {
-      "duration_s": 3.729228973388672,
-      "error": null,
-      "metric_value": 0.6963317384370015,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6963317384370015,
-      "params": {
-        "detector.topo_cov_shrinkage": 1.8009339898060066e-06,
-        "detector.topo_percentile": 88.77693657968882,
-        "graph.k": 8,
-        "graph.topo_k": 28,
-        "graph.topo_min_persistence": 0.0002151835511344717,
-        "graph.topo_pca_dim": 5,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000012",
-      "status": "success",
-      "trial_id": 12
-    },
-    {
-      "duration_s": 3.796807050704956,
-      "error": null,
-      "metric_value": 0.69170653907496,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.69170653907496,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.07212096997498459,
-        "detector.topo_percentile": 94.8430476003154,
-        "graph.k": 8,
-        "graph.topo_k": 15,
-        "graph.topo_min_persistence": 7.475161836927932e-07,
-        "graph.topo_pca_dim": 28,
-        "graph.topo_preprocess": "none"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000013",
-      "status": "success",
-      "trial_id": 13
-    },
-    {
-      "duration_s": 3.5179152488708496,
-      "error": null,
-      "metric_value": 0.725518341307815,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.725518341307815,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.002698747568634869,
-        "detector.topo_percentile": 95.98098247254458,
-        "graph.k": 5,
-        "graph.topo_k": 32,
-        "graph.topo_min_persistence": 6.246206758528134e-08,
-        "graph.topo_pca_dim": 43,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000014",
-      "status": "success",
-      "trial_id": 14
-    },
-    {
-      "duration_s": 3.8951637744903564,
-      "error": null,
-      "metric_value": 0.7144338118022328,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.7144338118022328,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.00038767083244518706,
-        "detector.topo_percentile": 90.19067675033872,
-        "graph.k": 6,
-        "graph.topo_k": 70,
-        "graph.topo_min_persistence": 3.500964132868148e-08,
-        "graph.topo_pca_dim": 64,
-        "graph.topo_preprocess": "none"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_shuffle/runs/trials/trial_000015",
-      "status": "success",
-      "trial_id": 15
     }
   ],
-  "updated_unix_s": 1768573504.483397
+  "updated_unix_s": 1768762984.8414688
 }

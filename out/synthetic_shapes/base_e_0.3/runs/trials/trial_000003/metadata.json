@@ -9,7 +9,7 @@
   },
   "dataset_name": "synthetic_shapes_2class",
   "device": null,
-  "duration_s": 28.323843002319336,
+  "duration_s": 34.506197690963745,
   "export_features": "npy",
   "feature_file_count": 48,
   "feature_files": [
@@ -446,7 +446,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "CNN",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/base_e_0.3/runs/trials/trial_000003",
   "status": "success",
@@ -457,5 +457,5 @@
     "ood_success": null,
     "ood_total": null
   },
-  "timestamp_utc": "2026-01-16T15:01:08+00:00"
+  "timestamp_utc": "2026-01-18T19:28:04+00:00"
 }

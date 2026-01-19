@@ -22,6 +22,7 @@ help:
 	@echo "  run-torus-one-hole     Run ALL configs under config/final/torus_one_hole"
 	@echo "  run-torus-two-holes    Run ALL configs under config/final/torus_two_holes"
 	@echo "  run-all-final          Run all datasets under config/final/* (sequential)"
+	@echo "  run-all                Run all datasets under config/final/* (sequential)"
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -59,7 +60,7 @@ ood-synthetic-shapes:
 	  --seed $(OOD_SEED)
 
 # Full dataset batch runs (no ignore flags; runs everything under each config/final/<dataset>/ directory)
-RUN_TRIALS ?= 15
+RUN_TRIALS ?= 10
 RUN_INITIAL ?= 5
 RUN_SEED ?= 30
 
@@ -159,3 +160,7 @@ run-torus-two-holes:
 	  --make-plots
 
 run-all-final: run-tabular run-mnist run-synthetic-shapes run-blobs run-nested-spheres run-torus-one-hole run-torus-two-holes
+
+run-all: run-tabular run-synthetic-shapes run-blobs run-nested-spheres run-torus-one-hole run-torus-two-holes
+
+run-selected: run-nested-spheres run-torus-one-hole run-torus-two-holes

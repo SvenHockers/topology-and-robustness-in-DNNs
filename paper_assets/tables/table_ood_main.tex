@@ -1,0 +1,22 @@
+\begin{tabular}{llllccc}
+\toprule
+Dataset & Config & Regime & OOD & ROC-AUC & PR-AUC & FPR@TPR95 \\
+\midrule
+blobs & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.748 $\pm$ 0.008 (15) & 0.813 $\pm$ 0.004 (15) & 0.873 $\pm$ 0.025 (15) \\
+blobs & OOD/ood\_baseline\_shift & baseline & uniform\_wide & 0.964 $\pm$ 0.001 (15) & 0.977 $\pm$ 0.001 (15) & 0.335 $\pm$ 0.048 (15) \\
+blobs & OOD/ood\_baseline\_shuffle & baseline & feature\_shuffle & 0.572 $\pm$ 0.014 (15) & 0.633 $\pm$ 0.009 (15) & 0.924 $\pm$ 0.021 (15) \\
+nested\_spheres & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.714 $\pm$ 0.008 (15) & 0.793 $\pm$ 0.005 (15) & 0.905 $\pm$ 0.017 (15) \\
+nested\_spheres & OOD/ood\_baseline\_shift & baseline & uniform\_wide & 0.952 $\pm$ 0.002 (15) & 0.970 $\pm$ 0.001 (15) & 0.492 $\pm$ 0.039 (15) \\
+nested\_spheres & OOD/ood\_baseline\_shuffle & baseline & feature\_shuffle & 0.608 $\pm$ 0.014 (15) & 0.650 $\pm$ 0.007 (15) & 0.927 $\pm$ 0.021 (15) \\
+synthetic\_shapes & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.806 $\pm$ 0.058 (15) & 0.852 $\pm$ 0.043 (15) & 0.739 $\pm$ 0.114 (15) \\
+tabular & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.607 $\pm$ 0.157 (15) & 0.631 $\pm$ 0.115 (15) & 0.910 $\pm$ 0.091 (15) \\
+tabular & OOD/ood\_baseline\_shift & baseline & uniform\_wide & 0.970 $\pm$ 0.015 (15) & 0.913 $\pm$ 0.037 (15) & 0.052 $\pm$ 0.020 (15) \\
+tabular & OOD/ood\_baseline\_shuffle & baseline & feature\_shuffle & 0.586 $\pm$ 0.097 (15) & 0.651 $\pm$ 0.051 (15) & 0.947 $\pm$ 0.059 (15) \\
+torus\_one\_hole & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.874 $\pm$ 0.015 (15) & 0.913 $\pm$ 0.012 (15) & 0.791 $\pm$ 0.043 (15) \\
+torus\_one\_hole & OOD/ood\_baseline\_shift & baseline & uniform\_wide & 0.997 $\pm$ 0.000 (15) & 0.998 $\pm$ 0.000 (15) & 0.011 $\pm$ 0.006 (15) \\
+torus\_one\_hole & OOD/ood\_baseline\_shuffle & baseline & feature\_shuffle & 0.769 $\pm$ 0.032 (15) & 0.827 $\pm$ 0.026 (15) & 0.883 $\pm$ 0.038 (15) \\
+torus\_two\_holes & OOD/ood\_baseline\_noise & baseline & gaussian\_noise & 0.859 $\pm$ 0.027 (15) & 0.897 $\pm$ 0.023 (15) & 0.785 $\pm$ 0.110 (15) \\
+torus\_two\_holes & OOD/ood\_baseline\_shift & baseline & uniform\_wide & 0.995 $\pm$ 0.003 (15) & 0.995 $\pm$ 0.005 (15) & 0.007 $\pm$ 0.003 (15) \\
+torus\_two\_holes & OOD/ood\_baseline\_shuffle & baseline & feature\_shuffle & 0.758 $\pm$ 0.024 (15) & 0.805 $\pm$ 0.023 (15) & 0.861 $\pm$ 0.042 (15) \\
+\bottomrule
+\end{tabular}

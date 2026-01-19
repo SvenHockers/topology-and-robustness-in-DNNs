@@ -1,0 +1,137 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/configs/trials/trial_000008.json",
+  "config_relpath": "trials/trial_000008.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/config/trial_000008.json",
+    "copied_config_relpath": "config/trial_000008.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/configs/trials/trial_000008.json",
+    "original_config_relpath": "trials/trial_000008.json"
+  },
+  "dataset_name": "TABULAR",
+  "device": null,
+  "duration_s": 6.302180767059326,
+  "export_features": "npy",
+  "feature_file_count": 12,
+  "feature_files": [
+    {
+      "count": 112,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        112
+      ]
+    },
+    {
+      "count": 112,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        112
+      ]
+    },
+    {
+      "count": 15,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        15
+      ]
+    },
+    {
+      "count": 15,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        15
+      ]
+    },
+    {
+      "count": 110,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        110
+      ]
+    },
+    {
+      "count": 110,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        110
+      ]
+    },
+    {
+      "count": 14,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        14
+      ]
+    },
+    {
+      "count": 14,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        14
+      ]
+    },
+    {
+      "count": 114,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_ood__degree.npy",
+      "key": "degree",
+      "shape": [
+        114
+      ]
+    },
+    {
+      "count": 114,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/val_ood__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        114
+      ]
+    },
+    {
+      "count": 114,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_ood__degree.npy",
+      "key": "degree",
+      "shape": [
+        114
+      ]
+    },
+    {
+      "count": 114,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008/raw/features/test_ood__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        114
+      ]
+    }
+  ],
+  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/tabular/OOD/ood_baseline_noise/runs/trials/trial_000008",
+  "status": "success",
+  "success_counts": {
+    "adversarial_success": 14,
+    "adversarial_total": 114,
+    "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success derived from eval_ood labels/raw_scores + detector.threshold",
+    "ood_success": 38,
+    "ood_total": 114
+  },
+  "timestamp_utc": "2026-01-16T14:19:02+00:00"
+}

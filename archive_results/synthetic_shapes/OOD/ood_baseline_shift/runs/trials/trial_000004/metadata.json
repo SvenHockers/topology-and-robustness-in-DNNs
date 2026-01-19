@@ -1,0 +1,30 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/OOD/ood_baseline_shift/configs/trials/trial_000004.json",
+  "config_relpath": "trials/trial_000004.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/OOD/ood_baseline_shift/runs/trials/trial_000004/config/trial_000004.json",
+    "copied_config_relpath": "config/trial_000004.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/OOD/ood_baseline_shift/configs/trials/trial_000004.json",
+    "original_config_relpath": "trials/trial_000004.json"
+  },
+  "dataset_name": "synthetic_shapes_2class",
+  "device": null,
+  "duration_s": 31.994220972061157,
+  "error": {
+    "message": "Unknown OOD method for images: 'uniform_wide'",
+    "type": "ValueError"
+  },
+  "export_features": "npy",
+  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "model_name": "CNN",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/synthetic_shapes/OOD/ood_baseline_shift/runs/trials/trial_000004",
+  "status": "failed",
+  "success_counts": {
+    "adversarial_success": null,
+    "adversarial_total": null,
+    "notes": "success counts unavailable (no recognizable artifacts)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-16T16:13:09+00:00"
+}

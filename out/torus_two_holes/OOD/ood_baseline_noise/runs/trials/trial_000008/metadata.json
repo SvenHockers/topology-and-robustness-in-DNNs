@@ -1,0 +1,19 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/configs/trials/trial_000008.json",
+  "config_relpath": "trials/trial_000008.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000008/config/trial_000008.json",
+    "copied_config_relpath": "config/trial_000008.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/configs/trials/trial_000008.json",
+    "original_config_relpath": "trials/trial_000008.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": null,
+  "export_features": "npy",
+  "git_commit": "0a57d9d1095f4cd74650e9a1ecf899fe0fa5baac",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000008",
+  "status": "started",
+  "timestamp_utc": "2026-01-19T09:23:18+00:00"
+}

@@ -1,13 +1,13 @@
 """
-Plot how strongly H0 topology features differ between clean and adversarial samples.
+Plot how strongly H0/H1 topology features differ between clean and adversarial samples.
 
 This script is designed to *visualize the conclusion* we've reached in analysis:
-in many (but not all) experiments, H0 persistence summary features are shifted
+in many (but not all) experiments, H0/H1 persistence summary features are shifted
 between clean and successful adversarial samples.
 
 It relies only on numpy + matplotlib and on the repo's existing run artifacts:
-  out/**/runs/trials/trial_*/raw/features/test_clean__topo_h0_*.npy
-  out/**/runs/trials/trial_*/raw/features/test_adv__topo_h0_*.npy
+  out/**/runs/trials/trial_*/raw/features/test_clean__topo_h{0,1}_*.npy
+  out/**/runs/trials/trial_*/raw/features/test_adv__topo_h{0,1}_*.npy
 
 Notes / assumptions:
 - In this repo, many runs export `test_adv__*` arrays corresponding to *successful*
@@ -41,6 +41,34 @@ H0_LABELS_LATEX: Dict[str, str] = {
     "topo_h0_max_persistence": r"$\mathrm{H}_0$ max persistence",
     "topo_h0_entropy": r"$\mathrm{H}_0$ entropy",
 }
+
+H1_KEYS_DEFAULT = [
+    "topo_h1_total_persistence",
+    "topo_h1_l2_persistence",
+    "topo_h1_max_persistence",
+    "topo_h1_entropy",
+]
+
+H1_LABELS_LATEX: Dict[str, str] = {
+    "topo_h1_total_persistence": r"$\mathrm{H}_1$ total persistence",
+    "topo_h1_l2_persistence": r"$\mathrm{H}_1$ $\ell_2$ persistence",
+    "topo_h1_max_persistence": r"$\mathrm{H}_1$ max persistence",
+    "topo_h1_entropy": r"$\mathrm{H}_1$ entropy",
+}
+
+
+def _dim_prefix(dim: int) -> str:
+    if int(dim) not in (0, 1):
+        raise ValueError(f"Unsupported dim={dim}; expected 0 or 1")
+    return f"topo_h{int(dim)}_"
+
+
+def _keys_and_labels_for_dim(dim: int) -> Tuple[List[str], Dict[str, str]]:
+    if int(dim) == 0:
+        return list(H0_KEYS_DEFAULT), dict(H0_LABELS_LATEX)
+    if int(dim) == 1:
+        return list(H1_KEYS_DEFAULT), dict(H1_LABELS_LATEX)
+    raise ValueError(f"Unsupported dim={dim}; expected 0 or 1")
 
 
 def _roc_auc_binary(y: np.ndarray, score: np.ndarray) -> float:
@@ -142,7 +170,7 @@ class Record:
     d: float
 
 
-def collect_records(*, out_root: str, h0_keys: List[str], min_adv: int) -> List[Record]:
+def collect_records(*, out_root: str, keys: List[str], min_adv: int, dim: int) -> List[Record]:
     run_dirs = sorted(glob(os.path.join(out_root, "**", "runs", "trials", "trial_*"), recursive=True))
     recs: List[Record] = []
 
@@ -153,10 +181,11 @@ def collect_records(*, out_root: str, h0_keys: List[str], min_adv: int) -> List[
         feat_dir = os.path.join(rd, "raw", "features")
         if not os.path.isdir(feat_dir):
             continue
-        if not any(fn.startswith("test_clean__topo_h0_") and fn.endswith(".npy") for fn in os.listdir(feat_dir)):
+        pref = f"test_clean__{_dim_prefix(int(dim))}"
+        if not any(fn.startswith(pref) and fn.endswith(".npy") for fn in os.listdir(feat_dir)):
             continue
 
-        for key in h0_keys:
+        for key in keys:
             pair = _load_feature_pair(rd, split_a="test_clean", split_b="test_adv", key=key)
             if pair is None:
                 continue
@@ -199,7 +228,9 @@ def plot_summary(recs: List[Record], *, out_path: str, auc_good: float) -> None:
 
     # Unique datasets and keys
     datasets = sorted(set(r.dataset for r in recs))
-    keys = [k for k in H0_KEYS_DEFAULT if any(r.key == k for r in recs)]
+    # Prefer the script's default key order if present; otherwise fall back to observed keys.
+    default_order = [*H0_KEYS_DEFAULT, *H1_KEYS_DEFAULT]
+    keys = [k for k in default_order if any(r.key == k for r in recs)]
     if len(keys) == 0:
         keys = sorted(set(r.key for r in recs))
 
@@ -218,7 +249,8 @@ def plot_summary(recs: List[Record], *, out_path: str, auc_good: float) -> None:
         ax.axhline(0.5, color="k", linestyle="--", alpha=0.5, linewidth=1)
         ax.axhline(float(auc_good), color="tab:green", linestyle="--", alpha=0.8, linewidth=1)
         ax.set_ylim(0.0, 1.0)
-        ax.set_title(f"{H0_LABELS_LATEX.get(key, key)}: AUROC(clean vs adv) by dataset (each point = one trial/run)")
+        label_map = {**H0_LABELS_LATEX, **H1_LABELS_LATEX}
+        ax.set_title(f"{label_map.get(key, key)}: AUROC(clean vs adv) by dataset (each point = one trial/run)")
         ax.set_ylabel("AUROC")
         ax.tick_params(axis="x", rotation=25)
 
@@ -265,7 +297,8 @@ def plot_overall_shift(recs: List[Record], *, out_path: str, d_ref: float = 0.5)
     if len(recs) == 0:
         raise SystemExit("No records found.")
 
-    keys = [k for k in H0_KEYS_DEFAULT if any(r.key == k for r in recs)]
+    default_order = [*H0_KEYS_DEFAULT, *H1_KEYS_DEFAULT]
+    keys = [k for k in default_order if any(r.key == k for r in recs)]
     if len(keys) == 0:
         keys = sorted(set(r.key for r in recs))
 
@@ -294,7 +327,8 @@ def plot_overall_shift(recs: List[Record], *, out_path: str, d_ref: float = 0.5)
     ax.axhline(+float(d_ref), color="tab:green", linestyle="--", alpha=0.5, linewidth=1)
     ax.axhline(-float(d_ref), color="tab:green", linestyle="--", alpha=0.5, linewidth=1)
     ax.set_xticks(np.arange(1, len(keys) + 1))
-    ax.set_xticklabels([H0_LABELS_LATEX.get(k, k) for k in keys], rotation=0, ha="center")
+    label_map = {**H0_LABELS_LATEX, **H1_LABELS_LATEX}
+    ax.set_xticklabels([label_map.get(k, k) for k in keys], rotation=0, ha="center")
     ax.set_ylabel(r"$\Delta$")
     ax.set_title("Overall shift of H0 topology features under attacks (across runs)")
 
@@ -381,7 +415,8 @@ def plot_overall_shift_for_subset(
     if len(sub) == 0:
         raise SystemExit(f"No records for subset: {datasets_keep}")
 
-    keys = [k for k in H0_KEYS_DEFAULT if any(r.key == k for r in sub)]
+    default_order = [*H0_KEYS_DEFAULT, *H1_KEYS_DEFAULT]
+    keys = [k for k in default_order if any(r.key == k for r in sub)]
     data = []
     ns = []
     for k in keys:
@@ -406,7 +441,8 @@ def plot_overall_shift_for_subset(
     ax.axhline(+float(d_ref), color="tab:green", linestyle="--", alpha=0.5, linewidth=1)
     ax.axhline(-float(d_ref), color="tab:green", linestyle="--", alpha=0.5, linewidth=1)
     ax.set_xticks(np.arange(1, len(keys) + 1))
-    ax.set_xticklabels([H0_LABELS_LATEX.get(k, k) for k in keys], rotation=0, ha="center")
+    label_map = {**H0_LABELS_LATEX, **H1_LABELS_LATEX}
+    ax.set_xticklabels([label_map.get(k, k) for k in keys], rotation=0, ha="center")
     ax.set_ylabel(r"$\Delta$")
     ax.set_title(title)
 
@@ -421,30 +457,95 @@ def plot_overall_shift_for_subset(
     print(f"[saved] {out_path}")
 
 
+def _safe_filename(s: str) -> str:
+    s = str(s).strip().lower()
+    out = []
+    for ch in s:
+        if ch.isalnum() or ch in {"-", "_"}:
+            out.append(ch)
+        elif ch in {" ", "/", "\\"}:
+            out.append("_")
+    return "".join(out) or "dataset"
+
+
+def plot_overall_shift_per_dataset(
+    recs: List[Record],
+    *,
+    out_dir: str,
+    file_tag: str,
+    d_ref: float = 0.5,
+    min_runs_per_dataset: int = 1,
+    datasets: Optional[List[str]] = None,
+) -> None:
+    """
+    Generate one violin plot per dataset showing the distribution of Δ (Cohen's d)
+    across runs for each H0 feature.
+    """
+    if len(recs) == 0:
+        raise SystemExit("No records found.")
+
+    ds_all = sorted(set(r.dataset for r in recs))
+    ds_keep = ds_all if not datasets else [d for d in datasets if d in set(ds_all)]
+    os.makedirs(out_dir, exist_ok=True)
+
+    for ds in ds_keep:
+        sub = [r for r in recs if r.dataset == ds]
+        if len(sub) == 0:
+            continue
+
+        # Require at least N distinct runs (trial directories) to avoid noisy single-run plots.
+        n_runs = len(set(r.run_dir for r in sub))
+        if n_runs < int(min_runs_per_dataset):
+            continue
+
+        out_path = os.path.join(out_dir, f"{_safe_filename(file_tag)}_feature_shift_overall__{_safe_filename(ds)}.png")
+        title = f"H0 feature shift under attacks ({ds})"
+        plot_overall_shift_for_subset(sub, datasets_keep=[ds], out_path=out_path, title=title, d_ref=float(d_ref))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out-root", default="out", help="Root output directory to scan (default: out)")
+    ap.add_argument("--dim", type=int, default=0, choices=[0, 1], help="Homology dimension to analyze (0=H0, 1=H1). Default: 0.")
     ap.add_argument("--min-adv", type=int, default=5, help="Require at least this many adversarial samples for a run (default: 5)")
     ap.add_argument("--auc-good", type=float, default=0.7, help="AUROC threshold to mark as 'good separation' (default: 0.7)")
     ap.add_argument("--save", default="out/_analysis/h0_feature_shift_summary.png", help="Path to save plot PNG")
     ap.add_argument(
         "--mode",
-        choices=["auc_by_dataset", "overall_shift", "overall_shift_split"],
+        choices=["auc_by_dataset", "overall_shift", "overall_shift_split", "overall_shift_per_dataset"],
         default="overall_shift",
         help="Which report figure to generate (default: overall_shift)",
     )
     ap.add_argument("--save-shift", default="out/_analysis/h0_feature_shift_overall.png", help="Save path for overall shift plot")
     ap.add_argument("--save-shift-yes", default="out/_analysis/h0_feature_shift_overall_yes.png", help="Save path (datasets with meaningful H0 shift)")
     ap.add_argument("--save-shift-no", default="out/_analysis/h0_feature_shift_overall_no.png", help="Save path (datasets without meaningful H0 shift)")
+    ap.add_argument(
+        "--save-per-dataset-dir",
+        default=None,
+        help="Directory to save per-dataset plots (mode=overall_shift_per_dataset). "
+        "Default: <out-root>/_analysis/h0_feature_shift_per_dataset/",
+    )
+    ap.add_argument(
+        "--per-dataset-min-runs",
+        type=int,
+        default=5,
+        help="Min distinct runs per dataset to emit a per-dataset plot (default: 5)",
+    )
+    ap.add_argument(
+        "--datasets",
+        default="",
+        help="Optional comma-separated dataset allowlist for per-dataset mode (e.g. 'mnist,tabular'). Default: all.",
+    )
     ap.add_argument("--d-ref", type=float, default=0.5, help="Reference |d| line for 'moderate shift' (default: 0.5)")
     ap.add_argument("--split-min-runs", type=int, default=5, help="Min runs per dataset for splitting (default: 5)")
     args = ap.parse_args()
 
-    recs = collect_records(out_root=str(args.out_root), h0_keys=list(H0_KEYS_DEFAULT), min_adv=int(args.min_adv))
+    keys_default, _labels = _keys_and_labels_for_dim(int(args.dim))
+    recs = collect_records(out_root=str(args.out_root), keys=list(keys_default), min_adv=int(args.min_adv), dim=int(args.dim))
     print("records:", len(recs))
 
     # Quick textual summary: for each key, fraction of runs with AUROC>=threshold
-    for key in H0_KEYS_DEFAULT:
+    for key in keys_default:
         a = np.array([r.auc for r in recs if r.key == key], dtype=float)
         if a.size == 0:
             continue
@@ -456,8 +557,25 @@ def main() -> int:
         plot_summary(recs, out_path=str(args.save), auc_good=float(args.auc_good))
     elif str(args.mode) == "overall_shift":
         plot_overall_shift(recs, out_path=str(args.save_shift), d_ref=float(args.d_ref))
+    elif str(args.mode) == "overall_shift_per_dataset":
+        dim_tag = f"h{int(args.dim)}"
+        out_dir = (
+            str(args.save_per_dataset_dir)
+            if args.save_per_dataset_dir
+            else os.path.join(str(args.out_root), "_analysis", f"{dim_tag}_feature_shift_per_dataset")
+        )
+        ds_allow = [d.strip() for d in str(args.datasets).split(",") if d.strip()]
+        plot_overall_shift_per_dataset(
+            recs,
+            out_dir=out_dir,
+            file_tag=dim_tag,
+            d_ref=float(args.d_ref),
+            min_runs_per_dataset=int(args.per_dataset_min_runs),
+            datasets=ds_allow if ds_allow else None,
+        )
     else:
-        split_keys = ["topo_h0_total_persistence", "topo_h0_l2_persistence", "topo_h0_max_persistence"]
+        dim = int(args.dim)
+        split_keys = [f"topo_h{dim}_total_persistence", f"topo_h{dim}_l2_persistence", f"topo_h{dim}_max_persistence"]
         shift, no_shift, med_by, n_by = split_datasets_by_h0_shift(
             recs,
             keys_for_split=split_keys,

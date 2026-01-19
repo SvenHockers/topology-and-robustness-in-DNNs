@@ -38,7 +38,7 @@
     "k": 53,
     "normalized_laplacian": true,
     "sigma": null,
-    "space": "input",
+    "space": "feature",
     "tangent_dim": null,
     "tangent_dim_max": null,
     "tangent_dim_min": 2,

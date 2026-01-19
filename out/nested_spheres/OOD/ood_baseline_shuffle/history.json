@@ -1,31 +1,31 @@
 {
   "best": {
-    "duration_s": 87.65577721595764,
+    "duration_s": 210.02823305130005,
     "error": null,
-    "metric_value": 0.617250280583614,
-    "notes": "suggest=gp_ei",
-    "objective_value": 0.617250280583614,
+    "metric_value": 0.5880022446689114,
+    "notes": "suggest=random",
+    "objective_value": 0.5880022446689114,
     "params": {
-      "detector.topo_cov_shrinkage": 3.82854506837102e-06,
-      "detector.topo_percentile": 86.35018387317248,
-      "graph.k": 85,
-      "graph.topo_k": 10,
-      "graph.topo_min_persistence": 0.0003956881796670063,
-      "graph.topo_pca_dim": 44,
+      "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+      "detector.topo_percentile": 80.44669119807885,
+      "graph.k": 111,
+      "graph.topo_k": 88,
+      "graph.topo_min_persistence": 4.7426809639156375e-06,
+      "graph.topo_pca_dim": 24,
       "graph.topo_preprocess": "pca"
     },
-    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000012",
+    "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000004",
     "status": "success",
-    "trial_id": 12
+    "trial_id": 4
   },
-  "trial_count": 15,
+  "trial_count": 10,
   "trials": [
     {
-      "duration_s": 86.14340090751648,
+      "duration_s": 180.9853870868683,
       "error": null,
-      "metric_value": 0.6159708193041527,
+      "metric_value": 0.5819416386083053,
       "notes": "suggest=random",
-      "objective_value": 0.6159708193041527,
+      "objective_value": 0.5819416386083053,
       "params": {
         "detector.topo_cov_shrinkage": 1.1221307865564859e-05,
         "detector.topo_percentile": 84.88826252461257,
@@ -40,11 +40,11 @@
       "trial_id": 1
     },
     {
-      "duration_s": 61.92152404785156,
+      "duration_s": 152.42818117141724,
       "error": null,
-      "metric_value": 0.5899775533108866,
+      "metric_value": 0.5779236812570147,
       "notes": "suggest=random",
-      "objective_value": 0.5899775533108866,
+      "objective_value": 0.5779236812570147,
       "params": {
         "detector.topo_cov_shrinkage": 0.00020307901595695388,
         "detector.topo_percentile": 98.87621514443171,
@@ -59,11 +59,11 @@
       "trial_id": 2
     },
     {
-      "duration_s": 25.49246096611023,
+      "duration_s": 92.89337205886841,
       "error": null,
-      "metric_value": 0.5774859708193041,
+      "metric_value": 0.5694388327721662,
       "notes": "suggest=random",
-      "objective_value": 0.5774859708193041,
+      "objective_value": 0.5694388327721662,
       "params": {
         "detector.topo_cov_shrinkage": 0.01203642655937434,
         "detector.topo_percentile": 90.08565609478795,
@@ -78,11 +78,11 @@
       "trial_id": 3
     },
     {
-      "duration_s": 108.85012793540955,
+      "duration_s": 210.02823305130005,
       "error": null,
-      "metric_value": 0.6163187429854096,
+      "metric_value": 0.5880022446689114,
       "notes": "suggest=random",
-      "objective_value": 0.6163187429854096,
+      "objective_value": 0.5880022446689114,
       "params": {
         "detector.topo_cov_shrinkage": 2.178487929319211e-06,
         "detector.topo_percentile": 80.44669119807885,
@@ -97,11 +97,11 @@
       "trial_id": 4
     },
     {
-      "duration_s": 100.49402117729187,
+      "duration_s": 199.16893315315247,
       "error": null,
-      "metric_value": 0.6148933782267116,
+      "metric_value": 0.5850280583613917,
       "notes": "suggest=random",
-      "objective_value": 0.6148933782267116,
+      "objective_value": 0.5850280583613917,
       "params": {
         "detector.topo_cov_shrinkage": 2.466885644494058e-05,
         "detector.topo_percentile": 90.6833985373999,
@@ -116,11 +116,11 @@
       "trial_id": 5
     },
     {
-      "duration_s": 86.4843099117279,
+      "duration_s": 183.18833589553833,
       "error": null,
-      "metric_value": 0.6160381593714928,
+      "metric_value": 0.5819304152637486,
       "notes": "suggest=gp_ei",
-      "objective_value": 0.6160381593714928,
+      "objective_value": 0.5819304152637486,
       "params": {
         "detector.topo_cov_shrinkage": 0.014019244678379866,
         "detector.topo_percentile": 96.66446272971305,
@@ -135,11 +135,11 @@
       "trial_id": 6
     },
     {
-      "duration_s": 77.9303719997406,
+      "duration_s": 174.84578394889832,
       "error": null,
-      "metric_value": 0.6091919191919191,
+      "metric_value": 0.5793378226711561,
       "notes": "suggest=gp_ei",
-      "objective_value": 0.6091919191919191,
+      "objective_value": 0.5793378226711561,
       "params": {
         "detector.topo_cov_shrinkage": 0.0002187423025782466,
         "detector.topo_percentile": 88.60205847693214,
@@ -154,11 +154,11 @@
       "trial_id": 7
     },
     {
-      "duration_s": 58.88875198364258,
+      "duration_s": 145.56513714790344,
       "error": null,
-      "metric_value": 0.5793490460157127,
+      "metric_value": 0.5776543209876543,
       "notes": "suggest=gp_ei",
-      "objective_value": 0.5793490460157127,
+      "objective_value": 0.5776543209876543,
       "params": {
         "detector.topo_cov_shrinkage": 5.581180999702963e-05,
         "detector.topo_percentile": 86.02674605890277,
@@ -173,11 +173,11 @@
       "trial_id": 8
     },
     {
-      "duration_s": 70.04630184173584,
+      "duration_s": 166.06169390678406,
       "error": null,
-      "metric_value": 0.6035578002244668,
+      "metric_value": 0.5792592592592593,
       "notes": "suggest=gp_ei",
-      "objective_value": 0.6035578002244668,
+      "objective_value": 0.5792592592592593,
       "params": {
         "detector.topo_cov_shrinkage": 0.00017374860901299836,
         "detector.topo_percentile": 87.01878043950703,
@@ -192,11 +192,11 @@
       "trial_id": 9
     },
     {
-      "duration_s": 102.54607892036438,
+      "duration_s": 203.2587649822235,
       "error": null,
-      "metric_value": 0.6162850729517397,
+      "metric_value": 0.5854657687991021,
       "notes": "suggest=gp_ei",
-      "objective_value": 0.6162850729517397,
+      "objective_value": 0.5854657687991021,
       "params": {
         "detector.topo_cov_shrinkage": 0.0021703551752021138,
         "detector.topo_percentile": 85.91421600854376,
@@ -209,102 +209,7 @@
       "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000010",
       "status": "success",
       "trial_id": 10
-    },
-    {
-      "duration_s": 101.50271892547607,
-      "error": null,
-      "metric_value": 0.6159034792368127,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6159034792368127,
-      "params": {
-        "detector.topo_cov_shrinkage": 1.2336826080138366e-05,
-        "detector.topo_percentile": 86.24393427770846,
-        "graph.k": 103,
-        "graph.topo_k": 65,
-        "graph.topo_min_persistence": 3.5661371578886715e-05,
-        "graph.topo_pca_dim": 38,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000011",
-      "status": "success",
-      "trial_id": 11
-    },
-    {
-      "duration_s": 87.65577721595764,
-      "error": null,
-      "metric_value": 0.617250280583614,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.617250280583614,
-      "params": {
-        "detector.topo_cov_shrinkage": 3.82854506837102e-06,
-        "detector.topo_percentile": 86.35018387317248,
-        "graph.k": 85,
-        "graph.topo_k": 10,
-        "graph.topo_min_persistence": 0.0003956881796670063,
-        "graph.topo_pca_dim": 44,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000012",
-      "status": "success",
-      "trial_id": 12
-    },
-    {
-      "duration_s": 101.38279390335083,
-      "error": null,
-      "metric_value": 0.6159147025813693,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6159147025813693,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.0023717644137368392,
-        "detector.topo_percentile": 92.86218696123927,
-        "graph.k": 103,
-        "graph.topo_k": 21,
-        "graph.topo_min_persistence": 0.0006925958217907435,
-        "graph.topo_pca_dim": 5,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000013",
-      "status": "success",
-      "trial_id": 13
-    },
-    {
-      "duration_s": 113.1220691204071,
-      "error": null,
-      "metric_value": 0.6156565656565657,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6156565656565657,
-      "params": {
-        "detector.topo_cov_shrinkage": 8.902571789053863e-06,
-        "detector.topo_percentile": 85.4118970696394,
-        "graph.k": 116,
-        "graph.topo_k": 102,
-        "graph.topo_min_persistence": 7.011690072705893e-06,
-        "graph.topo_pca_dim": 63,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000014",
-      "status": "success",
-      "trial_id": 14
-    },
-    {
-      "duration_s": 112.84943509101868,
-      "error": null,
-      "metric_value": 0.6156565656565657,
-      "notes": "suggest=gp_ei",
-      "objective_value": 0.6156565656565657,
-      "params": {
-        "detector.topo_cov_shrinkage": 0.00018245041539570315,
-        "detector.topo_percentile": 89.13048628801418,
-        "graph.k": 116,
-        "graph.topo_k": 17,
-        "graph.topo_min_persistence": 1.228978531303349e-06,
-        "graph.topo_pca_dim": 55,
-        "graph.topo_preprocess": "pca"
-      },
-      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000015",
-      "status": "success",
-      "trial_id": 15
     }
   ],
-  "updated_unix_s": 1768599772.9562938
+  "updated_unix_s": 1768798491.13257
 }

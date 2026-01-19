@@ -1,7 +1,0 @@
-{
-  "adversarial_success": 79,
-  "adversarial_total": 300,
-  "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success derived from eval_ood labels/raw_scores + detector.threshold",
-  "ood_success": 78,
-  "ood_total": 300
-}

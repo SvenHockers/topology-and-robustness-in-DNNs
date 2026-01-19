@@ -1,101 +1,47 @@
 {
   "config_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres",
   "dataset_name": "VECTOR",
-  "elapsed_s": 10105.827738046646,
+  "elapsed_s": 23910.518534898758,
   "metric_path": "auto",
   "minimize": false,
   "model_name": "MLP",
   "n_initial": 5,
-  "n_trials": 15,
+  "n_trials": 10,
   "runs": [
     {
       "best": {
-        "duration_s": 69.2304892539978,
+        "duration_s": 336.74232006073,
         "error": null,
-        "metric_value": 0.5606209588510473,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.5606209588510473,
+        "metric_value": 0.491046154762969,
+        "notes": "suggest=random",
+        "objective_value": 0.491046154762969,
         "params": {
-          "detector.topo_cov_shrinkage": 1.7918311875568857e-06,
-          "detector.topo_percentile": 81.79654833266557,
-          "graph.k": 95,
-          "graph.topo_k": 6,
-          "graph.topo_min_persistence": 3.742755539154038e-07,
-          "graph.topo_pca_dim": 43,
-          "graph.topo_preprocess": "none"
+          "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+          "detector.topo_percentile": 90.6833985373999,
+          "graph.k": 102,
+          "graph.topo_k": 59,
+          "graph.topo_min_persistence": 3.0021620018823e-08,
+          "graph.topo_pca_dim": 38,
+          "graph.topo_preprocess": "pca"
         },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.1/runs/trials/trial_000011",
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.1/runs/trials/trial_000005",
         "status": "success",
-        "trial_id": 11
+        "trial_id": 5
       },
       "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/base_torus_one_hole_e_0.1.yaml",
       "config_relpath": "base_torus_one_hole_e_0.1.yaml",
-      "duration_s": 969.3806037902832,
+      "duration_s": 2999.898683786392,
       "error": null,
       "status": "success",
       "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.1"
     },
     {
       "best": {
-        "duration_s": 47.15070295333862,
+        "duration_s": 200.9921600818634,
         "error": null,
-        "metric_value": 0.5310062651834804,
+        "metric_value": 0.5037292758811747,
         "notes": "suggest=gp_ei",
-        "objective_value": 0.5310062651834804,
-        "params": {
-          "detector.topo_cov_shrinkage": 0.04804016486697805,
-          "detector.topo_percentile": 86.7800508118794,
-          "graph.k": 53,
-          "graph.topo_k": 69,
-          "graph.topo_min_persistence": 5.99921284889588e-08,
-          "graph.topo_pca_dim": 12,
-          "graph.topo_preprocess": "pca"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.2/runs/trials/trial_000013",
-        "status": "success",
-        "trial_id": 13
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/base_torus_one_hole_e_0.2.yaml",
-      "config_relpath": "base_torus_one_hole_e_0.2.yaml",
-      "duration_s": 838.2430973052979,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.2"
-    },
-    {
-      "best": {
-        "duration_s": 66.0837037563324,
-        "error": null,
-        "metric_value": 0.5606209588510473,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.5606209588510473,
-        "params": {
-          "detector.topo_cov_shrinkage": 1.7918311875568857e-06,
-          "detector.topo_percentile": 81.79654833266557,
-          "graph.k": 95,
-          "graph.topo_k": 6,
-          "graph.topo_min_persistence": 3.742755539154038e-07,
-          "graph.topo_pca_dim": 43,
-          "graph.topo_preprocess": "none"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000011",
-        "status": "success",
-        "trial_id": 11
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/base_torus_one_hole_e_0.3 copy.yaml",
-      "config_relpath": "base_torus_one_hole_e_0.3 copy.yaml",
-      "duration_s": 937.2929179668427,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.3_copy"
-    },
-    {
-      "best": {
-        "duration_s": 47.46691584587097,
-        "error": null,
-        "metric_value": 0.6521855725395549,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.6521855725395549,
+        "objective_value": 0.5037292758811747,
         "params": {
           "detector.topo_cov_shrinkage": 0.00017374860901299836,
           "detector.topo_percentile": 87.01878043950703,
@@ -105,24 +51,159 @@
           "graph.topo_pca_dim": 8,
           "graph.topo_preprocess": "none"
         },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000009",
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.2/runs/trials/trial_000009",
         "status": "success",
         "trial_id": 9
       },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/base_torus_one_hole_e_0.2.yaml",
+      "config_relpath": "base_torus_one_hole_e_0.2.yaml",
+      "duration_s": 2721.464294195175,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.2"
+    },
+    {
+      "best": {
+        "duration_s": 429.8413460254669,
+        "error": null,
+        "metric_value": 0.491046154762969,
+        "notes": "suggest=random",
+        "objective_value": 0.491046154762969,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+          "detector.topo_percentile": 90.6833985373999,
+          "graph.k": 102,
+          "graph.topo_k": 59,
+          "graph.topo_min_persistence": 3.0021620018823e-08,
+          "graph.topo_pca_dim": 38,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000005",
+        "status": "success",
+        "trial_id": 5
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/base_torus_one_hole_e_0.3 copy.yaml",
+      "config_relpath": "base_torus_one_hole_e_0.3 copy.yaml",
+      "duration_s": 3257.2871651649475,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/base_torus_one_hole_e_0.3_copy"
+    },
+    {
+      "best": {
+        "duration_s": 340.53375220298767,
+        "error": null,
+        "metric_value": 0.4986740561961801,
+        "notes": "suggest=random",
+        "objective_value": 0.4986740561961801,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+          "detector.topo_percentile": 80.44669119807885,
+          "graph.k": 111,
+          "graph.topo_k": 88,
+          "graph.topo_min_persistence": 4.7426809639156375e-06,
+          "graph.topo_pca_dim": 24,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000004",
+        "status": "success",
+        "trial_id": 4
+      },
       "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/baseline/base_torus_one_hole_e_0.1.yaml",
       "config_relpath": "baseline/base_torus_one_hole_e_0.1.yaml",
-      "duration_s": 734.5575618743896,
+      "duration_s": 2479.255483150482,
       "error": null,
       "status": "success",
       "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.1"
     },
     {
       "best": {
-        "duration_s": 16.869510889053345,
+        "duration_s": 225.19547319412231,
         "error": null,
-        "metric_value": 0.6938584153774027,
+        "metric_value": 0.564718919149299,
         "notes": "suggest=random",
-        "objective_value": 0.6938584153774027,
+        "objective_value": 0.564718919149299,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+          "detector.topo_percentile": 80.44669119807885,
+          "graph.k": 111,
+          "graph.topo_k": 88,
+          "graph.topo_min_persistence": 4.7426809639156375e-06,
+          "graph.topo_pca_dim": 24,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000004",
+        "status": "success",
+        "trial_id": 4
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/baseline/base_torus_one_hole_e_0.2.yaml",
+      "config_relpath": "baseline/base_torus_one_hole_e_0.2.yaml",
+      "duration_s": 1890.5081651210785,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.2"
+    },
+    {
+      "best": {
+        "duration_s": 260.6715929508209,
+        "error": null,
+        "metric_value": 0.4986740561961801,
+        "notes": "suggest=random",
+        "objective_value": 0.4986740561961801,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+          "detector.topo_percentile": 80.44669119807885,
+          "graph.k": 111,
+          "graph.topo_k": 88,
+          "graph.topo_min_persistence": 4.7426809639156375e-06,
+          "graph.topo_pca_dim": 24,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004",
+        "status": "success",
+        "trial_id": 4
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/baseline/base_torus_one_hole_e_0.3 copy.yaml",
+      "config_relpath": "baseline/base_torus_one_hole_e_0.3 copy.yaml",
+      "duration_s": 2169.791902065277,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy"
+    },
+    {
+      "best": {
+        "duration_s": 202.138934135437,
+        "error": null,
+        "metric_value": 0.7288552188552189,
+        "notes": "suggest=gp_ei",
+        "objective_value": 0.7288552188552189,
+        "params": {
+          "detector.topo_cov_shrinkage": 0.0021703551752021138,
+          "detector.topo_percentile": 85.91421600854376,
+          "graph.k": 104,
+          "graph.topo_k": 54,
+          "graph.topo_min_persistence": 3.792775663852008e-07,
+          "graph.topo_pca_dim": 38,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_noise/runs/trials/trial_000010",
+        "status": "success",
+        "trial_id": 10
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_noise.yaml",
+      "config_relpath": "OOD/ood_baseline_noise.yaml",
+      "duration_s": 2998.7178659439087,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_noise"
+    },
+    {
+      "best": {
+        "duration_s": 92.72324299812317,
+        "error": null,
+        "metric_value": 0.9479797979797979,
+        "notes": "suggest=random",
+        "objective_value": 0.9479797979797979,
         "params": {
           "detector.topo_cov_shrinkage": 0.01203642655937434,
           "detector.topo_percentile": 90.08565609478795,
@@ -132,24 +213,87 @@
           "graph.topo_pca_dim": 12,
           "graph.topo_preprocess": "none"
         },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000003",
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shift/runs/trials/trial_000003",
         "status": "success",
         "trial_id": 3
       },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/baseline/base_torus_one_hole_e_0.2.yaml",
-      "config_relpath": "baseline/base_torus_one_hole_e_0.2.yaml",
-      "duration_s": 635.0157766342163,
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_shift.yaml",
+      "config_relpath": "OOD/ood_baseline_shift.yaml",
+      "duration_s": 1708.9692118167877,
       "error": null,
       "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.2"
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shift"
     },
     {
       "best": {
-        "duration_s": 48.32760190963745,
+        "duration_s": 210.02823305130005,
         "error": null,
-        "metric_value": 0.6521855725395549,
+        "metric_value": 0.5880022446689114,
+        "notes": "suggest=random",
+        "objective_value": 0.5880022446689114,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.178487929319211e-06,
+          "detector.topo_percentile": 80.44669119807885,
+          "graph.k": 111,
+          "graph.topo_k": 88,
+          "graph.topo_min_persistence": 4.7426809639156375e-06,
+          "graph.topo_pca_dim": 24,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000004",
+        "status": "success",
+        "trial_id": 4
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_shuffle.yaml",
+      "config_relpath": "OOD/ood_baseline_shuffle.yaml",
+      "duration_s": 1708.615534067154,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle"
+    },
+    {
+      "best": null,
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/query_anchor/base_torus_one_hole_e_0.1.yaml",
+      "config_relpath": "query_anchor/base_torus_one_hole_e_0.1.yaml",
+      "duration_s": 0.015380859375,
+      "error": "TypeError: __init__() got an unexpected keyword argument 'topo_filtration'",
+      "status": "failed",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/query_anchor/base_torus_one_hole_e_0.1"
+    },
+    {
+      "best": {
+        "duration_s": 25.498985052108765,
+        "error": null,
+        "metric_value": 0.491046154762969,
+        "notes": "suggest=random",
+        "objective_value": 0.491046154762969,
+        "params": {
+          "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+          "detector.topo_percentile": 90.6833985373999,
+          "graph.k": 102,
+          "graph.topo_k": 59,
+          "graph.topo_min_persistence": 3.0021620018823e-08,
+          "graph.topo_pca_dim": 38,
+          "graph.topo_preprocess": "pca"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.1/runs/trials/trial_000005",
+        "status": "success",
+        "trial_id": 5
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/topology_only/base_torus_one_hole_e_0.1.yaml",
+      "config_relpath": "topology_only/base_torus_one_hole_e_0.1.yaml",
+      "duration_s": 217.3310968875885,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.1"
+    },
+    {
+      "best": {
+        "duration_s": 10.744523763656616,
+        "error": null,
+        "metric_value": 0.5037292758811747,
         "notes": "suggest=gp_ei",
-        "objective_value": 0.6521855725395549,
+        "objective_value": 0.5037292758811747,
         "params": {
           "detector.topo_cov_shrinkage": 0.00017374860901299836,
           "detector.topo_percentile": 87.01878043950703,
@@ -159,180 +303,45 @@
           "graph.topo_pca_dim": 8,
           "graph.topo_preprocess": "none"
         },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000009",
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000009",
         "status": "success",
         "trial_id": 9
       },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/baseline/base_torus_one_hole_e_0.3 copy.yaml",
-      "config_relpath": "baseline/base_torus_one_hole_e_0.3 copy.yaml",
-      "duration_s": 747.6718220710754,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy"
-    },
-    {
-      "best": {
-        "duration_s": 114.97545218467712,
-        "error": null,
-        "metric_value": 0.7242312008978675,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.7242312008978675,
-        "params": {
-          "detector.topo_cov_shrinkage": 0.06443044768328501,
-          "detector.topo_percentile": 96.33239928996382,
-          "graph.k": 117,
-          "graph.topo_k": 40,
-          "graph.topo_min_persistence": 0.00016183336523927633,
-          "graph.topo_pca_dim": 8,
-          "graph.topo_preprocess": "none"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_noise/runs/trials/trial_000015",
-        "status": "success",
-        "trial_id": 15
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_noise.yaml",
-      "config_relpath": "OOD/ood_baseline_noise.yaml",
-      "duration_s": 1238.0047187805176,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_noise"
-    },
-    {
-      "best": {
-        "duration_s": 100.0911169052124,
-        "error": null,
-        "metric_value": 0.9540067340067341,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.9540067340067341,
-        "params": {
-          "detector.topo_cov_shrinkage": 1.2336826080138366e-05,
-          "detector.topo_percentile": 86.24393427770846,
-          "graph.k": 103,
-          "graph.topo_k": 65,
-          "graph.topo_min_persistence": 3.5661371578886715e-05,
-          "graph.topo_pca_dim": 38,
-          "graph.topo_preprocess": "pca"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shift/runs/trials/trial_000011",
-        "status": "success",
-        "trial_id": 11
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_shift.yaml",
-      "config_relpath": "OOD/ood_baseline_shift.yaml",
-      "duration_s": 1235.729877948761,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shift"
-    },
-    {
-      "best": {
-        "duration_s": 87.65577721595764,
-        "error": null,
-        "metric_value": 0.617250280583614,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.617250280583614,
-        "params": {
-          "detector.topo_cov_shrinkage": 3.82854506837102e-06,
-          "detector.topo_percentile": 86.35018387317248,
-          "graph.k": 85,
-          "graph.topo_k": 10,
-          "graph.topo_min_persistence": 0.0003956881796670063,
-          "graph.topo_pca_dim": 44,
-          "graph.topo_preprocess": "pca"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle/runs/trials/trial_000012",
-        "status": "success",
-        "trial_id": 12
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/OOD/ood_baseline_shuffle.yaml",
-      "config_relpath": "OOD/ood_baseline_shuffle.yaml",
-      "duration_s": 1295.5968599319458,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/OOD/ood_baseline_shuffle"
-    },
-    {
-      "best": {
-        "duration_s": 4.947221994400024,
-        "error": null,
-        "metric_value": 0.5606209588510473,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.5606209588510473,
-        "params": {
-          "detector.topo_cov_shrinkage": 1.7918311875568857e-06,
-          "detector.topo_percentile": 81.79654833266557,
-          "graph.k": 95,
-          "graph.topo_k": 6,
-          "graph.topo_min_persistence": 3.742755539154038e-07,
-          "graph.topo_pca_dim": 43,
-          "graph.topo_preprocess": "none"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.1/runs/trials/trial_000011",
-        "status": "success",
-        "trial_id": 11
-      },
-      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/topology_only/base_torus_one_hole_e_0.1.yaml",
-      "config_relpath": "topology_only/base_torus_one_hole_e_0.1.yaml",
-      "duration_s": 132.6820878982544,
-      "error": null,
-      "status": "success",
-      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.1"
-    },
-    {
-      "best": {
-        "duration_s": 10.214090824127197,
-        "error": null,
-        "metric_value": 0.5310062651834804,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.5310062651834804,
-        "params": {
-          "detector.topo_cov_shrinkage": 0.04804016486697805,
-          "detector.topo_percentile": 86.7800508118794,
-          "graph.k": 53,
-          "graph.topo_k": 69,
-          "graph.topo_min_persistence": 5.99921284889588e-08,
-          "graph.topo_pca_dim": 12,
-          "graph.topo_preprocess": "pca"
-        },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000013",
-        "status": "success",
-        "trial_id": 13
-      },
       "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/topology_only/base_torus_one_hole_e_0.2.yaml",
       "config_relpath": "topology_only/base_torus_one_hole_e_0.2.yaml",
-      "duration_s": 172.05557584762573,
+      "duration_s": 230.00394296646118,
       "error": null,
       "status": "success",
       "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.2"
     },
     {
       "best": {
-        "duration_s": 4.864035129547119,
+        "duration_s": 23.845643997192383,
         "error": null,
-        "metric_value": 0.5606209588510473,
-        "notes": "suggest=gp_ei",
-        "objective_value": 0.5606209588510473,
+        "metric_value": 0.491046154762969,
+        "notes": "suggest=random",
+        "objective_value": 0.491046154762969,
         "params": {
-          "detector.topo_cov_shrinkage": 1.7918311875568857e-06,
-          "detector.topo_percentile": 81.79654833266557,
-          "graph.k": 95,
-          "graph.topo_k": 6,
-          "graph.topo_min_persistence": 3.742755539154038e-07,
-          "graph.topo_pca_dim": 43,
-          "graph.topo_preprocess": "none"
+          "detector.topo_cov_shrinkage": 2.466885644494058e-05,
+          "detector.topo_percentile": 90.6833985373999,
+          "graph.k": 102,
+          "graph.topo_k": 59,
+          "graph.topo_min_persistence": 3.0021620018823e-08,
+          "graph.topo_pca_dim": 38,
+          "graph.topo_preprocess": "pca"
         },
-        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000011",
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000005",
         "status": "success",
-        "trial_id": 11
+        "trial_id": 5
       },
       "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/nested_spheres/topology_only/base_torus_one_hole_e_0.3 copy.yaml",
       "config_relpath": "topology_only/base_torus_one_hole_e_0.3 copy.yaml",
-      "duration_s": 132.32010698318481,
+      "duration_s": 264.03923869132996,
       "error": null,
       "status": "success",
       "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/nested_spheres/topology_only/base_torus_one_hole_e_0.3_copy"
     }
   ],
   "seed": 30,
-  "timestamp_unix_s": 1768600563.758523
+  "timestamp_unix_s": 1768799559.039742
 }

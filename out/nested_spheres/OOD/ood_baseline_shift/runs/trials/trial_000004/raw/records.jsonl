@@ -670,7 +670,7 @@
 {"sample_id": 369, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 370, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 371, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
-{"sample_id": 372, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
+{"sample_id": 372, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
 {"sample_id": 373, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 374, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 375, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
@@ -678,8 +678,8 @@
 {"sample_id": 377, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 378, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 379, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
-{"sample_id": 380, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
-{"sample_id": 381, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
+{"sample_id": 380, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
+{"sample_id": 381, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
 {"sample_id": 382, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 383, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 384, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
@@ -707,7 +707,7 @@
 {"sample_id": 406, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 407, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 408, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
-{"sample_id": 409, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
+{"sample_id": 409, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 410, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 411, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 412, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
@@ -877,7 +877,7 @@
 {"sample_id": 576, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 577, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
 {"sample_id": 578, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
-{"sample_id": 579, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
+{"sample_id": 579, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}
 {"sample_id": 580, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 581, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": true}
 {"sample_id": 582, "split": "test_clean+ood", "is_adversarial": false, "adversarial_success": null, "is_ood": true, "ood_success": false}

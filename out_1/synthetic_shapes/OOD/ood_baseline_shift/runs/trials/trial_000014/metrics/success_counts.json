@@ -1,7 +1,0 @@
-{
-  "adversarial_success": null,
-  "adversarial_total": null,
-  "notes": "success counts unavailable (no recognizable artifacts)",
-  "ood_success": null,
-  "ood_total": null
-}

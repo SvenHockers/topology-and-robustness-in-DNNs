@@ -18,7 +18,7 @@
     "status": "success",
     "trial_id": 3
   },
-  "trial_count": 7,
+  "trial_count": 10,
   "trials": [
     {
       "duration_s": 188.58407711982727,
@@ -152,7 +152,64 @@
       "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000007",
       "status": "success",
       "trial_id": 7
+    },
+    {
+      "duration_s": 118.04189205169678,
+      "error": null,
+      "metric_value": 0.8465972222222222,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.8465972222222222,
+      "params": {
+        "detector.topo_cov_shrinkage": 5.581180999702963e-05,
+        "detector.topo_percentile": 86.02674605890277,
+        "graph.k": 48,
+        "graph.topo_k": 69,
+        "graph.topo_min_persistence": 1.0417913335784477e-08,
+        "graph.topo_pca_dim": 2,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000008",
+      "status": "success",
+      "trial_id": 8
+    },
+    {
+      "duration_s": 133.30118012428284,
+      "error": null,
+      "metric_value": 0.8350173611111111,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.8350173611111111,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.00017374860901299836,
+        "detector.topo_percentile": 87.01878043950703,
+        "graph.k": 63,
+        "graph.topo_k": 60,
+        "graph.topo_min_persistence": 0.0006259896510445709,
+        "graph.topo_pca_dim": 8,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000009",
+      "status": "success",
+      "trial_id": 9
+    },
+    {
+      "duration_s": 163.1047921180725,
+      "error": null,
+      "metric_value": 0.8272222222222223,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.8272222222222223,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.0021703551752021138,
+        "detector.topo_percentile": 85.91421600854376,
+        "graph.k": 104,
+        "graph.topo_k": 54,
+        "graph.topo_min_persistence": 3.792775663852008e-07,
+        "graph.topo_pca_dim": 38,
+        "graph.topo_preprocess": "pca"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000010",
+      "status": "success",
+      "trial_id": 10
     }
   ],
-  "updated_unix_s": 1768814598.729493
+  "updated_unix_s": 1768815013.265745
 }

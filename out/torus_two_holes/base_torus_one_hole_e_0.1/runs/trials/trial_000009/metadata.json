@@ -1,0 +1,19 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/configs/trials/trial_000009.json",
+  "config_relpath": "trials/trial_000009.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/runs/trials/trial_000009/config/trial_000009.json",
+    "copied_config_relpath": "config/trial_000009.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/configs/trials/trial_000009.json",
+    "original_config_relpath": "trials/trial_000009.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": null,
+  "export_features": "npy",
+  "git_commit": "609c5e003d0521b1178ad05c1c21e4267600c9bb",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/runs/trials/trial_000009",
+  "status": "started",
+  "timestamp_utc": "2026-01-19T07:49:40+00:00"
+}

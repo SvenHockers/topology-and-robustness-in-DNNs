@@ -18,7 +18,7 @@
     "status": "success",
     "trial_id": 2
   },
-  "trial_count": 5,
+  "trial_count": 6,
   "trials": [
     {
       "duration_s": 67.66178393363953,
@@ -114,7 +114,26 @@
       "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/runs/trials/trial_000005",
       "status": "success",
       "trial_id": 5
+    },
+    {
+      "duration_s": 101.4046540260315,
+      "error": null,
+      "metric_value": 0.9166666666666666,
+      "notes": "suggest=gp_ei",
+      "objective_value": 0.9166666666666666,
+      "params": {
+        "detector.topo_cov_shrinkage": 0.014019244678379866,
+        "detector.topo_percentile": 96.66446272971305,
+        "graph.k": 83,
+        "graph.topo_k": 68,
+        "graph.topo_min_persistence": 3.51536365644515e-07,
+        "graph.topo_pca_dim": 61,
+        "graph.topo_preprocess": "none"
+      },
+      "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/base_torus_one_hole_e_0.1/runs/trials/trial_000006",
+      "status": "success",
+      "trial_id": 6
     }
   ],
-  "updated_unix_s": 1768808711.9520361
+  "updated_unix_s": 1768808813.3911839
 }

@@ -1,0 +1,137 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/configs/trials/trial_000011.json",
+  "config_relpath": "trials/trial_000011.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/config/trial_000011.json",
+    "copied_config_relpath": "config/trial_000011.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/configs/trials/trial_000011.json",
+    "original_config_relpath": "trials/trial_000011.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": 91.57623219490051,
+  "export_features": "npy",
+  "feature_file_count": 12,
+  "feature_files": [
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_clean__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_clean__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_adv__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_adv__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_ood__degree.npy",
+      "key": "degree",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/val_ood__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_ood__degree.npy",
+      "key": "degree",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011/raw/features/test_ood__laplacian.npy",
+      "key": "laplacian",
+      "shape": [
+        240
+      ]
+    }
+  ],
+  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle/runs/trials/trial_000011",
+  "status": "success",
+  "success_counts": {
+    "adversarial_success": 0,
+    "adversarial_total": 240,
+    "notes": "adversarial_success derived from attack_test.meta.success_rate (fallback path); ood_success derived from eval_ood labels/raw_scores + detector.threshold",
+    "ood_success": 126,
+    "ood_total": 240
+  },
+  "timestamp_utc": "2026-01-17T10:28:03+00:00"
+}

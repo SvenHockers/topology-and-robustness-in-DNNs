@@ -1,7 +1,7 @@
 {
   "config_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes",
   "dataset_name": "VECTOR",
-  "elapsed_s": 5230.083039999008,
+  "elapsed_s": 6851.430353164673,
   "metric_path": "auto",
   "minimize": false,
   "model_name": "MLP",
@@ -169,8 +169,53 @@
       "error": null,
       "status": "success",
       "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/baseline/base_torus_one_hole_e_0.3_copy"
+    },
+    {
+      "best": {
+        "duration_s": 96.77352285385132,
+        "error": null,
+        "metric_value": 0.8561111111111112,
+        "notes": "suggest=random",
+        "objective_value": 0.8561111111111112,
+        "params": {
+          "detector.topo_cov_shrinkage": 0.01203642655937434,
+          "detector.topo_percentile": 90.08565609478795,
+          "graph.k": 8,
+          "graph.topo_k": 14,
+          "graph.topo_min_persistence": 0.0003488865093860712,
+          "graph.topo_pca_dim": 12,
+          "graph.topo_preprocess": "none"
+        },
+        "run_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise/runs/trials/trial_000003",
+        "status": "success",
+        "trial_id": 3
+      },
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes/OOD/ood_baseline_noise.yaml",
+      "config_relpath": "OOD/ood_baseline_noise.yaml",
+      "duration_s": 1535.4786779880524,
+      "error": null,
+      "status": "success",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_noise"
+    },
+    {
+      "best": null,
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes/OOD/ood_baseline_shift.yaml",
+      "config_relpath": "OOD/ood_baseline_shift.yaml",
+      "duration_s": 2.9087066650390625e-05,
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: '/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes/OOD/ood_baseline_shift.yaml'",
+      "status": "failed",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shift"
+    },
+    {
+      "best": null,
+      "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes/OOD/ood_baseline_shuffle.yaml",
+      "config_relpath": "OOD/ood_baseline_shuffle.yaml",
+      "duration_s": 1.811981201171875e-05,
+      "error": "FileNotFoundError: [Errno 2] No such file or directory: '/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/config/final/torus_two_holes/OOD/ood_baseline_shuffle.yaml'",
+      "status": "failed",
+      "study_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/OOD/ood_baseline_shuffle"
     }
   ],
   "seed": 30,
-  "timestamp_unix_s": 1768813477.78775
+  "timestamp_unix_s": 1768815099.1350641
 }

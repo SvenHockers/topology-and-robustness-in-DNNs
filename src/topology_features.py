@@ -53,6 +53,60 @@ class TopologyConfig:
     # subspace often yields more informative local topology than running VR PH in ambient space.
     preprocess: str = "none"  # "none" or "pca"
     pca_dim: int = 10
+    # Filtration mode:
+    # - 'standard': Vietoris–Rips PH on point cloud (ripser point-cloud mode)
+    # - 'query_anchored': query-anchored distance-matrix filtration (ripser distance-matrix mode)
+    filtration: str = "standard"
+    # Query-anchored filtration parameters (used only when filtration == 'query_anchored').
+    # Interpretation:
+    # - query point is assumed to be point_cloud[0]
+    # - neighbor-neighbor distances are rescaled by a function of their distances to the query
+    query_lambda: float = 1.0
+    query_gamma: float = 1.0
+
+
+def _pairwise_distances(X: np.ndarray) -> np.ndarray:
+    """Compute full pairwise Euclidean distance matrix for X (n,d) in O(n^2 d)."""
+    X = np.asarray(X, dtype=float)
+    # ||x-y||^2 = ||x||^2 + ||y||^2 - 2 x·y
+    s = np.sum(X * X, axis=1, keepdims=True)  # (n,1)
+    D2 = s + s.T - 2.0 * (X @ X.T)
+    D2 = np.maximum(D2, 0.0)
+    return np.sqrt(D2, dtype=float)
+
+
+def _query_anchored_distance_matrix(point_cloud: np.ndarray, *, query_lambda: float, query_gamma: float) -> np.ndarray:
+    """
+    Build a query-anchored distance matrix D' for ripser(distance_matrix=True).
+
+    Assumptions:
+    - query point is point_cloud[0]
+    - D'[0,i] uses the true Euclidean distance (so the query-to-neighbor geometry is preserved)
+    - D'[i,j] for i,j>0 is rescaled based on distances to the query:
+        D'[i,j] = D[i,j] * ((1 + λ * d(q,i)) + (1 + λ * d(q,j))) / 2) ^ γ
+
+    This makes the filtration ordering depend strongly on the query point's position (through d(q,i)).
+    Note: D' need not be a metric; ripser accepts general symmetric distance matrices.
+    """
+    X = np.asarray(point_cloud, dtype=float)
+    D = _pairwise_distances(X)
+    n = int(D.shape[0])
+    if n <= 1:
+        return D
+
+    lam = float(query_lambda)
+    gam = float(query_gamma)
+    dq = np.asarray(D[0, :], dtype=float)  # (n,)
+    w = 1.0 + lam * dq
+    # Rescale neighbor-neighbor distances; keep query edges unmodified.
+    scale = ((w.reshape(-1, 1) + w.reshape(1, -1)) / 2.0) ** gam
+    Dp = D * scale
+    Dp[0, :] = D[0, :]
+    Dp[:, 0] = D[:, 0]
+    np.fill_diagonal(Dp, 0.0)
+    # Ensure symmetry
+    Dp = (Dp + Dp.T) / 2.0
+    return Dp
 
 
 def _diagram_lifetimes(diagram: np.ndarray) -> np.ndarray:
@@ -152,7 +206,23 @@ def local_persistence_features(
     if topo_cfg.thresh is not None:
         kwargs["thresh"] = float(topo_cfg.thresh)
 
-    out = ripser(point_cloud, **kwargs)
+    filt = str(getattr(topo_cfg, "filtration", "standard")).strip().lower()
+    if filt == "standard":
+        out = ripser(point_cloud, **kwargs)
+    elif filt == "query_anchored":
+        # Use ripser's distance-matrix mode; metric is not used in this mode.
+        Dp = _query_anchored_distance_matrix(
+            point_cloud,
+            query_lambda=float(getattr(topo_cfg, "query_lambda", 1.0)),
+            query_gamma=float(getattr(topo_cfg, "query_gamma", 1.0)),
+        )
+        # Remove 'metric' for distance_matrix mode to avoid backend confusion.
+        kwargs_dm = dict(kwargs)
+        kwargs_dm.pop("metric", None)
+        out = ripser(Dp, distance_matrix=True, **kwargs_dm)
+    else:
+        raise ValueError(f"Unknown topo_cfg.filtration={topo_cfg.filtration!r}. Expected 'standard' or 'query_anchored'.")
+
     diagrams = out.get("dgms", [])
     features = persistence_summary_features(diagrams, min_persistence=topo_cfg.min_persistence)
     

@@ -8,5 +8,6 @@ jupyter>=1.0.0
 ipykernel>=6.0.0
 ripser>=0.6.8
 pyyaml>=6.0.2
+pytest>=7.0.0
 
 

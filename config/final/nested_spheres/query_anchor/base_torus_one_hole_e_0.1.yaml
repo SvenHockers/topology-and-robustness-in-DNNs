@@ -1,0 +1,13 @@
+base: ../topology_only/base_torus_one_hole_e_0.1.yaml
+
+# Ablation: query-anchored filtration for topology features.
+#
+# Goal: make the query point have an outsized influence on PH summaries by using a
+# query-anchored distance-matrix filtration (see src/topology_features.py).
+# Downstream detector is unchanged: topology summaries -> Mahalanobis score -> quantile threshold.
+graph:
+  topo_filtration: query_anchored
+  # Strength/shape of query anchoring (start with mild values; tune if needed).
+  topo_query_lambda: 1.0
+  topo_query_gamma: 1.0
+

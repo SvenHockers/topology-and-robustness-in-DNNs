@@ -334,13 +334,50 @@ def compute_graph_scores(
     
     n_points = X_points.shape[0]
     scores: Dict[str, np.ndarray] = {}
-    use_baseline = bool(getattr(graph_params, "use_baseline_scores", True))
+
+    def _get_param(name: str, default=None):
+        """
+        Access graph params robustly whether `graph_params` is a dataclass (GraphConfig)
+        or a plain dict (common in notebooks / serialized configs).
+        """
+        if isinstance(graph_params, dict):
+            return graph_params.get(name, default)
+        return getattr(graph_params, name, default)
+
+    def _coerce_bool(v) -> bool:
+        """
+        Robust boolean parsing for config values that may come from YAML/JSON/CLI/notebooks.
+        Handles common string forms like "false"/"0"/"no" and dict-based configs.
+        """
+        if isinstance(v, bool):
+            return v
+        # Numpy scalars (e.g., np.bool_) and numeric flags
+        if isinstance(v, (int, float, np.integer, np.floating)):
+            return bool(v)
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in {"false", "0", "no", "n", "off"}:
+                return False
+            if s in {"true", "1", "yes", "y", "on"}:
+                return True
+            # Fall back: non-empty string is True, but be explicit about unknown tokens.
+            return bool(s)
+        return bool(v)
+
+    # Backwards compatibility: some notebooks may pass `graph_params` as a plain dict.
+    raw_use_baseline = _get_param("use_baseline_scores", True)
+    use_baseline = _coerce_bool(raw_use_baseline)
+
+    # Pull frequently used knobs once (works for dict or dataclass configs).
+    k = int(_get_param("k", 10))
+    sigma = _get_param("sigma", None)
+    space = str(_get_param("space", "feature"))
     
     # Extract representations if needed
-    if graph_params.space == 'feature':
+    if space == 'feature':
         # Keep query embedding space consistent with Z_train construction.
         # (Z_train is built upstream using cfg.graph.feature_layer.)
-        layer = str(getattr(graph_params, "feature_layer", "penultimate"))
+        layer = str(_get_param("feature_layer", "penultimate"))
         Z_points = extract_features_batch(model, X_points, layer=layer, device=device)
     else:
         Z_points = X_points
@@ -364,7 +401,7 @@ def compute_graph_scores(
         degree_scores = np.zeros(n_points)
         for i in range(n_points):
             degree_scores[i] = compute_degree_score(
-                Z_points[i], Z_train, k=graph_params.k, sigma=graph_params.sigma
+                Z_points[i], Z_train, k=k, sigma=sigma
             )
         scores['degree'] = degree_scores
 
@@ -373,7 +410,7 @@ def compute_graph_scores(
         for i in range(n_points):
             laplacian_scores[i] = compute_laplacian_smoothness_score(
                 Z_points[i], f_points[i], Z_train, f_train,
-                k=graph_params.k, sigma=graph_params.sigma
+                k=k, sigma=sigma
             )
         scores['laplacian'] = laplacian_scores
 
@@ -383,10 +420,10 @@ def compute_graph_scores(
         # Backward-compatible defaults: if older GraphConfig objects are in memory (e.g. notebook
         # kernel not restarted), these attributes may be missing. We default to computing
         # tangent-based scores in that case.
-        if getattr(graph_params, 'use_tangent', True):
+        if _coerce_bool(_get_param('use_tangent', True)):
             tangent_scores = np.zeros(n_points)
             tangent_z_scores = np.zeros(n_points)
-            tangent_k = int(getattr(graph_params, 'tangent_k', 20))
+            tangent_k = int(_get_param('tangent_k', 20))
             nbrs_tangent = NearestNeighbors(
                 n_neighbors=min(tangent_k, len(Z_train)),
                 metric='euclidean'
@@ -394,10 +431,10 @@ def compute_graph_scores(
 
             # If tangent_dim is not provided, pick it adaptively from local PCA explained variance.
             # This is important in feature space where the manifold may not be 2D after embedding.
-            tangent_dim = getattr(graph_params, 'tangent_dim', None)
-            var_thr = float(getattr(graph_params, 'tangent_var_threshold', 0.9))
-            dim_min = int(getattr(graph_params, 'tangent_dim_min', 2))
-            dim_max = getattr(graph_params, 'tangent_dim_max', None)
+            tangent_dim = _get_param('tangent_dim', None)
+            var_thr = float(_get_param('tangent_var_threshold', 0.9))
+            dim_min = int(_get_param('tangent_dim_min', 2))
+            dim_max = _get_param('tangent_dim_max', None)
 
             for i in range(n_points):
                 _, idx = nbrs_tangent.kneighbors(Z_points[i].reshape(1, -1))
@@ -445,7 +482,7 @@ def compute_graph_scores(
             # Also provide a simple kNN radius score (density proxy)
             # Higher mean neighbor distance => lower local density => more suspicious.
             nbrs_radius = NearestNeighbors(
-                n_neighbors=min(graph_params.k, len(Z_train)),
+                n_neighbors=min(k, len(Z_train)),
                 metric='euclidean'
             ).fit(Z_train)
             dists, _ = nbrs_radius.kneighbors(Z_points)
@@ -455,16 +492,19 @@ def compute_graph_scores(
             scores['knn_radius'] = np.asarray(radius_scores, dtype=float)
 
     # --- Topology features (persistent homology on local neighborhoods) ---
-    if getattr(graph_params, 'use_topology', False):
-        topo_k = int(getattr(graph_params, 'topo_k', 50))
+    if _coerce_bool(_get_param('use_topology', False)):
+        topo_k = int(_get_param('topo_k', 50))
         topo_cfg = TopologyConfig(
             neighborhood_k=topo_k,
-            maxdim=int(getattr(graph_params, 'topo_maxdim', 1)),
-            metric=str(getattr(graph_params, 'topo_metric', 'euclidean')),
-            thresh=getattr(graph_params, 'topo_thresh', None),
-            min_persistence=float(getattr(graph_params, 'topo_min_persistence', 1e-6)),
-            preprocess=str(getattr(graph_params, 'topo_preprocess', 'none')),
-            pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
+            maxdim=int(_get_param('topo_maxdim', 1)),
+            metric=str(_get_param('topo_metric', 'euclidean')),
+            thresh=_get_param('topo_thresh', None),
+            min_persistence=float(_get_param('topo_min_persistence', 1e-6)),
+            preprocess=str(_get_param('topo_preprocess', 'none')),
+            pca_dim=int(_get_param('topo_pca_dim', 10)),
+            filtration=str(_get_param("topo_filtration", "standard")),
+            query_lambda=float(_get_param("topo_query_lambda", 1.0)),
+            query_gamma=float(_get_param("topo_query_gamma", 1.0)),
         )
 
         # Build a neighbor index for local neighborhoods in the scoring space.
@@ -491,15 +531,15 @@ def compute_graph_scores(
             scores[k] = np.array([d.get(k, 0.0) for d in topo_feat_dicts], dtype=float)
     
     # Optional: diffusion scores (baseline family)
-    if use_baseline and graph_params.use_diffusion:
+    if use_baseline and _coerce_bool(_get_param("use_diffusion", False)):
         # Build training graph
         W_train, _, _ = build_knn_graph(
-            Z_train, k=graph_params.k, sigma=graph_params.sigma
+            Z_train, k=k, sigma=sigma
         )
 
         # Compute diffusion embedding
         _, eigenvectors = compute_diffusion_embedding(
-            W_train, n_components=graph_params.diffusion_components
+            W_train, n_components=int(_get_param("diffusion_components", 10))
         )
 
         # Compute diffusion distance scores
@@ -507,7 +547,7 @@ def compute_graph_scores(
         for i in range(n_points):
             diffusion_scores[i] = compute_diffusion_distance_score(
                 Z_points[i], Z_train, eigenvectors, W_train,
-                k=graph_params.k, sigma=graph_params.sigma
+                k=k, sigma=sigma
             )
         scores['diffusion'] = diffusion_scores
     
@@ -542,27 +582,56 @@ def compute_graph_scores_with_diagrams(
         - point_cloud: The local neighborhood point cloud used for PH
     """
     from .models import get_model_logits, extract_features_batch
+
+    def _get_param(name: str, default=None):
+        if isinstance(graph_params, dict):
+            return graph_params.get(name, default)
+        return getattr(graph_params, name, default)
+
+    def _coerce_bool(v) -> bool:
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float, np.integer, np.floating)):
+            return bool(v)
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s in {"false", "0", "no", "n", "off"}:
+                return False
+            if s in {"true", "1", "yes", "y", "on"}:
+                return True
+            return bool(s)
+        return bool(v)
     
     # Extract representation if needed
-    if graph_params.space == 'feature':
-        layer = str(getattr(graph_params, "feature_layer", "penultimate"))
-        Z_point = extract_features_batch(model, X_point.reshape(1, -1), layer=layer, device=device)[0]
+    if str(_get_param("space", "feature")) == 'feature':
+        layer = str(_get_param("feature_layer", "penultimate"))
+        # IMPORTANT: preserve input shape for non-vector modalities (e.g., images for CNNs).
+        # `reshape(1, -1)` breaks CNN forward passes by flattening HxW.
+        X_point = np.asarray(X_point)
+        if X_point.ndim <= 1:
+            X_batch = X_point.reshape(1, -1)
+        else:
+            X_batch = X_point[None, ...]
+        Z_point = extract_features_batch(model, X_batch, layer=layer, device=device)[0]
     else:
         Z_point = X_point
     
     # Get topology features with diagrams
-    if not getattr(graph_params, 'use_topology', False):
+    if not _coerce_bool(_get_param('use_topology', False)):
         raise ValueError("compute_graph_scores_with_diagrams requires use_topology=True")
     
-    topo_k = int(getattr(graph_params, 'topo_k', 50))
+    topo_k = int(_get_param('topo_k', 50))
     topo_cfg = TopologyConfig(
         neighborhood_k=topo_k,
-        maxdim=int(getattr(graph_params, 'topo_maxdim', 1)),
-        metric=str(getattr(graph_params, 'topo_metric', 'euclidean')),
-        thresh=getattr(graph_params, 'topo_thresh', None),
-        min_persistence=float(getattr(graph_params, 'topo_min_persistence', 1e-6)),
-        preprocess=str(getattr(graph_params, 'topo_preprocess', 'none')),
-        pca_dim=int(getattr(graph_params, 'topo_pca_dim', 10)),
+        maxdim=int(_get_param('topo_maxdim', 1)),
+        metric=str(_get_param('topo_metric', 'euclidean')),
+        thresh=_get_param('topo_thresh', None),
+        min_persistence=float(_get_param('topo_min_persistence', 1e-6)),
+        preprocess=str(_get_param('topo_preprocess', 'none')),
+        pca_dim=int(_get_param('topo_pca_dim', 10)),
+        filtration=str(_get_param("topo_filtration", "standard")),
+        query_lambda=float(_get_param("topo_query_lambda", 1.0)),
+        query_gamma=float(_get_param("topo_query_gamma", 1.0)),
     )
     
     # Build neighbor index

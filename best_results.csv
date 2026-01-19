@@ -1,0 +1,41 @@
+dataset,epsilon,method,roc_auc,pr_auc,fpr_at_tpr95,trial_id,source_file
+Blobs,0.1,baseline,0.8163276836158192,0.44666704821692305,0.6677966101694915,trial_000004,out/blobs/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000004/metrics/metrics.json
+Blobs,0.1,topology,0.6150847457627119,0.23469167663866808,0.9288135593220339,trial_000004,out/blobs/base_torus_one_hole_e_0.1/runs/trials/trial_000004/metrics/metrics.json
+Blobs,0.2,baseline,0.8691319979455573,0.39091792450035107,0.423728813559322,trial_000004,out/blobs/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Blobs,0.2,topology,0.6292758089368259,0.14076951744370103,0.8745762711864407,trial_000004,out/blobs/base_torus_one_hole_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Blobs,0.3,baseline,0.8163276836158192,0.44666704821692305,0.6677966101694915,trial_000004,out/blobs/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004/metrics/metrics.json
+Blobs,0.3,topology,0.6150847457627119,0.23469167663866808,0.9288135593220339,trial_000004,out/blobs/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004/metrics/metrics.json
+MNIST,0.1,baseline,0.95429375,0.9458643161701005,0.1875,trial_000002,out/mnist/baseline/base_e_0.1/runs/trials/trial_000002/metrics/metrics.json
+MNIST,0.1,topology,0.8708374999999999,0.8773115261761907,0.5325,trial_000012,out/mnist/base_e_0.1/runs/trials/trial_000012/metrics/metrics.json
+MNIST,0.2,topology,0.8708374999999999,0.8773115261761907,0.5325,trial_000012,out/mnist/base_e_0.2/runs/trials/trial_000012/metrics/metrics.json
+MNIST,0.3,topology,0.90190625,0.874700020217982,0.42,trial_000013,out/mnist/base_e_0.3/runs/trials/trial_000013/metrics/metrics.json
+Nested Spheres,0.1,baseline,0.4986740561961801,0.33890343078285806,0.9764309764309764,trial_000004,out/nested_spheres/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000004/metrics/metrics.json
+Nested Spheres,0.1,topology,0.491046154762969,0.26226048586072004,0.9663299663299664,trial_000005,out/nested_spheres/base_torus_one_hole_e_0.1/runs/trials/trial_000005/metrics/metrics.json
+Nested Spheres,0.2,baseline,0.564718919149299,0.37874688173488424,0.9831649831649831,trial_000004,out/nested_spheres/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Nested Spheres,0.2,topology,0.5037292758811747,0.21925219182403258,0.9831649831649831,trial_000009,out/nested_spheres/base_torus_one_hole_e_0.2/runs/trials/trial_000009/metrics/metrics.json
+Nested Spheres,0.3,baseline,0.4986740561961801,0.33890343078285806,0.9764309764309764,trial_000004,out/nested_spheres/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004/metrics/metrics.json
+Nested Spheres,0.3,topology,0.491046154762969,0.26226048586072004,0.9663299663299664,trial_000005,out/nested_spheres/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000005/metrics/metrics.json
+Synthetic Shapes,0.1,baseline,0.902675,0.9261710737986761,0.545,trial_000010,out/synthetic_shapes/baseline/base_e_0.1/runs/trials/trial_000010/metrics/metrics.json
+Synthetic Shapes,0.1,topology,0.898275,0.9326613423786726,0.85,trial_000006,out/synthetic_shapes/base_e_0.1/runs/trials/trial_000006/metrics/metrics.json
+Synthetic Shapes,0.2,baseline,0.9883250000000001,0.9902390370857287,0.075,trial_000004,out/synthetic_shapes/baseline/base_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Synthetic Shapes,0.2,topology,0.985825,0.9863302143915299,0.075,trial_000006,out/synthetic_shapes/base_e_0.2/runs/trials/trial_000006/metrics/metrics.json
+Synthetic Shapes,0.3,baseline,0.914225,0.9299566466215626,0.465,trial_000004,out/synthetic_shapes/baseline/base_e_0.3/runs/trials/trial_000004/metrics/metrics.json
+Synthetic Shapes,0.3,topology,0.905525,0.9294018740867305,0.75,trial_000006,out/synthetic_shapes/base_e_0.3/runs/trials/trial_000006/metrics/metrics.json
+Tabular,0.1,baseline,0.9623376623376623,0.7210884353741496,0.19090909090909092,trial_000004,out/tabular/baseline/base_e_0.1/runs/trials/trial_000004/metrics/metrics.json
+Tabular,0.1,topology,0.8389610389610389,0.19876373626373628,0.2545454545454545,trial_000001,out/tabular/base_e_0.1/runs/trials/trial_000001/metrics/metrics.json
+Tabular,0.2,baseline,0.762987012987013,0.588956858936059,0.9818181818181818,trial_000004,out/tabular/baseline/base_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Tabular,0.2,topology,0.7,0.18991671230344712,0.6818181818181818,trial_000004,out/tabular/base_e_0.2/runs/trials/trial_000004/metrics/metrics.json
+Tabular,0.3,baseline,0.7039772727272727,0.5472486550153978,0.9636363636363636,trial_000004,out/tabular/baseline/base_e_0.3/runs/trials/trial_000004/metrics/metrics.json
+Tabular,0.3,topology,0.625,0.24405641180515644,0.990909090909091,trial_000002,out/tabular/base_e_0.3/runs/trials/trial_000002/metrics/metrics.json
+Torus (1 hole),0.1,baseline,1.0,1.0,0.0,trial_000003,out/torus_one_hole/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000003/metrics/metrics.json
+Torus (1 hole),0.1,topology,0.7770833333333333,0.15667332367737227,0.6791666666666667,trial_000004,out/torus_one_hole/base_torus_one_hole_e_0.1/runs/trials/trial_000004/metrics/metrics.json
+Torus (1 hole),0.2,baseline,1.0,1.0,0.0,trial_000001,out/torus_one_hole/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000001/metrics/metrics.json
+Torus (1 hole),0.2,topology,0.9958333333333333,0.5,0.004166666666666667,trial_000002,out/torus_one_hole/base_torus_one_hole_e_0.2/runs/trials/trial_000002/metrics/metrics.json
+Torus (1 hole),0.3,baseline,1.0,1.0,0.0,trial_000003,out/torus_one_hole/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000003/metrics/metrics.json
+Torus (1 hole),0.3,topology,0.7770833333333333,0.15667332367737227,0.6791666666666667,trial_000004,out/torus_one_hole/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000004/metrics/metrics.json
+Torus (2 holes),0.1,baseline,1.0,1.0,0.0,trial_000001,out/torus_two_holes/baseline/base_torus_one_hole_e_0.1/runs/trials/trial_000001/metrics/metrics.json
+Torus (2 holes),0.1,topology,0.975,0.14285714285714285,0.025,trial_000010,out/torus_two_holes/base_torus_one_hole_e_0.1/runs/trials/trial_000010/metrics/metrics.json
+Torus (2 holes),0.2,baseline,0.6228125,0.6639573513420619,0.9458333333333333,trial_000003,out/torus_two_holes/baseline/base_torus_one_hole_e_0.2/runs/trials/trial_000003/metrics/metrics.json
+Torus (2 holes),0.2,topology,0.5372222222222222,0.5401061759764174,0.9375,trial_000010,out/torus_two_holes/base_torus_one_hole_e_0.2/runs/trials/trial_000010/metrics/metrics.json
+Torus (2 holes),0.3,baseline,1.0,1.0,0.0,trial_000001,out/torus_two_holes/baseline/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000001/metrics/metrics.json
+Torus (2 holes),0.3,topology,0.975,0.14285714285714285,0.025,trial_000010,out/torus_two_holes/base_torus_one_hole_e_0.3_copy/runs/trials/trial_000010/metrics/metrics.json

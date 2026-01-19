@@ -9,7 +9,7 @@
   },
   "dataset_name": "VECTOR",
   "device": null,
-  "duration_s": 5.1085731983184814,
+  "duration_s": 6.096498966217041,
   "export_features": "npy",
   "feature_file_count": 60,
   "feature_files": [
@@ -554,7 +554,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "MLP",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/topology_only/base_torus_one_hole_e_0.1/runs/trials/trial_000001",
   "status": "success",
@@ -565,5 +565,5 @@
     "ood_success": null,
     "ood_total": null
   },
-  "timestamp_utc": "2026-01-16T18:47:48+00:00"
+  "timestamp_utc": "2026-01-19T03:02:02+00:00"
 }

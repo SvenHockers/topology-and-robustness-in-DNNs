@@ -9,7 +9,7 @@
   },
   "dataset_name": "VECTOR",
   "device": null,
-  "duration_s": 72.75150275230408,
+  "duration_s": 308.4815890789032,
   "export_features": "npy",
   "feature_file_count": 12,
   "feature_files": [
@@ -122,7 +122,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "MLP",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/OOD/ood_baseline_shuffle/runs/trials/trial_000007",
   "status": "success",
@@ -130,8 +130,8 @@
     "adversarial_success": 33,
     "adversarial_total": 300,
     "notes": "adversarial_success derived from attack_test.meta.adv_mask; ood_success derived from eval_ood labels/raw_scores + detector.threshold",
-    "ood_success": 78,
+    "ood_success": 93,
     "ood_total": 300
   },
-  "timestamp_utc": "2026-01-16T18:33:29+00:00"
+  "timestamp_utc": "2026-01-19T02:40:16+00:00"
 }

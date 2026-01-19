@@ -9,7 +9,7 @@
   },
   "dataset_name": "VECTOR",
   "device": null,
-  "duration_s": 96.6411190032959,
+  "duration_s": 341.3880729675293,
   "export_features": "npy",
   "feature_file_count": 12,
   "feature_files": [
@@ -122,7 +122,7 @@
       ]
     }
   ],
-  "git_commit": "f349e347f6b41af54dbdf039a1367f622201de11",
+  "git_commit": "ad39f5d71f1c599219bdc5cee2b6f4750d587296",
   "model_name": "MLP",
   "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/blobs/OOD/ood_baseline_shift/runs/trials/trial_000010",
   "status": "success",
@@ -133,5 +133,5 @@
     "ood_success": 280,
     "ood_total": 300
   },
-  "timestamp_utc": "2026-01-16T18:17:36+00:00"
+  "timestamp_utc": "2026-01-19T02:04:41+00:00"
 }

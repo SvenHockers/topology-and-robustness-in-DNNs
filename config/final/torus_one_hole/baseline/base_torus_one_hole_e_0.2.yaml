@@ -17,7 +17,7 @@ attack:
   step_size: 0.03
   random_start: true
 graph:
-  space: input
+  space: feature
   feature_layer: penultimate
   use_topology: false
   use_tangent: false

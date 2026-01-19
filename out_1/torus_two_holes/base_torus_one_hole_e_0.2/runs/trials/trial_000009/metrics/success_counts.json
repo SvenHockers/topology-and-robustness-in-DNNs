@@ -1,7 +1,0 @@
-{
-  "adversarial_success": 0,
-  "adversarial_total": 240,
-  "notes": "adversarial_success derived from attack_test.meta.success_rate (fallback path); ood_success unavailable (no eval_ood in result)",
-  "ood_success": null,
-  "ood_total": null
-}

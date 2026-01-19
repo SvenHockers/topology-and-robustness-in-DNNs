@@ -1,0 +1,569 @@
+{
+  "config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/configs/trials/trial_000010.json",
+  "config_relpath": "trials/trial_000010.json",
+  "config_snapshot": {
+    "copied_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/config/trial_000010.json",
+    "copied_config_relpath": "config/trial_000010.json",
+    "original_config_path": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/configs/trials/trial_000010.json",
+    "original_config_relpath": "trials/trial_000010.json"
+  },
+  "dataset_name": "VECTOR",
+  "device": null,
+  "duration_s": 18.85052490234375,
+  "export_features": "npy",
+  "feature_file_count": 60,
+  "feature_files": [
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 400,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_clean__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        400
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 1,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/val_adv__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_clean__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h0_count.npy",
+      "key": "topo_h0_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h0_entropy.npy",
+      "key": "topo_h0_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h0_l2_persistence.npy",
+      "key": "topo_h0_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h0_max_persistence.npy",
+      "key": "topo_h0_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h0_total_persistence.npy",
+      "key": "topo_h0_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h1_count.npy",
+      "key": "topo_h1_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h1_entropy.npy",
+      "key": "topo_h1_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h1_l2_persistence.npy",
+      "key": "topo_h1_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h1_max_persistence.npy",
+      "key": "topo_h1_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h1_total_persistence.npy",
+      "key": "topo_h1_total_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h2_count.npy",
+      "key": "topo_h2_count",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h2_entropy.npy",
+      "key": "topo_h2_entropy",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h2_l2_persistence.npy",
+      "key": "topo_h2_l2_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h2_max_persistence.npy",
+      "key": "topo_h2_max_persistence",
+      "shape": [
+        240
+      ]
+    },
+    {
+      "count": 240,
+      "dtype": "float64",
+      "file": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010/raw/features/test_adv__topo_h2_total_persistence.npy",
+      "key": "topo_h2_total_persistence",
+      "shape": [
+        240
+      ]
+    }
+  ],
+  "git_commit": "3fbbac17d0c87fb5f1b506342783403b06bf9edb",
+  "model_name": "MLP",
+  "output_dir": "/Users/svenhockers/Desktop/project/topology-and-robustness-in-DNNs/out/torus_two_holes/topology_only/base_torus_one_hole_e_0.2/runs/trials/trial_000010",
+  "status": "success",
+  "success_counts": {
+    "adversarial_success": 0,
+    "adversarial_total": 240,
+    "notes": "adversarial_success derived from attack_test.meta.success_rate (fallback path); ood_success unavailable (no eval_ood in result)",
+    "ood_success": null,
+    "ood_total": null
+  },
+  "timestamp_utc": "2026-01-19T09:38:59+00:00"
+}

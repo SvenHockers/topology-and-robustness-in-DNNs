@@ -1,62 +1,45 @@
 ## Topology & robustness in deep neural networks
 
-This repository contains:
+This repository contains the code, experiment and results used to study how topological features change in local neighborhoods by adversarial attacks
 
-- **Core library**: `src/` (datasets, models, topology-based detectors, evaluation, plotting)
-- **Runner library (internal)**: `optimisers/runner_lib.py` (executes pipeline + writes artifacts)
-- **Bayesian optimisation CLI**: `optimisers/` (Gaussian-process optimiser that reuses the runner library)
-- **Experiment configs**: `config/` (YAML used by the optimiser; supports `base:` inheritance via `src.utils.ExperimentConfig.from_yaml`)
+The central idea is:
 
-> Note: exploratory notebooks were removed as non-production artifacts.
+- Build a kNN graph around each query point in feature space.
+- Compute graph-derived scores.
+- Train/calibrate a detector from these features and evaluate detection metrics (AUROC, AUPRC, FPR@95TPR, etc.).
+- Use **Gaussian-process Bayesian optimisation** to tune graph/topology/detector hyperparameters.
 
-## Quickstart (recommended)
+### Repository layout
 
-Create and activate a virtual environment, then use the Makefile targets:
+- **`src/`**: core library (datasets, models, attacks generation, graph + topology scoring, detectors, evaluation, plotting)
+- **`config/`**: YAML experiment configs (supports inheritance via `base:`; see `src.utils.ExperimentConfig.from_yaml`)
+- **`optimisers/`**: GP optimiser + CLI endpoints via make
+- **`post_analyses/`**: post analyses done (related to whats written in the results section of the report)
+- **`out/`**: Output of the experiments
+
+## Installation
+
+Create a virtual environment and install dependencies:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 make install
-make help
 ```
 
-## Makefile usage
+## Quickstart: run the experiments
 
-The Makefile is the easiest way to run the main experiments. It wraps `python -m optimisers batch ...` with sensible defaults.
+The Makefile wraps all experimentation / analyses endpoints for easy execution
 
-### Discover available targets
+### See available cmds
 
 ```bash
 make help
 ```
 
-### Install dependencies
+### Run a full dataset sweep (recursive)
 
-```bash
-make install
-```
-
-By default this runs `python3 -m pip install -r requirements.txt`. If your env uses a different interpreter, override `PYTHON`:
-
-```bash
-make install PYTHON=.venv/bin/python
-```
-
-### Run smoke tests
-
-```bash
-make test
-```
-
-### Show optimiser CLI help
-
-```bash
-make cli-help
-```
-
-### Run full batch sweeps (all configs in a dataset directory)
-
-These targets run **all YAML configs** under `config/final/<dataset>/` and write results to `OUT` (default: `out`).
+Each target runs **all YAML files under the dataset directory**, including subfolders such as `baseline/` & `topology_only/`:
 
 ```bash
 make run-tabular
@@ -68,115 +51,68 @@ make run-torus-one-hole
 make run-torus-two-holes
 ```
 
-Run everything sequentially:
+Run all datasets sequentially:
 
 ```bash
-make run-all-final
+make run-all
 ```
 
-### Run topology-only sweeps (PH features only; baseline scores disabled)
+### Default values
 
-Each dataset now has a `config/final/<dataset>/topology_only/` directory, containing YAMLs that inherit from the corresponding `base*.yaml` and set:
+In the makefile some parameters have been predefined but can be overwritten, for our experiments we've kept these as defined in the makefile.
 
-- `graph.use_topology: true`
-- `graph.use_baseline_scores: false`
-
-This isolates performance coming **purely from persistent-homology summary features** (no `degree`, `laplacian`, tangent scores, etc.).
-
-```bash
-make topology-only-tabular
-make topology-only-mnist
-make topology-only-synthetic-shapes
-make topology-only-blobs
-make topology-only-nested-spheres
-make topology-only-torus-one-hole
-make topology-only-torus-two-holes
-```
-
-#### Common overrides (batch runs)
-
-The batch targets accept a few standard overrides:
-
-- **`OUT`**: output directory root (default `out`)
-- **`SPACE`**: optimiser search space YAML (default `optimisers/spaces/constrains.yaml`)
-- **`RUN_TRIALS`**: number of optimisation trials per config (default `15`)
-- **`RUN_INITIAL`**: number of random initial trials (default `5`)
-- **`RUN_SEED`**: random seed (default `30`)
+- **`PYTHON`**: interpreter to use (default: `python3`)
+- **`OUT`**: output directory root passed to `--output-root` (default: `out`)
+- **`SPACE`**: optimiser search space spec (default: `optimisers/spaces/constrains.yaml`)
+- **`RUN_TRIALS`**, **`RUN_INITIAL`**, **`RUN_SEED`**: optimisation settings
+- **`SYNTH_DATASET`**, **`SYNTH_MODEL`**: used by `run-synthetic-shapes` (defaults: `synthetic_shapes_2class`, `CNN`)
 
 Example:
 
 ```bash
-make run-tabular OUT=out/tabular RUN_TRIALS=30 RUN_INITIAL=10 RUN_SEED=1
+make run-tabular OUT=out RUN_TRIALS=30 RUN_INITIAL=10 RUN_SEED=1
 ```
 
-### Run OOD-only sweep for synthetic_shapes
+### Post-analyses
 
-This target runs **only** the OOD configs for `synthetic_shapes` by ignoring the baseline directory and any `base*` configs.
+The Makefile also exposes post-processing scripts that operate on an output directory (the same `OUT` you used for the runs):
 
 ```bash
-make ood-synthetic-shapes
+make post-analyses OUT=out
 ```
 
-#### Common overrides (OOD-only run)
+## Configs (`config/`)
 
-- **`OOD_CONFIG_DIR`**: config dir to scan (default `config/final/synthetic_shapes`)
-- **`OOD_DATASET`**: dataset variant (default `synthetic_shapes_2class`)
-- **`OOD_MODEL`**: model name (default `CNN`)
-- **`OOD_TRIALS`**: number of trials (default `15`)
-- **`OOD_INITIAL`**: number of random initial trials (default `5`)
-- **`OOD_SEED`**: random seed (default `30`)
-- **`OUT`**, **`SPACE`**, **`PYTHON`**: as above
+The main configs live under:
 
-Example:
+- `config/final/<dataset>/...`
 
-```bash
-make ood-synthetic-shapes OOD_DATASET=synthetic_shapes_3class OOD_TRIALS=5 OUT=out/ood
-```
+Typical subfolders:
 
-## CLI entrypoint (direct)
+- **`baseline/`**: uses geometric features only
+- **`topology_only/`**: uses topology features only
 
-If you prefer not to use `make`, the single command entrypoint is:
+## Datasets and models
 
-- `python -m optimisers ...`
+### Dataset registry keys
 
-It supports:
+The pipeline uses the dataset registry in `src/data.py` (see `src.api.list_datasets()`), including:
 
-- Single-config optimisation (default): `python -m optimisers --base-config ...`
-- Batch optimisation: `python -m optimisers batch --config-dir ...`
-- Plotting: `python -m optimisers plot-history --history ...`
+- **`TABULAR`**: scikit-learn breast cancer (tabular)
+- **`IMAGE`**: MNIST via torchvision (requires `cfg.data.root` and `cfg.data.download` if you want auto-download)
+- **`synthetic_shapes_2class`**, **`synthetic_shapes_3class`**: synthetic RGB images generated in-memory
+- **`VECTOR`**: synthetic 3D point clouds (controlled via `cfg.data.dataset_type`)
 
-### Single-config GP optimisation
+For `VECTOR`, common `data.dataset_type` values used in configs:
 
-```bash
-python -m optimisers \
-  --base-config config/final/tabular/base_e_0.1.yaml \
-  --dataset-name TABULAR \
-  --model-name MLP \
-  --space optimisers/spaces/constrains.yaml \
-  --metric-path metrics_adv.roc_auc \
-  --study-dir optimiser_outputs/study \
-  --n-trials 30
-```
+- `torus_one_hole`
+- `torus_two_holes`
+- `nested_spheres`
+- `Blobs`
 
-### Batch GP optimisation over a config directory
+### Model keys
 
-```bash
-python -m optimisers batch \
-  --config-dir config/final/tabular \
-  --dataset-name TABULAR \
-  --model-name MLP \
-  --space optimisers/spaces/constrains.yaml \
-  --metric-path auto \
-  --output-root out \
-  --n-trials 30
-```
+Built-in model factories (see `src.api.list_models()`):
 
-## Runner library (internal)
-
-`optimisers/runner_lib.py` is the internal execution engine used by the optimiser to materialize per-trial configs,
-run `src.api.run_pipeline()`, and write artifacts (metrics, raw features, logs).
-
-## Compatibility notes (import paths)
-
-The canonical implementation in this repo is `optimisers/`.
-
+- **`MLP`**: vector/tabular inputs
+- **`CNN`**: image inputs (channels inferred from data when possible)

@@ -1,5 +1,5 @@
 """
-Utility functions for reproducibility and configuration.
+Utils for setting configs
 """
 
 import random
@@ -11,12 +11,6 @@ from pathlib import Path
 
 
 def set_seed(seed: int = 42):
-    """
-    Set random seeds for reproducibility across NumPy, PyTorch, and Python random.
-    
-    Args:
-        seed: Random seed value
-    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -29,28 +23,20 @@ def set_seed(seed: int = 42):
 
 @dataclass
 class DataConfig:
-    """Configuration for dataset generation."""
     n_samples: int = 1000
     noise: float = 0.1
     random_state: int = 42
     train_ratio: float = 0.6
     val_ratio: float = 0.2
     test_ratio: float = 0.2
-    # VECTOR dataset variant (used by `GeometricalPointCloudDatasetSpec`).
-    # Examples: "torus_one_hole", "torus_two_holes", "nested_spheres", "Blobs"
     dataset_type: str = "torus_one_hole"
-    # Optional: explicit point count for generated point-cloud datasets.
     n_points: Optional[int] = None
-    # Optional: root directory for external datasets (e.g. torchvision IMAGE/CIFAR).
     root: str = "./data"
-    # Optional: whether to download external datasets if missing.
-    # Repo default is conservative (no auto-download); can be overridden by user code.
     download: bool = False
 
 
 @dataclass
 class ModelConfig:
-    """Configuration for MLP model architecture and training."""
     input_dim: int = 2
     hidden_dims: Optional[list[int]] = None
     output_dim: int = 2
@@ -68,7 +54,6 @@ class ModelConfig:
 
 @dataclass
 class AttackConfig:
-    """Configuration for adversarial attacks."""
     attack_type: str = 'fgsm'  # 'fgsm' or 'pgd'
     epsilon: float = 0.1
     num_steps: int = 10  # for PGD
@@ -78,22 +63,11 @@ class AttackConfig:
 
 @dataclass
 class OODConfig:
-    """
-    Configuration for out-of-distribution (OOD) generation.
-
-    Notes:
-      - `method` selects the OOD shift/corruption family.
-      - `severity` is a generic scalar (interpretation depends on method).
-    """
-
     enabled: bool = False
     method: str = "feature_shuffle"
     severity: float = 1.0
 
-    # Determinism: if None, API falls back to ExperimentConfig.seed (+ offsets)
     seed: Optional[int] = None
-
-    # Image-specific knobs (used by some methods)
     batch_size: int = 128
     patch_size: int = 4
     blur_kernel_size: int = 5
@@ -103,83 +77,50 @@ class OODConfig:
 
 @dataclass
 class GraphConfig:
-    """Configuration for graph construction and manifold scores."""
-    # If False, skip computing baseline (non-topological) graph scores like:
-    # - degree, laplacian
-    # - tangent residuals, knn radius
-    # - diffusion scores
-    #
-    # This is useful to *isolate* topology-only performance (PH summaries only).
     use_baseline_scores: bool = True
-    k: int = 10  # number of nearest neighbors
-    sigma: Optional[float] = None  # if None, will use median distance heuristic
+    k: int = 10  # k nearest neighbors
+    sigma: Optional[float] = None  # if None, use median distance heuristic
     space: str = 'feature'  # 'input' or 'feature'
-    # Which feature layer to use when `space == "feature"`.
-    # Models may support multiple layers (e.g. `TwoMoonsMLP`: "penultimate" or "first").
     feature_layer: str = "penultimate"
     normalized_laplacian: bool = True
-    use_diffusion: bool = False  # optional diffusion map embedding
-    diffusion_components: int = 10  # for diffusion embedding
-    # Local tangent manifold membership (PCA on neighborhood)
+    use_diffusion: bool = False  # diffusion map embedding
+    diffusion_components: int = 10  
     use_tangent: bool = True
     tangent_k: int = 20  # neighborhood size for local PCA
-    tangent_dim: Optional[int] = None  # if None, will use min(input_dim, 2)
-    tangent_var_threshold: float = 0.9  # if tangent_dim is None, choose dims to explain this variance
-    tangent_dim_min: int = 2  # lower bound when using explained-variance selection
-    tangent_dim_max: Optional[int] = None  # upper bound when using explained-variance selection
+    tangent_dim: Optional[int] = None 
+    tangent_var_threshold: float = 0.9 
+    tangent_dim_min: int = 2 
+    tangent_dim_max: Optional[int] = None  
 
-    # --- Topology (persistent homology) scoring options ---
-    # These options enable a topology-based detector score derived from persistent homology
-    # features computed on a local neighborhood point cloud around each query point.
     use_topology: bool = False
-    topo_k: int = 50  # neighborhood size for local PH (number of neighbors + query point)
-    topo_maxdim: int = 1  # compute H0..H_topo_maxdim
+    topo_k: int = 50  # neighborhood size for local PH
+    topo_maxdim: int = 1  # compute H0 to H_topo_maxdim -> We keep this at 1 for the project
     topo_metric: str = 'euclidean'
-    topo_thresh: Optional[float] = None  # max filtration radius (None lets backend choose)
-    topo_min_persistence: float = 1e-6  # ignore tiny lifetimes as numerical noise
-    # Optional preprocessing of each local neighborhood point cloud before PH.
-    # Motivation: in high-d tabular/vector settings, distances concentrate and VR PH can become
-    # uninformative; projecting to a local low-d subspace often yields more meaningful topology.
-    topo_preprocess: str = 'none'  # 'none' or 'pca'
-    topo_pca_dim: int = 10  # used when topo_preprocess == 'pca'
+    topo_thresh: Optional[float] = None 
+    topo_min_persistence: float = 1e-6  
+    topo_preprocess: str = 'none' 
+    topo_pca_dim: int = 10  
 
 
 @dataclass
 class DetectorConfig:
     """Configuration for graph-based detector."""
-    # score_type selects the scalar score used for detection.
-    # For off-manifold detection, prefer:
-    # - 'tangent_residual': local tangent-space projection residual (geometry)
-    # - 'knn_radius': mean distance to kNN in representation space (density proxy)
-    score_type: str = 'combined'  # 'degree', 'laplacian', 'diffusion', 'combined', 'tangent_residual', 'tangent_residual_z', 'knn_radius'
-    alpha: float = 0.5  # weight for degree score in combined
-    beta: float = 0.5  # weight for laplacian score in combined
-    detector_type: str = 'topology_score'  # standardized: 'topology_score'
-    calibration_method: str = 'isotonic'  # 'isotonic' or 'logistic'
+    score_type: str = 'combined' 
+    alpha: float = 0.5 
+    beta: float = 0.5 
+    detector_type: str = 'topology_score' 
+    calibration_method: str = 'isotonic' 
 
-    # Topology-score detector (uses PH feature vectors -> scalar score -> threshold).
-    # When detector_type == 'topology_score', topo_feature_keys selects which score dict keys
-    # become the feature vector.
     topo_feature_keys: Optional[list] = None
-    topo_cov_shrinkage: float = 1e-3  # diagonal shrinkage for covariance stabilization
-    topo_percentile: float = 95.0  # clean-score percentile threshold (FPR target ~ 5%)
-
-    # --- Class-conditional topology scoring (optional) ---
-    # Motivation: pooled (all-class) Gaussian scoring can be a poor approximation when
-    # topology features are multi-modal across classes. Enabling this fits one Gaussian
-    # per class on clean samples and scores using either:
-    #   - 'min_over_classes' (default): min Mahalanobis distance over classes
-    #   - 'predicted_class': Mahalanobis distance to the classifier's predicted class
-    #
-    # Defaults preserve current behavior (pooled scoring).
+    topo_cov_shrinkage: float = 1e-3 
+    topo_percentile: float = 95.0  
     topo_class_conditional: bool = False
-    topo_class_scoring_mode: str = "min_over_classes"  # 'min_over_classes' | 'predicted_class' | 'true_class'
-    topo_min_clean_per_class: int = 5  # below this, class covariance falls back to diagonal+shrinkage
+    topo_class_scoring_mode: str = "min_over_classes"  
+    topo_min_clean_per_class: int = 5  
 
 
 @dataclass
 class ExperimentConfig:
-    """Master configuration class combining all configs."""
     data: Optional[DataConfig] = None
     model: Optional[ModelConfig] = None
     attack: Optional[AttackConfig] = None
@@ -214,9 +155,6 @@ class ExperimentConfig:
     def _deep_merge_dicts(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         """
         Recursively merge two dicts without mutating either.
-
-        - dict values are merged recursively
-        - non-dict values in override replace base
         """
         out: Dict[str, Any] = dict(base)
         for k, v in (override or {}).items():
@@ -229,9 +167,7 @@ class ExperimentConfig:
     @staticmethod
     def _normalize_config_dict(d: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Allow a couple of ergonomic aliases in YAML:
-          - top-level pca_dim -> graph.topo_pca_dim
-          - graph.pca_dim -> graph.topo_pca_dim
+        Allow a couple of ergonomic aliases in YAML
         """
         if not isinstance(d, dict):
             raise TypeError("Config must be a mapping/dict.")
@@ -251,10 +187,6 @@ class ExperimentConfig:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ExperimentConfig":
-        """
-        Build an ExperimentConfig from a (possibly partial) nested dict with keys:
-          - data, model, attack, graph, detector, seed, device
-        """
         d = cls._normalize_config_dict(d or {})
 
         data_cfg = DataConfig(**(d.get("data") or {}))
@@ -277,13 +209,6 @@ class ExperimentConfig:
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "ExperimentConfig":
-        """
-        Load config from a YAML file. Supports optional inheritance:
-
-        - If the YAML contains: base: "base.yaml"
-          then the base config is loaded first and merged with the current file.
-        - Relative base paths are resolved relative to the current YAML's directory.
-        """
         path = Path(path)
         try:
             import yaml  # type: ignore
@@ -309,7 +234,6 @@ class ExperimentConfig:
         return cls.from_dict(merged)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to a plain nested dict (useful for YAML merge/inheritance)."""
         return {
             "data": dict(self.data.__dict__),
             "model": dict(self.model.__dict__),

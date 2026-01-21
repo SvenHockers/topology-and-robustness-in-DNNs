@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import Optional, Tuple, Mapping, Any, Dict, Sequence, Union
 
 # -----------------------------------------------------------------------------
-# Publication plotting style utilities
+# Custom plotting style - such plots can be used in the report
 # -----------------------------------------------------------------------------
 
-# Matplotlib "tab10" palette in hex (Tableau colors).
+# Matplotlib "tab10" palette
 _TAB10_HEX: Tuple[str, ...] = (
     "#1f77b4",  # tab:blue
     "#ff7f0e",  # tab:orange
@@ -32,7 +32,6 @@ _TAB10_HEX: Tuple[str, ...] = (
 )
 
 _NEUTRAL: Dict[str, str] = {
-    # Use for text/thresholds/diagonals; keep legible but not harsh.
     "text": "#333333",
     "dark": "#444444",
     "grid": "#B0B0B0",
@@ -40,9 +39,6 @@ _NEUTRAL: Dict[str, str] = {
 }
 
 _ALPHA: Dict[str, float] = {
-    # Convention:
-    # - Filled elements (histograms, fills, confidence bands): alpha=0.60
-    # - Lines/markers: alpha=1.0 unless the plot specifically needs transparency
     "fill": 0.60,
     "line": 1.00,
 }
@@ -51,18 +47,9 @@ _STYLE_STATE: Dict[str, Any] = {"configured": False, "latex": None}
 
 
 def get_palette() -> Dict[str, Any]:
-    """
-    Return the central color palette used across this repository.
-
-    Intended usage:
-    - Use `pal["clean"]` and `pal["adversarial"]` for binary comparisons.
-    - Use `pal["tab10"]` (10 colors) as the default categorical cycle.
-    - Use `pal["alpha"]["fill"]` (default 0.60) for filled elements.
-    - Use `pal["alpha"]["line"]` (default 1.0) for lines/markers.
-    """
     return {
-        "clean": _TAB10_HEX[0],  # tab:blue
-        "adversarial": _TAB10_HEX[1],  # tab:orange
+        "clean": _TAB10_HEX[0],
+        "adversarial": _TAB10_HEX[1],
         "tab10": list(_TAB10_HEX),
         "neutral": dict(_NEUTRAL),
         "alpha": dict(_ALPHA),
@@ -70,10 +57,6 @@ def get_palette() -> Dict[str, Any]:
 
 
 def _latex_escape_text(s: str) -> str:
-    """
-    Escape LaTeX special characters in plain text (non-math) strings.
-    """
-    # Keep this minimal and predictable; users should prefer raw strings + math mode.
     repl = {
         "\\": r"\textbackslash{}",
         "&": r"\&",
@@ -93,13 +76,6 @@ def _latex_escape_text(s: str) -> str:
 
 
 def _as_latex(s: Optional[Union[str, float, int]]) -> Optional[str]:
-    """
-    Ensure a label/title string is LaTeX-safe.
-
-    Recommendations:
-    - Prefer raw strings: r"..."
-    - Use math mode when appropriate: r"$\alpha$" or r"$\mathrm{FPR}$"
-    """
     if s is None:
         return None
     if not isinstance(s, str):
@@ -115,21 +91,6 @@ def _as_latex(s: Optional[Union[str, float, int]]) -> Optional[str]:
 
     # Plain text: wrap in \textnormal{} so it renders as text with LaTeX.
     return r"\textnormal{" + _latex_escape_text(s) + "}"
-
-
-def _latex_dependency_error_message(original_exc: BaseException) -> str:
-    return (
-        "Matplotlib is configured to require LaTeX rendering (text.usetex=True), "
-        "but LaTeX could not be executed successfully.\n\n"
-        "Fix by installing a LaTeX distribution and required helpers, then rerun:\n"
-        "- macOS (Homebrew): brew install --cask mactex-no-gui && brew install ghostscript\n"
-        "- Ubuntu/Debian: sudo apt-get install texlive-latex-extra texlive-fonts-recommended "
-        "texlive-science dvipng ghostscript\n"
-        "- Conda: conda install -c conda-forge texlive-core dvipng ghostscript\n\n"
-        "Original error:\n"
-        f"{type(original_exc).__name__}: {original_exc}"
-    )
-
 
 def _sanity_check_latex() -> None:
     """
@@ -158,15 +119,10 @@ def configure_mpl_style(latex: bool = True) -> None:
     - This function intentionally does NOT silently fall back to non-LaTeX.
     """
     pal = get_palette()
-
-    # Typography (paper-ready defaults; base font size 9–10 pt).
     base_font = 10
 
     rc = {
         # Layout/export
-        # IMPORTANT: Use ONE layout system consistently. We default to tight_layout
-        # (user code often calls plt.tight_layout()), because mixing it with
-        # constrained_layout can raise RuntimeError when colorbars exist.
         "figure.constrained_layout.use": False,
         "savefig.bbox": "tight",
         "savefig.pad_inches": 0.02,
@@ -231,7 +187,7 @@ def configure_mpl_style(latex: bool = True) -> None:
         try:
             _sanity_check_latex()
         except Exception as e:  # pragma: no cover (depends on system LaTeX install)
-            raise RuntimeError(_latex_dependency_error_message(e)) from e
+            raise RuntimeError("Check if latex is installed") from e
 
     _STYLE_STATE["configured"] = True
     _STYLE_STATE["latex"] = bool(latex)
@@ -357,15 +313,9 @@ def save_figure(
     *,
     force_pdf: bool = True,
 ) -> Dict[str, str]:
-    """
-    Save a figure in standard paper-ready formats.
-
-    Always includes PDF (vector). PNG is also produced for quick inspection.
-    """
     _ensure_style()
 
     fmts = [str(f).lower().lstrip(".") for f in formats]
-    # Backwards-compatible default: always include vector PDF unless caller opts out.
     if bool(force_pdf) and "pdf" not in fmts:
         fmts = ["pdf"] + fmts
 
@@ -374,13 +324,9 @@ def save_figure(
     if path.parent != Path("."):
         path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Prefer tight_layout for spacing (safe with colorbars); bbox_inches="tight"
-    # remains enabled to avoid label clipping in exports.
     try:
         fig.tight_layout()
     except Exception:
-        # If a user configured a non-tight layout engine explicitly, don't fail
-        # at export time—bbox_inches="tight" still prevents clipping.
         pass
 
     for fmt in fmts:
@@ -411,15 +357,6 @@ def plot_precision_recall_curve(
     """
     Plot a precision-recall (PR) curve.
 
-    Args:
-        precision: Precision values (same length as recall).
-        recall: Recall values (same length as precision).
-        average_precision: Optional AUPR/AP value for legend.
-        title: Plot title.
-        ax: Optional axes to plot on.
-        interpolate: Whether to interpolate for smoother plotting.
-        n_points: Number of interpolation points when interpolate=True.
-        label: Optional legend label (defaults to AP label when provided).
     """
     _ensure_style()
     precision = np.asarray(precision, dtype=float).ravel()
@@ -477,8 +414,6 @@ def plot_pr_from_metrics(
 
     Returns (fig, ax).
     """
-    # Prefer non-colliding PR-curve keys from src.evaluation.evaluate_detector.
-    # Fall back to legacy keys if present.
     precision = np.asarray(metrics.get("pr_precision", metrics.get("precision")), dtype=float)
     recall = np.asarray(metrics.get("pr_recall", metrics.get("recall")), dtype=float)
     ap = metrics.get("pr_auc", None)
@@ -512,11 +447,7 @@ def plot_reliability_diagram(
     show: bool = True,
 ):
     """
-    Plot a standard reliability diagram (calibration curve).
-
-    Note:
-      If `predicted_probs` are derived from a detector score (monotone proxy),
-      this plot reflects calibration of that proxy, not a model probability.
+    Plot a standard reliability diagram (calibration curve).    
     """
     _ensure_style()
     p = np.asarray(predicted_probs, dtype=float).ravel()
@@ -575,14 +506,7 @@ def plot_topology_feature_shift(
     """
     Visualize how topology features shift between two populations (e.g., clean vs adv/OOD).
 
-    We plot standardized mean differences (Cohen's d):
-        d = (mean_shifted - mean_clean) / sqrt(0.5*(var_clean + var_shifted))
-
-    Args:
-        topo_clean: Dict of feature -> array (clean).
-        topo_shifted: Dict of feature -> array (shifted: adv/OOD).
-        feature_keys: Which features to include (defaults to shared `topo_*` keys).
-        top_k: Show only the top_k by absolute shift (keeps figures readable).
+    We plot standardized mean differences (Cohen's d)
     """
     _ensure_style()
     if feature_keys is None:
@@ -631,132 +555,6 @@ def plot_topology_feature_shift(
         plt.show()
     return fig, ax
 
-
-def plot_two_moons(
-    X: np.ndarray,
-    y: np.ndarray,
-    title: str = "Two Moons Dataset",
-    ax: Optional[plt.Axes] = None
-) -> plt.Axes:
-    """
-    Plot two moons dataset colored by class.
-    
-    Args:
-        X: Feature array
-        y: Labels
-        title: Plot title
-        ax: Optional axes to plot on
-        
-    Returns:
-        Matplotlib axes
-    """
-    _ensure_style()
-    if ax is None:
-        fig, ax = new_figure(kind="single", aspect=0.62)
-
-    pal = get_palette()
-    cmap = ListedColormap([pal["tab10"][0], pal["tab10"][1]])
-    scatter = ax.scatter(
-        X[:, 0],
-        X[:, 1],
-        c=y,
-        cmap=cmap,
-        s=28,
-        alpha=pal["alpha"]["line"],
-        linewidths=0.0,
-    )
-    cbar = plt.colorbar(scatter, ax=ax)
-    cbar.set_label(_as_latex("Class"))
-
-    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=False)
-    
-    return ax
-
-
-def plot_decision_boundary(
-    model,
-    X: np.ndarray,
-    y: np.ndarray,
-    title: str = "Decision Boundary",
-    device: str = 'cpu',
-    resolution: int = 100,
-    ax: Optional[plt.Axes] = None
-) -> plt.Axes:
-    """
-    Plot decision boundary of the model overlaid on data.
-    
-    Args:
-        model: Trained PyTorch model
-        X: Feature array
-        y: Labels
-        title: Plot title
-        device: Device for model inference
-        resolution: Resolution of decision boundary grid
-        ax: Optional axes to plot on
-        
-    Returns:
-        Matplotlib axes
-    """
-    _ensure_style()
-    if ax is None:
-        fig, ax = new_figure(kind="double", aspect=0.62)
-
-    # Create a mesh grid
-    x_min, x_max = X[:, 0].min() - 0.5, X[:, 0].max() + 0.5
-    y_min, y_max = X[:, 1].min() - 0.5, X[:, 1].max() + 0.5
-    xx, yy = np.meshgrid(
-        np.linspace(x_min, x_max, resolution),
-        np.linspace(y_min, y_max, resolution)
-    )
-    
-    # Flatten grid and make predictions
-    grid_points = np.c_[xx.ravel(), yy.ravel()]
-    grid_tensor = torch.FloatTensor(grid_points).to(device)
-    
-    model.eval()
-    with torch.no_grad():
-        outputs = model(grid_tensor)
-        probs = torch.softmax(outputs, dim=1)
-        Z = probs[:, 1].cpu().numpy()  # Probability of class 1
-    
-    Z = Z.reshape(xx.shape)
-
-    pal = get_palette()
-    from matplotlib.colors import LinearSegmentedColormap
-
-    prob_cmap = LinearSegmentedColormap.from_list(
-        "clean_to_adv", [pal["clean"], pal["adversarial"]]
-    )
-
-    # Plot decision boundary / probability surface (filled element -> alpha=0.60)
-    contour = ax.contourf(
-        xx, yy, Z, levels=50, cmap=prob_cmap, alpha=pal["alpha"]["fill"]
-    )
-    ax.contour(
-        xx, yy, Z, levels=[0.5], colors=pal["neutral"]["dark"], linewidths=1.5
-    )
-
-    # Plot data points (markers -> alpha=1.0)
-    cls_cmap = ListedColormap([pal["tab10"][0], pal["tab10"][1]])
-    scatter = ax.scatter(
-        X[:, 0],
-        X[:, 1],
-        c=y,
-        cmap=cls_cmap,
-        s=22,
-        alpha=pal["alpha"]["line"],
-        edgecolors=pal["neutral"]["dark"],
-        linewidths=0.4,
-    )
-
-    cbar = plt.colorbar(contour, ax=ax)
-    cbar.set_label(_as_latex("Probability of Class 1"))
-
-    finalize_axes(ax, xlabel="Feature 1", ylabel="Feature 2", title=title, legend=False)
-    
-    return ax
-
-
 def plot_score_distributions(
     scores_clean: np.ndarray,
     scores_adv: np.ndarray,
@@ -771,25 +569,6 @@ def plot_score_distributions(
     density: bool = True,
     colors: Optional[Tuple[str, str]] = None,
 ) -> plt.Axes:
-    """
-    Plot histogram/KDE of scores for clean vs adversarial examples.
-    
-    Args:
-        scores_clean: Scores for clean examples
-        scores_adv: Scores for adversarial examples
-        score_name: Name of the score for axis label
-        title: Plot title
-        bins: Number of histogram bins
-        ax: Optional axes to plot on
-        threshold: Optional score threshold to draw as a vertical line
-        labels: Legend labels for (clean, adversarial)
-        alpha: Histogram alpha
-        density: Whether to plot density-normalized histograms
-        colors: Histogram colors for (clean, adversarial)
-        
-    Returns:
-        Matplotlib axes
-    """
     _ensure_style()
     if ax is None:
         fig, ax = new_figure(kind="single", aspect=0.62)
@@ -847,11 +626,6 @@ def plot_score_distributions_figure(
     figsize: Optional[Tuple[float, float]] = None,
     show: bool = True,
 ):
-    """
-    Standardized wrapper around plot_score_distributions (mirrors plot_roc_from_metrics).
-
-    Returns (fig, ax).
-    """
     _ensure_style()
     if ax is None:
         if figsize is None:
@@ -893,23 +667,6 @@ def plot_roc_curve(
     *,
     auc_score: Optional[float] = None,
 ) -> plt.Axes:
-    """
-    Plot ROC curve.
-    
-    Args:
-        fpr: False positive rates
-        tpr: True positive rates
-        roc_auc: AUC score (kept for backwards compatibility; positional arg #3)
-        title: Plot title
-        ax: Optional axes to plot on
-        interpolate: Whether to interpolate for smoother plotting
-        n_points: Number of interpolation points when interpolate=True
-        label: Optional legend label (defaults to AUC label)
-        auc_score: Alias for roc_auc (keyword-only)
-        
-    Returns:
-        Matplotlib axes
-    """
     _ensure_style()
     if ax is None:
         fig, ax = new_figure(kind="single", aspect=1.0)
@@ -958,11 +715,6 @@ def plot_roc_from_metrics(
     interpolate: bool = False,
     n_points: int = 200,
 ):
-    """
-    Plot an ROC curve from the dict returned by src.evaluation.evaluate_detector.
-
-    Returns (fig, ax).
-    """
     fpr = np.asarray(metrics.get("fpr"), dtype=float)
     tpr = np.asarray(metrics.get("tpr"), dtype=float)
     roc_auc = metrics.get("roc_auc", None)
@@ -998,16 +750,6 @@ def plot_confusion_matrix(
     ax: Optional[plt.Axes] = None,
     show: bool = True,
 ):
-    """
-    Plot TP/FP/TN/FN confusion matrix (counts + row-normalized).
-
-    Intended for binary problems like:
-      - 0 = clean, 1 = adversarial
-
-    You can pass either:
-      - y_true + y_pred
-      - y_true + y_scores + threshold  (y_pred computed as y_scores >= threshold)
-    """
     _ensure_style()
     y_true = np.asarray(y_true, dtype=int).ravel()
     if y_pred is None:
@@ -1030,7 +772,6 @@ def plot_confusion_matrix(
     if ax is None:
         fig, axes = new_figure(kind="double", aspect=0.45, ncols=2)
     else:
-        # If a single axis is provided, draw counts only.
         fig = ax.figure
         axes = [ax]
 
@@ -1081,19 +822,6 @@ def plot_score_scatter(
     cmap: str = 'viridis',
     ax: Optional[plt.Axes] = None
 ) -> plt.Axes:
-    """
-    Plot 2D scatter of data points colored by score values.
-    
-    Args:
-        X: 2D feature array
-        scores: Score values to color by
-        title: Plot title
-        cmap: Colormap name
-        ax: Optional axes to plot on
-        
-    Returns:
-        Matplotlib axes
-    """
     _ensure_style()
     if ax is None:
         fig, ax = new_figure(kind="double", aspect=0.62)
@@ -1124,20 +852,6 @@ def plot_adversarial_examples(
     n_samples: int = 100,
     ax: Optional[plt.Axes] = None
 ) -> plt.Axes:
-    """
-    Plot clean and adversarial examples with arrows showing perturbations.
-    
-    Args:
-        X_clean: Clean examples
-        X_adv: Adversarial examples
-        y: Labels
-        title: Plot title
-        n_samples: Number of samples to visualize (for clarity)
-        ax: Optional axes to plot on
-        
-    Returns:
-        Matplotlib axes
-    """
     _ensure_style()
     if ax is None:
         fig, ax = new_figure(kind="double", aspect=0.62)
@@ -1207,21 +921,7 @@ def plot_persistence_diagram(
     ax: Optional[plt.Axes] = None,
     min_persistence: float = 1e-6,
     max_persistence: Optional[float] = None,
-) -> plt.Axes:
-    """
-    Plot a persistence diagram.
-    
-    Args:
-        diagram: Persistence diagram array of shape (n_features, 2) with (birth, death) pairs
-        dimension: Homology dimension (for labeling)
-        title: Plot title (defaults to "H{dimension} Persistence Diagram")
-        ax: Optional axes to plot on
-        min_persistence: Minimum persistence to display (filters noise)
-        max_persistence: Maximum persistence for axis limits (None = auto)
-        
-    Returns:
-        Matplotlib axes
-    """
+) -> plt.Axes:      
     _ensure_style()
     created_fig = False
     if ax is None:
@@ -1388,19 +1088,6 @@ def plot_local_neighborhood(
     ax: Optional[plt.Axes] = None,
     max_dims: int = 2,
 ) -> plt.Axes:
-    """
-    Plot a local neighborhood point cloud (with optional PCA projection for high-dim data).
-    
-    Args:
-        point_cloud: Point cloud array of shape (n_points, d)
-        query_point: Optional query point to highlight (shape (d,))
-        title: Plot title
-        ax: Optional axes to plot on
-        max_dims: Maximum dimensions to plot (if d > max_dims, use PCA projection)
-        
-    Returns:
-        Matplotlib axes
-    """
     _ensure_style()
     if ax is None:
         fig, ax = new_figure(kind="single", aspect=1.0)
@@ -1459,12 +1146,6 @@ def plot_topology_feature_pca(
     ax: Optional[plt.Axes] = None,
     show: bool = True,
 ) -> Tuple[mpl.figure.Figure, plt.Axes]:
-    """
-    Project topology feature vectors to 2D with PCA and plot clean vs shifted.
-
-    This is a compact way to visualize a distribution shift in the *feature space*
-    the detector actually uses (v(x)).
-    """
     _ensure_style()
     keys = [k for k in feature_keys if k in topo_clean and k in topo_shifted]
     if len(keys) == 0:
@@ -1538,16 +1219,7 @@ def plot_topology_explanation_panel(
     score: Optional[float] = None,
     threshold: Optional[float] = None,
     title: str = "Topology detector explanation",
-) -> Tuple[mpl.figure.Figure, Dict[str, Any]]:
-    """
-    Build a paper-style multi-panel figure explaining one point's topology score:
-      - local neighborhood point cloud (PCA-projected if high-d)
-      - persistence diagrams (H0/H1 when available)
-      - topology summary feature bar chart
-
-    Returns:
-      (fig, payload) where payload includes: features, diagrams, cloud.
-    """
+) -> Tuple[mpl.figure.Figure, Dict[str, Any]]:  
     _ensure_style()
     from matplotlib.gridspec import GridSpec
     from .graph_scoring import compute_graph_scores_with_diagrams
@@ -1622,11 +1294,6 @@ def plot_persistence_diagram_comparison(
     max_persistence: Optional[float] = None,
     show: bool = True,
 ) -> Tuple[mpl.figure.Figure, Sequence[plt.Axes]]:
-    """
-    Plot persistence diagrams side-by-side for comparison (clean vs shifted).
-
-    Uses shared axis limits so differences are visually meaningful.
-    """
     _ensure_style()
     d0 = np.asarray(diagram_clean, dtype=float)
     d1 = np.asarray(diagram_shifted, dtype=float)
@@ -1687,10 +1354,7 @@ def plot_persistence_diagrams_grid(
     title_clean: str = "Clean",
     title_shifted: str = "Shifted",
     show: bool = True,
-) -> Tuple[mpl.figure.Figure, np.ndarray]:
-    """
-    Convenience: plot a 2-column grid (clean vs shifted) for H0..Hmaxdim.
-    """
+) -> Tuple[mpl.figure.Figure, np.ndarray]:  
     _ensure_style()
     m = int(max(0, maxdim))
     nrows = m + 1

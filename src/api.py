@@ -1,8 +1,5 @@
 """
-Public, stable API for this repository.
-
-Goal: expose a small set of functions/classes so users can run experiments without
-copying notebook glue code, while keeping the underlying implementations unchanged.
+This expose APIs for the src/ directory, this supplies integerations for the makefile and optimiser
 """
 
 from __future__ import annotations

@@ -1,9 +1,5 @@
 """
-Topology (persistent homology) feature extraction utilities.
-
-This module is intentionally optional: it requires a PH backend (recommended: ripser).
-If the dependency is not installed, importing is fine, but calling the PH functions
-will raise an informative error.
+PH feature extraction utils
 """
 
 from __future__ import annotations
@@ -14,21 +10,7 @@ from typing import Dict, Optional, Sequence, Tuple
 import numpy as np
 from sklearn.decomposition import PCA
 
-
-def _require_ripser():
-    try:
-        from ripser import ripser  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise ImportError(
-            "Topology scoring requires a persistent-homology backend.\n"
-            "Install one of:\n"
-            "  - ripser (recommended for Vietoris–Rips PH on point clouds)\n"
-            "  - gudhi (more general; alpha complexes, cubical, etc.)\n\n"
-            "For this repo, add to your environment:\n"
-            "  pip install ripser\n"
-        ) from e
-    return ripser
-
+from ripser import ripser   
 
 @dataclass
 class TopologyConfig:
@@ -174,31 +156,19 @@ def local_persistence_features(
 ) -> Dict[str, float] | Tuple[Dict[str, float], Sequence[np.ndarray]]:
     """
     Compute PH summary features for a local neighborhood point cloud.
+    """     
 
-    Args:
-        point_cloud: Array of shape (n_points, d)
-        topo_cfg: TopologyConfig
-        return_diagrams: If True, also return raw persistence diagrams
-        
-    Returns:
-        If return_diagrams=False: Dict of summary features
-        If return_diagrams=True: Tuple of (features_dict, diagrams_list)
-    """
-    ripser = _require_ripser()
-
-    # Optional: local PCA compression before PH (helps when d >> n_points).
+    # local PCA compression before PH 
     if str(topo_cfg.preprocess).lower() == "pca":
         X = np.asarray(point_cloud, dtype=float)
         n, d = X.shape
-        # PCA rank is at most min(n-1, d). Keep dim <= that.
+        # PCA rank is at most min(n-1, d). Keep dim smaller
         r_max = max(1, min(n - 1, d))
         r = int(min(max(1, int(topo_cfg.pca_dim)), r_max))
         if r < d:
             X = PCA(n_components=r).fit_transform(X)
         point_cloud = X
 
-    # ripser's Cython backend expects thresh to be a real number; passing None can error.
-    # If thresh is unset, omit it (ripser will use its internal default).
     kwargs = {
         "maxdim": int(topo_cfg.maxdim),
         "metric": str(topo_cfg.metric),
@@ -210,16 +180,15 @@ def local_persistence_features(
     if filt == "standard":
         out = ripser(point_cloud, **kwargs)
     elif filt == "query_anchored":
-        # Use ripser's distance-matrix mode; metric is not used in this mode.
-        Dp = _query_anchored_distance_matrix(
+        DistanceMatrix = _query_anchored_distance_matrix(
             point_cloud,
             query_lambda=float(getattr(topo_cfg, "query_lambda", 1.0)),
             query_gamma=float(getattr(topo_cfg, "query_gamma", 1.0)),
         )
-        # Remove 'metric' for distance_matrix mode to avoid backend confusion.
+        # remove metric from distance matrix as it causes a bug in ripser
         kwargs_dm = dict(kwargs)
         kwargs_dm.pop("metric", None)
-        out = ripser(Dp, distance_matrix=True, **kwargs_dm)
+        out = ripser(DistanceMatrix, distance_matrix=True, **kwargs_dm)
     else:
         raise ValueError(f"Unknown topo_cfg.filtration={topo_cfg.filtration!r}. Expected 'standard' or 'query_anchored'.")
 

@@ -1,10 +1,3 @@
-"""
-Public API types (dataclasses).
-
-These are thin, structural containers for results returned by `src.api`.
-They intentionally do not implement logic.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,24 +8,18 @@ import numpy as np
 
 @dataclass(frozen=True)
 class AttackResult:
-    """Container for adversarial examples and optional metadata."""
-
     X_adv: np.ndarray
     meta: Dict[str, Any]
 
 
 @dataclass(frozen=True)
 class OODResult:
-    """Container for OOD examples and optional metadata."""
-
     X_ood: np.ndarray
     meta: Dict[str, Any]
 
 
 @dataclass(frozen=True)
 class DetectorEvalResult:
-    """Container for detector evaluation outputs."""
-
     labels: np.ndarray
     raw_scores: np.ndarray
     metrics: Dict[str, Any]
@@ -42,12 +29,6 @@ class DetectorEvalResult:
 
 @dataclass(frozen=True)
 class RunResult:
-    """
-    End-to-end pipeline outputs.
-
-    Note: to avoid import cycles, `bundle`, `model`, and `detector` are typed as Any.
-    """
-
     cfg: Any
     bundle: Any
     model: Any
@@ -63,7 +44,6 @@ class RunResult:
 
     eval: DetectorEvalResult
 
-    # Optional: OOD evaluation outputs (kept separate from adversarial metrics/plots).
     ood_val: Optional[OODResult] = None
     ood_test: Optional[OODResult] = None
     scores_val_ood: Optional[Dict[str, np.ndarray]] = None

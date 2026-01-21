@@ -1,10 +1,7 @@
 """
 Dataset generation and data loaders.
 
-This module centralizes dataset generation used in notebooks to avoid duplication:
-- two moons toy data
-- tabular/vector datasets (real + synthetic)
-- synthetic "image-like" RGB shapes datasets (2-class / 3-class)
+NOTE: This file also contains datasets that are not used in the paper
 """
 
 from __future__ import annotations

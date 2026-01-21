@@ -1,5 +1,5 @@
 """
-Evaluation metrics and calibration functions.
+Evaluation metrics and calibration functions for the threshold
 """
 
 import numpy as np

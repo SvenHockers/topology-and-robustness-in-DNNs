@@ -1,15 +1,5 @@
 """
-Out-of-distribution (OOD) example generators.
-
-Goal:
-  Provide lightweight, dependency-free OOD transforms that can be applied to an
-  existing validation/test split to probe whether the detector generalizes beyond
-  adversarial attacks.
-
-Design:
-  - numpy in -> numpy out
-  - deterministic given a seed
-  - supports vector/tabular (N,D) and image tensors (N,C,H,W)
+OOD generator
 """
 
 from __future__ import annotations
@@ -40,15 +30,6 @@ def generate_ood_examples(
     *,
     config: OODConfig,
 ) -> np.ndarray:
-    """
-    Generate OOD-like vectors from in-distribution vectors.
-
-    Supported methods:
-      - "feature_shuffle": independently permute each feature across samples (breaks correlations)
-      - "gaussian_noise": add noise with per-feature std scaled by severity
-      - "extrapolate": extrapolate between random pairs: x_i + lam*(x_i - x_j)
-      - "uniform_wide": sample uniformly from a widened box around the validation min/max
-    """
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError(f"generate_ood_examples expects X.ndim==2; got {X.ndim} with shape {X.shape}")

@@ -225,17 +225,6 @@ def train_model(
 ) -> Dict[str, list]:
     """
     Train the model with early stopping based on validation loss.
-    
-    Args:
-        model: PyTorch model to train
-        train_loader: Training data loader
-        val_loader: Validation data loader
-        config: ModelConfig with training hyperparameters
-        device: Device to train on ('cpu' or 'cuda')
-        verbose: Whether to print training progress
-        
-    Returns:
-        Dictionary with training history containing 'train_loss', 'val_loss', 'train_acc', 'val_acc'
     """
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
@@ -314,17 +303,6 @@ def evaluate_model(
     data_loader: DataLoader,
     device: str = 'cpu'
 ) -> Tuple[float, float]:
-    """
-    Evaluate model on a dataset.
-    
-    Args:
-        model: PyTorch model
-        data_loader: Data loader
-        device: Device to evaluate on
-        
-    Returns:
-        Tuple of (average_loss, accuracy_percentage)
-    """
     model.eval()
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
@@ -357,19 +335,6 @@ def extract_features_batch(
     device: str = 'cpu',
     batch_size: int = 32
 ) -> np.ndarray:
-    """
-    Extract features for a batch of inputs.
-    
-    Args:
-        model: Trained PyTorch model
-        X: Input array of shape (n_samples, input_dim)
-        layer: Which layer to extract from
-        device: Device to run on
-        batch_size: Batch size for processing
-        
-    Returns:
-        Feature array of shape (n_samples, feature_dim)
-    """
     model.eval()
     model.to(device)
     
@@ -392,18 +357,6 @@ def get_model_predictions(
     device: str = 'cpu',
     return_probs: bool = False
 ) -> np.ndarray:
-    """
-    Get model predictions (or probabilities) for inputs.
-    
-    Args:
-        model: Trained PyTorch model
-        X: Input array of shape (n_samples, input_dim)
-        device: Device to run on
-        return_probs: If True, return probabilities; if False, return class predictions
-        
-    Returns:
-        Array of predictions or probabilities
-    """
     model.eval()
     model = model.to(device)
     
@@ -424,17 +377,7 @@ def get_model_logits(
     X: np.ndarray,
     device: str = 'cpu'
 ) -> np.ndarray:
-    """
-    Get raw logits from model.
-    
-    Args:
-        model: Trained PyTorch model
-        X: Input array
-        device: Device to run on
-        
-    Returns:
-        Array of logits
-    """
+    """This is important for our pipeline as it extract logit embeddings from the model"""
     model.eval()
     model = model.to(device)
     

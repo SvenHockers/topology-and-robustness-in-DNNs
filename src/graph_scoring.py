@@ -23,8 +23,7 @@ def _estimate_sigma_knn_median(
     Estimate the Gaussian kernel scale (sigma) using a *kNN-distance median* heuristic.
 
     IMPORTANT:
-    We do **not** compute all-pairs distances (e.g. via scipy.spatial.distance.pdist),
-    because that is O(n^2) memory and will crash on large datasets (e.g. IMAGE).
+    We do **not** compute all-pairs distances because that is O(n^2) memory and will crash!
     """
     n = int(Z_train.shape[0])
     if n <= 1:

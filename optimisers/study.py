@@ -26,7 +26,7 @@ class TrialRecord:
 
 class StudyStore:
     """
-    Append-only JSONL + a convenience JSON snapshot.
+    Append-only JSONL
     """
 
     def __init__(self, study_dir: Path):

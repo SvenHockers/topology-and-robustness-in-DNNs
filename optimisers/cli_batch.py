@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 """
-Batch optimiser CLI.
-
-Runs a separate optimisation study for every discovered config YAML in a directory
-(recursively by default) and mirrors the config folder structure under an output root.
-"""
+Batch CLI Endpoints for the optimiser"""
 
 import argparse
 import csv

@@ -1,15 +1,8 @@
 from __future__ import annotations
 
 """
-Utility to visualize optimiser runs from `history.jsonl`.
-
+Plotting utility to visualize optimiser runs from `history.jsonl`.
 Designed to be dependency-light (numpy + matplotlib only).
-
-Example:
-  python -m optimisers.plot_history \
-    --history test_out/shapes/history.jsonl \
-    --outdir test_out/shapes/figs \
-    --space optimizers/spaces/topology_basic.yaml
 """
 
 import argparse
@@ -65,12 +58,6 @@ def _encode_params(
     param_order: Sequence[str],
     space_spec_path: Optional[Path],
 ) -> Tuple["np.ndarray", List[str], Dict[str, List[str]]]:
-    """
-    Returns:
-      X: (n, d) numeric matrix suitable for plotting/embedding
-      labels: parameter names aligned with columns
-      cat_levels: mapping param_name -> sorted levels (only for categoricals)
-    """
     import numpy as np  # type: ignore
 
     cat_levels: Dict[str, List[str]] = {}
@@ -150,10 +137,6 @@ def _best_so_far(y: "np.ndarray") -> "np.ndarray":
 
 
 def _rankdata_average_ties(x: "np.ndarray") -> "np.ndarray":
-    """
-    Rank data with average ranks for ties (1..n).
-    Minimal replacement for scipy.stats.rankdata(method="average").
-    """
     import numpy as np  # type: ignore
 
     x = np.asarray(x, dtype=float)
@@ -174,9 +157,6 @@ def _rankdata_average_ties(x: "np.ndarray") -> "np.ndarray":
 
 
 def _spearmanr(x: "np.ndarray", y: "np.ndarray") -> float:
-    """
-    Spearman correlation with average-tie ranks; returns NaN if undefined.
-    """
     import numpy as np  # type: ignore
 
     x = np.asarray(x, dtype=float)
@@ -219,10 +199,6 @@ def _save_scatter_matrix(
     *,
     max_dims: int = 6,
 ) -> None:
-    """
-    Pairwise scatter (upper triangle) + histograms on diagonal.
-    For many dimensions, we keep the first `max_dims`.
-    """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
 
@@ -338,7 +314,7 @@ def _save_pca_embedding(
     out_path: Path,
 ) -> None:
     """
-    2D PCA of the parameter vectors (after standardization), colored by objective.
+    2D PCA of the parameter vectors
     """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
@@ -432,11 +408,6 @@ def _save_top_vs_rest_marginals(
     cat_levels: Mapping[str, List[str]],
     ylabel: str,
 ) -> None:
-    """
-    For each parameter:
-      - numeric: overlay hist for top-fraction vs rest
-      - categorical: bar plot of frequency in top vs rest
-    """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
 
@@ -512,10 +483,6 @@ def _save_binned_performance(
     cat_levels: Mapping[str, List[str]],
     ylabel: str,
 ) -> None:
-    """
-    For numeric params: bin along parameter axis and plot mean +/- 95% CI per bin.
-    For categoricals: bar plot of mean +/- CI per category.
-    """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
 
@@ -600,9 +567,7 @@ def _save_rank_correlation(
     labels: Sequence[str],
     out_path: Path,
 ) -> List[Tuple[str, float]]:
-    """
-    Spearman correlation per parameter (on encoded X). Returns sorted list.
-    """
+
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
 
@@ -645,7 +610,7 @@ def _save_interaction_slices(
     max_numeric: int = 6,
 ) -> bool:
     """
-    Small multiples: objective vs each numeric param, split by a categorical param (2–3 panels).
+    Returns sorted list
     """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
@@ -693,7 +658,7 @@ def _save_interaction_slices(
 
 def _fit_surrogate_rf(X: "np.ndarray", y: "np.ndarray"):
     """
-    Fit a simple surrogate (RandomForestRegressor). Returns model or None if sklearn unavailable.
+    Fits RF
     """
     try:
         from sklearn.ensemble import RandomForestRegressor  # type: ignore
@@ -789,11 +754,6 @@ def _save_partial_dependence(
     top_corrs: Sequence[Tuple[str, float]],
     grid_points: int = 30,
 ) -> None:
-    """
-    Fit a surrogate and plot:
-      - 1D partial dependence for top correlated parameters
-      - 2D PD heatmaps for a couple of common interaction pairs
-    """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
 
@@ -897,10 +857,6 @@ def _write_topk_table(
     cat_levels: Mapping[str, List[str]],
     ylabel: str,
 ) -> None:
-    """
-    Write a compact top-K table (CSV + rendered PNG) showing params + objective.
-    Uses the original `params` dicts for readability.
-    """
     import matplotlib.pyplot as plt  # type: ignore
     import numpy as np  # type: ignore
     import csv

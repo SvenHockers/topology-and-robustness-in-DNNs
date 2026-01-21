@@ -13,11 +13,7 @@ ParamKind = Literal["float", "int", "categorical"]
 @dataclass(frozen=True)
 class ParamSpec:
     """
-    One optimisable parameter that maps onto a dotted config path.
-
-    Example:
-      - name="graph.k", path="graph.k", kind="int", min=5, max=80
-      - name="detector.topo_cov_shrinkage", path="detector.topo_cov_shrinkage", kind="float", min=1e-6, max=1e-1, log=True
+    One optimisable parameter that maps onto a dotted config path
     """
 
     name: str

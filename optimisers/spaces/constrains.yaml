@@ -1,3 +1,4 @@
+# This file sets contrains on the search space allowed, pretty self explanatory why we do this but these are the optimisation parameters
 params:
   - name: graph.topo_preprocess
     path: graph.topo_preprocess

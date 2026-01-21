@@ -10,6 +10,9 @@ from optimisers.gp_optimiser import OptimiserConfig, run_gp_optimisation
 from optimisers.runner_bridge import ObjectiveSpec
 from optimisers.search_space import specs_from_dict
 
+"""
+CLI Endpoints
+"""
 
 def _load_any(path: Path) -> Mapping[str, Any]:
     suf = path.suffix.lower()

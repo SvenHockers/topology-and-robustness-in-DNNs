@@ -41,7 +41,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         plot_main(args[1:])
         return
 
-    # Fallback: treat argv as single-config optimiser args.
+    # fallback to single config ooptimiser arguments
     from optimisers.cli import main as single_main
 
     single_main(args)

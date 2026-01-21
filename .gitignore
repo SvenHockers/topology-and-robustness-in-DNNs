@@ -1,6 +1,8 @@
 # Manually added gitingnore items
 ./venv/ 
 .DS_Store
+.mplcache/
+.cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

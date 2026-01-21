@@ -1,14 +1,8 @@
 """
 Internal runner utilities used by the optimiser to execute the repo pipeline.
-
-This module is the canonical home for the runner implementation.
 """
 
 from __future__ import annotations
-
-# NOTE: This file intentionally mirrors the previous implementation that lived in
-# `runners/runner_lib.py`. Keep behavior identical: do not change defaults, output
-# formats, paths, logs, or side effects.
 
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
@@ -50,7 +44,7 @@ class SuccessCounts:
 
 @dataclass(frozen=True)
 class RunRow:
-    """One row suitable for aggregate CSV/JSON."""
+    """One row for CSV/JSON."""
 
     config_path: str
     output_dir: str
@@ -73,11 +67,6 @@ def _ensure_dir(p: Path) -> None:
 
 
 def _json_safe(x: Any) -> Any:
-    """
-    Convert common scientific Python objects into JSON-serializable structures.
-
-    This is intentionally lightweight (no torch dependency here).
-    """
     # Basic primitives
     if x is None or isinstance(x, (bool, int, float, str)):
         return x
@@ -109,11 +98,6 @@ def _copy_config_snapshot(
     run_dir: Path,
     config_root: Path,
 ) -> Dict[str, str]:
-    """
-    Copy the *original* config file used for this run into the run folder.
-
-    Returns a small dict with snapshot metadata (paths), never raises.
-    """
     out: Dict[str, str] = {}
     try:
         cfg_dir = run_dir / "config"
@@ -136,22 +120,6 @@ def _safe_relpath(path: Path, start: Path) -> str:
         return str(path).replace("\\", "/")
 
 
-def _get_git_commit(repo_root: Path) -> Optional[str]:
-    """
-    Best-effort git commit detection. Returns None if unavailable.
-    """
-    try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(repo_root),
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-        return out or None
-    except Exception:
-        return None
-
-
 def _should_ignore(path: Path, ignore_globs: Sequence[str]) -> bool:
     if not ignore_globs:
         return False
@@ -168,7 +136,7 @@ def discover_configs(
     ignore_globs: Sequence[str],
 ) -> List[Path]:
     """
-    Recursively find configuration files in `subdir_path`.
+    Recursively find configuration files in subdir.
     """
     exts = {("." + e.lstrip(".").lower()) for e in extensions}
     out: List[Path] = []
@@ -190,12 +158,6 @@ def compute_run_dir(
     config_root: Path,
     output_root: Path,
 ) -> Path:
-    """
-    Mirror config structure under `output_root` and strip the config extension.
-
-    Example:
-      config/IMAGE/sweeps/run_00.yaml -> outputs/IMAGE/sweeps/run_00/
-    """
     rel = config_path.resolve().relative_to(config_root.resolve())
     # rel = <subdir>/.../<file.ext>
     rel_parent = rel.parent
@@ -204,9 +166,6 @@ def compute_run_dir(
 
 
 def prepare_run_folders(run_dir: Path) -> Dict[str, Path]:
-    """
-    Create the required output structure for a single run folder.
-    """
     images = run_dir / "images"
     raw = run_dir / "raw"
     raw_features = raw / "features"
@@ -225,9 +184,6 @@ def prepare_run_folders(run_dir: Path) -> Dict[str, Path]:
 
 
 def _setup_run_logger(log_dir: Path, *, verbose: bool) -> logging.Logger:
-    """
-    Create a per-run logger that writes full logs to `logs/run.log`.
-    """
     _ensure_dir(log_dir)
     logger = logging.getLogger(f"run.{log_dir.as_posix()}")
     logger.setLevel(logging.INFO)
@@ -252,24 +208,11 @@ def _setup_run_logger(log_dir: Path, *, verbose: bool) -> logging.Logger:
 
 
 def load_config_any(path: Path) -> "ExperimentConfig":
-    """
-    Load a config from YAML/YML/JSON into ExperimentConfig.
-
-    Notes:
-      - YAML uses ExperimentConfig.from_yaml(), which supports `base:` inheritance.
-      - JSON is interpreted as ExperimentConfig.from_dict().
-    """
     # Import lazily so `--dry-run` works in minimal environments.
     from src.utils import ExperimentConfig  # type: ignore
 
     def _coerce_scalar(x: Any) -> Any:
-        """
-        Best-effort coercion for config values that arrive as strings.
-
-        This is primarily to handle YAML 1.1 edge cases where scientific notation like
-        `1e-04` may be parsed as a string in some environments, which later breaks
-        numeric comparisons inside the pipeline (e.g., `k <= 0` checks).
-        """
+        """ Added because I ran in parsing issues with yaml files """
         if not isinstance(x, str):
             return x
         s = x.strip()
@@ -293,11 +236,9 @@ def load_config_any(path: Path) -> "ExperimentConfig":
 
         # float (incl scientific)
         try:
-            # Only accept if float() consumes the string in a numeric way.
-            # This will correctly parse "1e-04", "0.2", ".5", etc.
+            # Prevent parsing issues 
             f = float(s)
-            # Guard against strings like "nan" / "inf" accidentally getting through
-            # from user configs; keep them as strings unless explicitly needed.
+            # Prevent parsing issues 
             if lo in {"nan", "+nan", "-nan", "inf", "+inf", "-inf", "infinity", "+infinity", "-infinity"}:
                 return x
             return f
@@ -342,22 +283,10 @@ def run_pipeline_from_config(
     make_plots: bool = True,
     run_ood: Optional[bool] = None,
 ) -> "RunResult":
-    """
-    Runner-facing pipeline interface.
-
-    This matches the "config_path + output_dir" calling convention used by batch runners.
-    The underlying repo pipeline (`src.api.run_pipeline`) does not take an output directory;
-    the runner uses `output_dir` for artifact persistence.
-    """
-    _ = output_dir  # reserved for future: pipeline-side artifact writing
-    # Import lazily so `--dry-run` works without third-party deps installed.
+    _ = output_dir  
     from src.api import run_pipeline  # type: ignore
 
-    # Keep batch runs headless + avoid LaTeX popups (e.g. missing `siunitx.sty`).
-    #
-    # IMPORTANT: `src.visualization._ensure_style()` defaults to latex=True when not configured.
-    # So simply changing matplotlib.rcParams isn't enough; we must configure the repo style
-    # to latex=False up-front (unless the user opts in via --enable-latex).
+    # Keep batch runs headless and avoid LaTeX popup warnings the rest off the group doenst have latex installed....
     if not bool(enable_latex):
         os.environ["MPLBACKEND"] = "Agg"
         try:
@@ -372,12 +301,12 @@ def run_pipeline_from_config(
 
             configure_mpl_style(latex=False)
         except Exception:
-            # Visualization is optional; pipeline should continue even if unavailable.
+            # Visualization is optional pipeline continues even if unavailable
             pass
 
     cfg = load_config_any(config_path)
     if device is not None:
-        # Override config. Support "auto" consistently with ExperimentConfig.__post_init__.
+        # load device with safety
         dev = str(device).lower()
         if dev == "auto":
             try:
@@ -388,9 +317,6 @@ def run_pipeline_from_config(
                 cfg.device = "cpu"
         else:
             cfg.device = dev
-    # ripser can emit a noisy warning when n_features > n_points, which can happen
-    # in feature-space topology experiments (e.g., tabular/image embeddings).
-    # This warning is not actionable during batch runs; suppress it for cleaner CLI logs.
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -398,15 +324,6 @@ def run_pipeline_from_config(
             category=UserWarning,
             module=r"ripser\..*",
         )
-        # Important: `src.api.run_pipeline()` only *applies* adv/clean masks when
-        # `max_points_for_scoring` is not None (masking is currently wired through
-        # subsample_masked()). For batch runs we typically don't want subsampling,
-        # but we do want the masking semantics. So when either filtering knob is
-        # enabled and the caller didn't specify a cap, we pass a very large cap.
-        #
-        # This makes "evaluate only successful attacks" actually evaluate only
-        # successful attacks (instead of reporting the success rate but scoring
-        # on all adversarial points).
         effective_max_points = max_points_for_scoring
         if effective_max_points is None and (bool(eval_only_successful_attacks) or bool(filter_clean_to_correct)):
             effective_max_points = 1_000_000_000
@@ -422,10 +339,8 @@ def run_pipeline_from_config(
         )
 
 
+# Again mpl issues
 def _try_save_plot(obj: Any, out_path: Path, logger: logging.Logger) -> bool:
-    """
-    Best-effort: save matplotlib-like figures without importing matplotlib directly.
-    """
     try:
         savefig = getattr(obj, "savefig", None)
         if callable(savefig):
@@ -514,7 +429,7 @@ def _save_score_dict_as_npy(
 
 def extract_success_counts_from_result(res: "RunResult") -> SuccessCounts:
     """
-    Primary path: derive success counts from in-memory pipeline outputs.
+    NOTE: This might be a bit hacky and can cause memory issues...
 
     Adversarial:
       - total: number of adversarial test points (`len(res.attack_test.X_adv)`)
@@ -584,17 +499,6 @@ def extract_success_counts_from_result(res: "RunResult") -> SuccessCounts:
 
 
 def extract_success_counts_from_artifacts(run_dir: Path) -> SuccessCounts:
-    """
-    Fallback shim: attempt to derive success counts from common artifact files.
-
-    Supported (best-effort):
-      - raw/records.jsonl (written by these runners)
-      - metrics/success_counts.json (if already present)
-      - metrics/metrics.json (if it contains obvious fields)
-      - predictions.jsonl / results.json / metrics.json (flat fields)
-
-    If unavailable, returns null counts with a note; never raises.
-    """
     notes: List[str] = []
     metrics_dir = run_dir / "metrics"
     sc_path = metrics_dir / "success_counts.json"
@@ -612,7 +516,7 @@ def extract_success_counts_from_artifacts(run_dir: Path) -> SuccessCounts:
         except Exception as e:
             notes.append(f"failed to read existing success_counts.json: {repr(e)}")
 
-    # Minimal heuristics: look for any JSON file with these fields.
+    # look for any JSON file with these fields.
     for cand in [
         metrics_dir / "metrics.json",
         run_dir / "results.json",
@@ -635,7 +539,6 @@ def extract_success_counts_from_artifacts(run_dir: Path) -> SuccessCounts:
         except Exception as e:
             notes.append(f"failed to parse {cand.name}: {repr(e)}")
 
-    # JSONL heuristic: count booleans if present.
     for jsonl in [run_dir / "raw" / "records.jsonl", run_dir / "predictions.jsonl"]:
         if not jsonl.exists():
             continue
@@ -817,7 +720,7 @@ def run_one_config(
     max_points_for_scoring: Optional[int],
 ) -> RunRow:
     """
-    Execute the pipeline for a single config file and write required artifacts.
+    Execute the pipeline for a single config file
     """
     start = time.time()
     run_dir = compute_run_dir(config_path=config_path, config_root=config_root, output_root=output_root)
@@ -829,7 +732,6 @@ def run_one_config(
     config_snapshot = _copy_config_snapshot(config_path=config_path, run_dir=run_dir, config_root=config_root)
     meta: Dict[str, Any] = {
         "timestamp_utc": _utc_now_iso(),
-        "git_commit": _get_git_commit(repo_root),
         "config_path": str(config_path),
         "config_relpath": _safe_relpath(config_path, config_root),
         "config_snapshot": dict(config_snapshot),
@@ -875,14 +777,10 @@ def run_one_config(
         import numpy as np  # type: ignore
         import math
 
-        # Stage 1: config + pipeline execution
         dev_note = "" if device is None else f", device={device}"
         print(f"[PIPE ] running pipeline (dataset={dataset_name}, model={model_name}{dev_note})")
         logger.info("Stage: run_pipeline (dataset=%s, model=%s, device=%s)", str(dataset_name), str(model_name), str(device))
 
-        # Keep plotting enabled; we save plots generically if returned.
-        # Important for a meaningful adversarial-success count:
-        # the pipeline computes attack success only when `eval_only_successful_attacks=True`.
         res = run_pipeline_from_config(
             config_path=config_path,
             output_dir=run_dir,
@@ -899,7 +797,7 @@ def run_one_config(
 
         logger.info("Stage: pipeline returned; saving artifacts")
 
-        # Persist raw feature arrays ("feature vectors") to raw/features/
+        # save feature vectors
         print(f"[SAVE ] features -> {folders['raw_features']}")
         logger.info("Stage: save feature vectors to %s (export=%s)", str(folders["raw_features"]), str(export_features))
         feature_meta: List[Dict[str, Any]] = []
@@ -948,12 +846,9 @@ def run_one_config(
                 logger=logger,
             )
 
-        # Save a compact metrics.json (repo already has richer reporting utilities; we keep it simple).
+        # save metrics.json
         print(f"[SAVE ] metrics/logs -> {folders['metrics']} , {folders['logs']}")
         logger.info("Stage: write metrics.json to %s", str(folders["metrics"]))
-        # `threshold` can legitimately be None if the detector was not calibrated
-        # (e.g., an early-exit path or a run that skips fitting). Be robust when
-        # serializing metrics.
         _thr = getattr(res.detector, "threshold", None)
         _thr_f = float(_thr) if _thr is not None else math.nan
 
@@ -962,21 +857,20 @@ def run_one_config(
             "dataset_name": str(dataset_name),
             "model_name": str(model_name),
             "threshold": _thr_f,
-            # Make metrics JSON-readable (arrays -> lists, numpy scalars -> python scalars).
+            # make metrics JSON-readable
             "metrics_adv": _json_safe(res.eval.metrics),
             "metrics_ood": None if res.eval_ood is None else _json_safe(res.eval_ood.metrics),
         }
         with (folders["metrics"] / "metrics.json").open("w", encoding="utf-8") as f:
             json.dump(metrics_payload, f, indent=2, sort_keys=True, default=str)
 
-        # Save eval arrays (raw artifacts).
+        # save eval arrays
         logger.info("Stage: write eval npz to %s", str(folders["raw"]))
         np.savez_compressed(
             str(folders["raw"] / "eval_adv.npz"),
             labels=np.asarray(res.eval.labels),
             raw_scores=np.asarray(res.eval.raw_scores),
         )
-        # Also provide split-level convenience arrays (derived from eval_adv labels).
         try:
             lab = np.asarray(res.eval.labels, dtype=int).ravel()
             sc = np.asarray(res.eval.raw_scores, dtype=float).ravel()
@@ -995,7 +889,6 @@ def run_one_config(
                 raw_scores=np.asarray(res.eval_ood.raw_scores),
             )
 
-        # Optional: write a threshold sweep CSV for downstream analysis.
         try:
             from sklearn.metrics import precision_recall_fscore_support  # type: ignore
 
@@ -1041,7 +934,6 @@ def run_one_config(
         except Exception as e:
             logger.info("Failed to write threshold_sweep_adv.csv: %s", repr(e))
 
-        # Save any plots returned by the pipeline to images/
         logger.info("Stage: save plots to %s", str(folders["images"]))
         for k, obj in (res.eval.plots or {}).items():
             if obj is None:
@@ -1053,7 +945,7 @@ def run_one_config(
                     continue
                 _try_save_plot(obj, folders["images"] / f"ood_{k}.png", logger)
 
-        # Additional runner-side plots (best-effort): PR curve for adv detection.
+        # PR curve for adv detection.
         try:
             import matplotlib.pyplot as plt  # type: ignore
 
@@ -1076,14 +968,12 @@ def run_one_config(
         except Exception as e:
             logger.info("Failed to write adv_pr_curve.png: %s", repr(e))
 
-        # Success counts (primary: from RunResult)
         print("[METR] computing adversarial/OOD success counts")
         logger.info("Stage: compute/write success counts")
         counts = extract_success_counts_from_result(res)
         write_success_counts(run_dir, counts)
         _write_summary_log(run_dir, counts)
 
-        # Per-sample record emission (enables robust "shim" extraction later).
         logger.info("Stage: write per-sample records.jsonl")
         write_sample_records_jsonl(run_dir, res, logger)
 
@@ -1124,7 +1014,6 @@ def run_one_config(
         print(f"[FAIL] {config_path} ({dur:.2f}s) - {type(e).__name__}: {e}")
         print(f"[FAIL] wrote traceback to {err_path}")
 
-        # Error breadcrumbs
         with err_path.open("w", encoding="utf-8") as f:
             f.write(err_txt)
 

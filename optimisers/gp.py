@@ -22,11 +22,6 @@ def expected_improvement(
     best_y: float,
     xi: float = 0.01,
 ) -> List[float]:
-    """
-    Expected improvement for *maximization*.
-
-    EI(x) = (mu - best - xi) * Phi(z) + sigma * phi(z), where z = (mu - best - xi) / sigma.
-    """
     out: List[float] = []
     for m, s in zip(mu, sigma):
         s2 = float(max(0.0, s))
@@ -41,11 +36,6 @@ def expected_improvement(
 
 @dataclass(frozen=True)
 class GpConfig:
-    """
-    Configuration for the GP surrogate.
-
-    This uses scikit-learn when available (the repo already uses sklearn in `src/evaluation.py`).
-    """
 
     noise: float = 1e-6
     n_restarts_optimizer: int = 3
@@ -53,9 +43,6 @@ class GpConfig:
 
 
 class GaussianProcessSurrogate:
-    """
-    Thin wrapper around sklearn.gaussian_process.GaussianProcessRegressor.
-    """
 
     def __init__(self, cfg: GpConfig):
         self.cfg = cfg
